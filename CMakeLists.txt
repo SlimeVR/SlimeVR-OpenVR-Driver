@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(SlimeVR-OpenVR-Driver VERSION 0.1.0)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set(DRIVER_NAME "SlimeVR")
 
 include(CTest)
 enable_testing()
@@ -30,6 +31,7 @@ file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 add_library("${PROJECT_NAME}" SHARED "${HEADERS}" "${SOURCES}")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
+target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
 target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}")
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
@@ -41,3 +43,22 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Source Files" FILES 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
+
+# Build
+# Copy driver assets to output folder
+add_custom_command(
+    TARGET ${PROJECT_NAME}
+    PRE_BUILD 
+    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+    ${CMAKE_SOURCE_DIR}/driver/ 
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver
+)
+
+# Copy dll to output folder
+add_custom_command(
+    TARGET ${PROJECT_NAME} 
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy 
+    $<TARGET_FILE:${PROJECT_NAME}>
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/driver_${DRIVER_NAME}$<TARGET_FILE_SUFFIX:${PROJECT_NAME}>
+)
