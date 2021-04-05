@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(SlimeVR-OpenVR-Driver VERSION 0.1.0)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 include(CTest)
 enable_testing()
@@ -25,14 +26,15 @@ endif()
 find_library(OPENVR_LIB openvr_api HINTS "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr/lib/${PLATFORM_NAME}${PROCESSOR_ARCH}/" NO_DEFAULT_PATH )
 
 # Project
-
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 add_library("${PROJECT_NAME}" SHARED "${HEADERS}" "${SOURCES}")
-
 target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
 target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}")
+set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
+
+# IDE Config
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Header Files" FILES ${HEADERS})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Source Files" FILES ${SOURCES})
 
