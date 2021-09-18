@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(SlimeVR-OpenVR-Driver VERSION 0.1.0)
+project(SlimeVR-OpenVR-Driver VERSION 0.2.0)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(DRIVER_NAME "SlimeVR")
 
@@ -35,6 +35,18 @@ target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
 target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}")
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
+
+# Protobuf
+# Installation:
+# Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
+# If you're unsing vcpkg, don't forget to add its directory to PATH for FindProtobuf to find the protobuf
+INCLUDE(FindProtobuf)
+find_package(Protobuf REQUIRED)
+include_directories(${Protobuf_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR}) 
+protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/protobuf.proto")
+SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
+#add_library(proto ${PROTO_HEADER} ${PROTO_SRC})
 
 # IDE Config
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Header Files" FILES ${HEADERS})
