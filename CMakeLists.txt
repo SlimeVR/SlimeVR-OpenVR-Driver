@@ -44,7 +44,7 @@ set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 # WARNING: CLang has an arror building protobuf messages, use MSVC 2019
 INCLUDE(FindProtobuf)
 find_package(Protobuf REQUIRED)
-protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/messages.proto")
+protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
 SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
 add_library(proto ${PROTO_HEADER} ${PROTO_SRC})
 include_directories(${Protobuf_INCLUDE_DIRS})

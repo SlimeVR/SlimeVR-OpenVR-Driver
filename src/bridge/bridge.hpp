@@ -25,4 +25,4 @@
  * and SlimeVR server
  */
 #define BRIDGE_USE_PIPES 1
-#include "messages.pb.h"
+#include "ProtobufMessages.pb.h"

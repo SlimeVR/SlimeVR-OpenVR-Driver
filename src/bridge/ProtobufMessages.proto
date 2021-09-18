@@ -37,14 +37,40 @@ message Position {
     float qz = 7;
     float qw = 8;
     enum DataSource {
-        IMU = 0;
-        CAM = 1;
-        FULL = 2;
+        NONE = 0;
+        IMU = 1;
+        PRECISION = 2;
+        FULL = 3;
     }
     optional DataSource data_source = 9;
 }
 
-message Action {
+message UserAction {
     string name = 1;
     map<string, string> action_arguments = 2;
+}
+
+message TrackerAdded {
+    int32 tracker_id = 1;
+    string tracker_name = 2;
+    string location = 3;
+}
+
+message TrackerStatus {
+    int32 tracker_id = 1;
+    enum Status {
+        DISCONNECTED = 0;
+        OK = 1;
+        BUSY = 2;
+        ERROR = 3;
+        OCCLUDED = 4;
+    }
+    Status status = 2;
+    enum Confidence {
+        NO = 0;
+        LOW = 1;
+        MEDIUM = 5;
+        HIGH = 10;
+    }
+    optional Confidence confidence = 3;
 }
