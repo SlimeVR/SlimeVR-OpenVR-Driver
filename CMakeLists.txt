@@ -39,14 +39,16 @@ set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 # Protobuf
 # Installation:
 # Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
-# If you're unsing vcpkg, don't forget to add its directory to PATH for FindProtobuf to find the protobuf
+# Set env var CMAKE_INCLUDE_PATH to point to vcpkg\installed\x64-windows\include
+# Set env var CMAKE_LIBRARY_PATH to point to vcpkg\installed\x64-windows\lib
+# WARNING: CLang has an arror building protobuf messages, use MSVC 2019
 INCLUDE(FindProtobuf)
 find_package(Protobuf REQUIRED)
+protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/messages.proto")
+SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
+add_library(proto ${PROTO_HEADER} ${PROTO_SRC})
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}) 
-protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/protobuf.proto")
-SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
-#add_library(proto ${PROTO_HEADER} ${PROTO_SRC})
 
 # IDE Config
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Header Files" FILES ${HEADERS})
