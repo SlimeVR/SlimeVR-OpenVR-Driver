@@ -3,6 +3,7 @@
 #include <TrackerDevice.hpp>
 #include <ControllerDevice.hpp>
 #include <TrackingReferenceDevice.hpp>
+#include "bridge/bridge.hpp"
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
 {
@@ -12,86 +13,6 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     }
 
     Log("[SlimeVR] Activating SlimeVR Driver...");
-
-    // Add a HMD
-    //this->AddDevice(std::make_shared<HMDDevice>("Example_HMDDevice"));
-
-    // Add a couple controllers
-    //this->AddDevice(std::make_shared<ControllerDevice>("Example_ControllerDevice_Left", ControllerDevice::Handedness::LEFT));
-    //this->AddDevice(std::make_shared<ControllerDevice>("Example_ControllerDevice_Right", ControllerDevice::Handedness::RIGHT));
-    
-    std::string hmdPipeName = "\\\\.\\pipe\\HMDPipe";
-
-    //open the pipe
-    hmdPipe = CreateFileA(hmdPipeName.c_str(),
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL);
-
-    if (hmdPipe == INVALID_HANDLE_VALUE)
-    {
-        //if connection was unsuccessful, return an error. This means SteamVR will start without this driver running
-        return vr::EVRInitError::VRInitError_Driver_Failed;
-    }
-    //wait for a second to ensure data was sent and next pipe is set up if there is more than one tracker
-
-    Sleep(1000);
-    
-    // Add a tracker
-    char buffer[1024];
-    DWORD dwWritten;
-    DWORD dwRead;
-    
-    //on init, we try to connect to our pipes
-    for (int i = 0; i < pipeNum; i++)
-    {
-        //MessageBoxA(NULL, "It works!  " + pipeNum, "Example Driver", MB_OK);
-        HANDLE pipe;
-        //pipe name, same as in our server program
-        std::string pipeName = "\\\\.\\pipe\\TrackPipe" + std::to_string(i);
-
-        //open the pipe
-        pipe = CreateFileA(pipeName.c_str(),
-            GENERIC_READ | GENERIC_WRITE,
-            0,
-            NULL,
-            OPEN_EXISTING,
-            0,
-            NULL);
-
-        if (pipe == INVALID_HANDLE_VALUE)
-        {
-            //if connection was unsuccessful, return an error. This means SteamVR will start without this driver running
-            return vr::EVRInitError::VRInitError_Driver_Failed;
-        }
-
-        //wait for a second to ensure data was sent and next pipe is set up if there is more than one tracker
-        Sleep(1000);
-
-        //read the number of pipes and smoothing factor from the pipe
-        if (ReadFile(pipe, buffer, sizeof(buffer) - 1, &dwRead, NULL) != FALSE)
-        {
-            //we receive raw data, so we first add terminating zero and save to a string.
-            buffer[dwRead] = '\0'; //add terminating zero
-            std::string s = buffer;
-            //from a string, we convert to a string stream for easier reading of each sent value
-            std::istringstream iss(s);
-            //read each value into our variables
-
-            iss >> pipeNum;
-            iss >> smoothFactor;
-        }
-        //save our pipe to global
-        this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+std::to_string(i),pipe, i));
-    }
-    
-    // Add a couple tracking references
-    //this->AddDevice(std::make_shared<TrackingReferenceDevice>("Example_TrackingReference_A"));
-    //this->AddDevice(std::make_shared<TrackingReferenceDevice>("Example_TrackingReference_B"));
-    
     Log("[SlimeVR] SlimeVR Driver Loaded Successfully");
 
 	return vr::VRInitError_None;
@@ -120,6 +41,17 @@ void SlimeVRDriver::VRDriver::RunFrame()
     // Update devices
     for (auto& device : this->devices_)
         device->Update();
+    
+    runBridgeFrame();
+    ProtobufMessage message = {};
+    while(getNextBridgeMessage(message)) {
+        if(message.has_tracker_added()) {
+            TrackerAdded ta = message.tracker_added();
+            this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+ ta.tracker_id(), ta.tracker_id()));
+        } else if(message.has_position()) {
+
+        }
+    }
 
     vr::TrackedDevicePose_t hmd_pose[10];
     vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);

@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.0.0)
+
+# Edit this to target your vcpkg toolchain
+set(CMAKE_TOOLCHAIN_FILE "C:/_work/vcpkg/scripts/buildsystems/vcpkg.cmake")
+
 project(SlimeVR-OpenVR-Driver VERSION 0.2.0)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(DRIVER_NAME "SlimeVR")
@@ -26,29 +30,26 @@ endif()
 
 find_library(OPENVR_LIB openvr_api HINTS "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr/lib/${PLATFORM_NAME}${PROCESSOR_ARCH}/" NO_DEFAULT_PATH )
 
-# Project
-file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
-file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-add_library("${PROJECT_NAME}" SHARED "${HEADERS}" "${SOURCES}")
-target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
-target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg")
-target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
-target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}")
-set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
-
 # Protobuf
 # Installation:
 # Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
-# Set env var CMAKE_INCLUDE_PATH to point to vcpkg\installed\x64-windows\include
-# Set env var CMAKE_LIBRARY_PATH to point to vcpkg\installed\x64-windows\lib
 # WARNING: CLang has an arror building protobuf messages, use MSVC 2019
 INCLUDE(FindProtobuf)
-find_package(Protobuf REQUIRED)
+find_package(protobuf CONFIG REQUIRED)
 protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
 SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
-add_library(proto ${PROTO_HEADER} ${PROTO_SRC})
+
+# Project
+file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
+file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+add_library("${PROJECT_NAME}" SHARED "${HEADERS}" "${SOURCES}" ${PROTO_HEADER} ${PROTO_SRC})
+target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
+target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg")
+target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
+target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}" protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
+set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 include_directories(${Protobuf_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_BINARY_DIR}) 
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # IDE Config
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Header Files" FILES ${HEADERS})

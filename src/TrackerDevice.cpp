@@ -41,8 +41,6 @@ void SlimeVRDriver::TrackerDevice::Update()
         }
     }
 
-    // Setup pose for this frame
-    auto pose = this->last_pose_;
     
     if (PeekNamedPipe(hpipe, NULL, 0, NULL, &dwRead, NULL) != FALSE)
     {
@@ -80,24 +78,32 @@ void SlimeVRDriver::TrackerDevice::Update()
                 iss >> qy;
                 iss >> qz;
 
-                //send the new position and rotation from the pipe to the tracker object
-                pose.vecPosition[0] = a;
-                pose.vecPosition[1] = b;
-                pose.vecPosition[2] = c;
-
-                pose.qRotation.w = qw;
-                pose.qRotation.x = qx;
-                pose.qRotation.y = qy;
-                pose.qRotation.z = qz;
-
-                // Post pose
-                GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
-                this->last_pose_ = pose;
+                
             }
         }
     } 
     
 
+}
+
+void SlimeVRDriver::TrackerDevice::positionMessage(Position &position)
+{
+    
+    // Setup pose for this frame
+    auto pose = this->last_pose_;
+    //send the new position and rotation from the pipe to the tracker object
+    pose.vecPosition[0] = position.x();
+    pose.vecPosition[1] = position.y();
+    pose.vecPosition[2] = position.z();
+
+    pose.qRotation.w = position.qw();
+    pose.qRotation.x = position.qx();
+    pose.qRotation.y = position.qy();
+    pose.qRotation.z = position.qz();
+
+    // Post pose
+    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
+    this->last_pose_ = pose;
 }
 
 DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType()

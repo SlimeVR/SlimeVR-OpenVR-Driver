@@ -24,5 +24,23 @@
  * Header file for cross-platform handling of IPC between SteamVR driver/app
  * and SlimeVR server
  */
+#pragma once
+
 #define BRIDGE_USE_PIPES 1
 #include "ProtobufMessages.pb.h"
+#include <variant>
+#include <optional>
+
+using namespace dev::slimevr::bridge;
+
+enum BridgeStatus {
+    BRIDGE_DISCONNECTED = 0,
+    BRIDGE_CONNECTED = 1,
+    BRIDGE_ERROR = 2
+};
+
+BridgeStatus runBridgeFrame();
+
+bool getNextBridgeMessage(ProtobufMessage &message);
+
+bool sendBridgeMEssage(ProtobufMessage &message);

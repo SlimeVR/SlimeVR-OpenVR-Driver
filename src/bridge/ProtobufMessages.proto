@@ -74,3 +74,12 @@ message TrackerStatus {
     }
     optional Confidence confidence = 3;
 }
+
+message ProtobufMessage {
+    oneof message {
+        Position position = 1;
+        UserAction user_action = 2;
+        TrackerAdded tracker_added = 3;
+        TrackerStatus tracker_status = 4;
+    }
+}

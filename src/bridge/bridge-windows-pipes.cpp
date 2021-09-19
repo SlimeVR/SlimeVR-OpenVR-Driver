@@ -25,8 +25,95 @@
  * on named pipes
  */
 #include "bridge.hpp"
-#if defined(PLATFORM_WINDOWS) && defined(BRIDGE_USE_PIPES)
+#if defined(WIN32) && defined(BRIDGE_USE_PIPES)
+#include <windows.h>
 
+#define PIPE_NAME "\\\\.\\pipe\\SlimeVRDriver"
+
+unsigned long lastReconnectFrame = 0;
+
+HANDLE pipe = INVALID_HANDLE_VALUE;
+BridgeStatus currentBridgeStatus = BRIDGE_DISCONNECTED;
+char buffer[1024];
+
+void updatePipe();
+void resetPipe();
+void attemptPipeConnect();
+
+BridgeStatus runBridgeFrame() {
+    switch(currentBridgeStatus) {
+        case BRIDGE_DISCONNECTED:
+            attemptPipeConnect();
+        break;
+        case BRIDGE_ERROR:
+            resetPipe();
+        break;
+        case BRIDGE_CONNECTED:
+            updatePipe();
+        break;
+    }
+
+    return currentBridgeStatus;
+}
+
+bool getNextBridgeMessage(ProtobufMessage &message) {
+    DWORD dwRead;
+    DWORD dwAvailable;
+    if(currentBridgeStatus == BRIDGE_CONNECTED) {
+        if(PeekNamedPipe(pipe, buffer, 4, &dwRead, &dwAvailable, NULL)) {
+            if(dwRead == 4) {
+                uint32_t messageLength = *reinterpret_cast<uint32_t*>(buffer);
+                if(messageLength > 1024) {
+                    // TODO Buffer overflow
+                }
+                if(dwAvailable >= messageLength) {
+                    if(ReadFile(pipe, buffer, messageLength, &dwRead, NULL)) {
+                        if(message.ParseFromArray(buffer + 4, messageLength - 4))
+                            return true;
+                    } else {
+                        currentBridgeStatus = BRIDGE_ERROR;
+                    }
+                }
+            }
+        } else {
+            currentBridgeStatus = BRIDGE_ERROR;
+        }
+    }
+    return false;
+}
+
+bool sendBridgeMEssage(ProtobufMessage &message) {
+    if(currentBridgeStatus == BRIDGE_CONNECTED) {
+
+    }
+    return false;
+}
+
+void updatePipe() {
+}
+
+void resetPipe() {
+    if(pipe != INVALID_HANDLE_VALUE) {
+        CloseHandle(pipe);
+        pipe = INVALID_HANDLE_VALUE;
+        currentBridgeStatus = BRIDGE_DISCONNECTED;
+    }
+}
+
+void attemptPipeConnect() {
+    pipe = CreateFileA(PIPE_NAME,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        0, // TODO : Overlapped
+        NULL);
+    if(pipe != INVALID_HANDLE_VALUE) {
+        currentBridgeStatus = BRIDGE_CONNECTED;
+        // Log connected
+        return;
+    }
+}
 
 
 #endif // PLATFORM_WINDOWS && BRIDGE_USE_PIPES
