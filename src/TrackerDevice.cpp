@@ -1,8 +1,8 @@
 #include "TrackerDevice.hpp"
 #include <Windows.h>
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, HANDLE pipe, int deviceId):
-    serial_(serial), hpipe(pipe)
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int deviceId):
+    serial_(serial)
 {
 	this->deviceId = deviceId;
     this->last_pose_ = MakeDefaultPose();
@@ -40,50 +40,6 @@ void SlimeVRDriver::TrackerDevice::Update()
             this->vibrate_anim_state_ = 0.0f;
         }
     }
-
-    
-    if (PeekNamedPipe(hpipe, NULL, 0, NULL, &dwRead, NULL) != FALSE)
-    {
-        //if data is ready,
-        if (dwRead > 0)
-        {
-            //we go and read it into our buffer
-            if (ReadFile(hpipe, buffer, sizeof(buffer) - 1, &dwRead, NULL) != FALSE)
-            {
-
-                buffer[dwRead] = '\0'; //add terminating zero
-                //convert our buffer to string
-                std::string s = buffer;
-
-                //first three variables are a position vector
-                double a;
-                double b;
-                double c;
-
-                //second four are rotation quaternion
-                double qw;
-                double qx;
-                double qy;
-                double qz;
-
-                //convert to string stream
-                std::istringstream iss(s);
-
-                //read to our variables
-                iss >> a;
-                iss >> b;
-                iss >> c;
-                iss >> qw;
-                iss >> qx;
-                iss >> qy;
-                iss >> qz;
-
-                
-            }
-        }
-    } 
-    
-
 }
 
 void SlimeVRDriver::TrackerDevice::positionMessage(Position &position)

@@ -43,4 +43,4 @@ BridgeStatus runBridgeFrame();
 
 bool getNextBridgeMessage(ProtobufMessage &message);
 
-bool sendBridgeMEssage(ProtobufMessage &message);
+bool sendBridgeMessage(ProtobufMessage &message);

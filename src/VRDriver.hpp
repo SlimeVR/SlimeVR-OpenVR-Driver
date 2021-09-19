@@ -37,7 +37,6 @@ namespace SlimeVRDriver {
         virtual ~VRDriver() = default;
 
     private:
-        HANDLE hmdPipe;
         std::vector<std::shared_ptr<IVRDevice>> devices_;
         std::vector<vr::VREvent_t> openvr_events_;
         std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
@@ -47,7 +46,6 @@ namespace SlimeVRDriver {
         vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t matrix);
         vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t matrix);
 
-        int pipeNum = 1;
-        double smoothFactor = 0.2;
+        bool sentHmdAddMessage = false;
     };
 };

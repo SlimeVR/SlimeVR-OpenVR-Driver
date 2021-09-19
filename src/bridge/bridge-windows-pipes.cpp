@@ -62,7 +62,7 @@ bool getNextBridgeMessage(ProtobufMessage &message) {
     if(currentBridgeStatus == BRIDGE_CONNECTED) {
         if(PeekNamedPipe(pipe, buffer, 4, &dwRead, &dwAvailable, NULL)) {
             if(dwRead == 4) {
-                uint32_t messageLength = *reinterpret_cast<uint32_t*>(buffer);
+                uint32_t messageLength = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
                 if(messageLength > 1024) {
                     // TODO Buffer overflow
                 }
@@ -82,9 +82,19 @@ bool getNextBridgeMessage(ProtobufMessage &message) {
     return false;
 }
 
-bool sendBridgeMEssage(ProtobufMessage &message) {
+bool sendBridgeMessage(ProtobufMessage &message) {
     if(currentBridgeStatus == BRIDGE_CONNECTED) {
-
+        int size = message.ByteSize();
+        message.SerializeToArray(buffer + 4, size);
+        size += 4;
+        buffer[0] = size & 0xFF;
+        buffer[1] = (size >> 8) & 0xFF;
+        buffer[2] = (size >> 16) & 0xFF;
+        buffer[3] = (size >> 24) & 0xFF;
+        if(WriteFile(pipe, buffer, size, NULL, NULL)) {
+            return true;
+        }
+        currentBridgeStatus = BRIDGE_ERROR;
     }
     return false;
 }

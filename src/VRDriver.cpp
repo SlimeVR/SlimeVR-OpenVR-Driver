@@ -42,39 +42,52 @@ void SlimeVRDriver::VRDriver::RunFrame()
     for (auto& device : this->devices_)
         device->Update();
     
-    runBridgeFrame();
-    ProtobufMessage message = {};
-    while(getNextBridgeMessage(message)) {
-        if(message.has_tracker_added()) {
-            TrackerAdded ta = message.tracker_added();
-            this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+ ta.tracker_id(), ta.tracker_id()));
-        } else if(message.has_position()) {
+    BridgeStatus status = runBridgeFrame();
+    if(status == BRIDGE_CONNECTED) {
+        ProtobufMessage message = {};
+        // Read all messages from the bridge
+        while(getNextBridgeMessage(message)) {
+            if(message.has_tracker_added()) {
+                TrackerAdded ta = message.tracker_added();
+                this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+ ta.tracker_id(), ta.tracker_id()));
+            } else if(message.has_position()) {
 
+            }
         }
+
+        if(!sentHmdAddMessage) {
+            // Send add message for HMD
+            message.Clear();
+            TrackerAdded trackerAdded = {};
+            message.set_allocated_tracker_added(&trackerAdded);
+            trackerAdded.set_location("HMD");
+            trackerAdded.set_tracker_id(0);
+            trackerAdded.set_tracker_name("HMD");
+            sendBridgeMessage(message);
+        }
+
+        vr::TrackedDevicePose_t hmd_pose[10];
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
+
+        vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
+        vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
+
+        message.Clear();
+        Position hmdPosition = {};
+        message.set_allocated_position(&hmdPosition);
+
+        hmdPosition.set_tracker_id(0);
+        hmdPosition.set_data_source(Position_DataSource_FULL);
+        hmdPosition.set_x(pos.v[0]);
+        hmdPosition.set_y(pos.v[1]);
+        hmdPosition.set_z(pos.v[2]);
+        hmdPosition.set_qx(q.x);
+        hmdPosition.set_qy(q.y);
+        hmdPosition.set_qz(q.z);
+        hmdPosition.set_qw(q.w);
+
+        sendBridgeMessage(message);
     }
-
-    vr::TrackedDevicePose_t hmd_pose[10];
-    vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
-
-    vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
-    vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
-
-    std::string s;
-    s = std::to_string(pos.v[0]) +
-        " " + std::to_string(pos.v[1]) +
-        " " + std::to_string(pos.v[2]) +
-        " " + std::to_string(q.w) +
-        " " + std::to_string(q.x) +
-        " " + std::to_string(q.y) +
-        " " + std::to_string(q.z) + "\n";
-
-    DWORD dwWritten;
-    WriteFile(hmdPipe,
-        s.c_str(),
-        (s.length() + 1),   // = length of string + terminating '\0' !!!
-        &dwWritten,
-        NULL);
-    
 }
 
 bool SlimeVRDriver::VRDriver::ShouldBlockStandbyMode()

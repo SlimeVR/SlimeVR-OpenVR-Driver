@@ -19,7 +19,7 @@ namespace SlimeVRDriver {
     class TrackerDevice : public IVRDevice {
         public:
 
-            TrackerDevice(std::string serial, HANDLE pipe, int deviceId);
+            TrackerDevice(std::string serial, int deviceId);
             ~TrackerDevice() = default;
 
             // Inherited via IVRDevice
@@ -34,11 +34,10 @@ namespace SlimeVRDriver {
             virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
             virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
             virtual vr::DriverPose_t GetPose() override;
-            virtual void SlimeVRDriver::TrackerDevice::positionMessage(Position &position);
+            virtual void positionMessage(Position &position);
     private:
         vr::TrackedDeviceIndex_t device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;
-        HANDLE hpipe;
         bool isSetup;
 
         char buffer[1024];
