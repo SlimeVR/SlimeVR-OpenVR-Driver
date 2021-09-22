@@ -18,7 +18,7 @@ namespace SlimeVRDriver {
                 ANY
             };
 
-            ControllerDevice(std::string serial, Handedness handedness = Handedness::ANY);
+            ControllerDevice(std::string serial, int deviceId, Handedness handedness = Handedness::ANY);
             ~ControllerDevice() = default;
 
             // Inherited via IVRDevice
@@ -34,6 +34,8 @@ namespace SlimeVRDriver {
             virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
             virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
             virtual vr::DriverPose_t GetPose() override;
+            virtual int getDeviceId() override;
+            virtual void PositionMessage(messages::Position &position) override;
 
     private:
         vr::TrackedDeviceIndex_t device_index_ = vr::k_unTrackedDeviceIndexInvalid;
@@ -43,6 +45,7 @@ namespace SlimeVRDriver {
         vr::DriverPose_t last_pose_;
 
         bool did_vibrate_ = false;
+		int deviceId_;
         float vibrate_anim_state_ = 0.f;
 
         vr::VRInputComponentHandle_t haptic_component_ = 0;

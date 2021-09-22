@@ -1,10 +1,10 @@
 #include "TrackerDevice.hpp"
 #include <Windows.h>
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int deviceId):
-    serial_(serial)
+
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int deviceId, TrackerRole trackerRole_):
+    serial_(serial), trackerRole(trackerRole_), deviceId_(deviceId)
 {
-	this->deviceId = deviceId;
     this->last_pose_ = MakeDefaultPose();
     this->isSetup = false;
 }
@@ -42,9 +42,8 @@ void SlimeVRDriver::TrackerDevice::Update()
     }
 }
 
-void SlimeVRDriver::TrackerDevice::positionMessage(Position &position)
+void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
 {
-    
     // Setup pose for this frame
     auto pose = this->last_pose_;
     //send the new position and rotation from the pipe to the tracker object
@@ -81,12 +80,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
     // Get the properties handle
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
 
-    // Setup inputs and outputs
-    //GetDriver()->GetInput()->CreateHapticComponent(props, "/output/haptic", &this->haptic_component_);
-
-    //GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", &this->system_click_component_);
-    //GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/touch", &this->system_touch_component_);
-
     // Set some universe ID (Must be 2 or higher)
     GetDriver()->GetProperties()->SetUint64Property(props, vr::Prop_CurrentUniverseId_Uint64, 4);
     
@@ -95,12 +88,11 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
 
     // Opt out of hand selection
 	GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
+    vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
+    vr::VRProperties()->SetInt32Property(props, vr::Prop_ControllerHandSelectionPriority_Int32, -1);
 
     // Set up a render model path
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
-
-    // Set controller profile
-    //GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/example_tracker_bindings.json");
 
     // Set the icon
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceReady_String, "{slimevr}/icons/tracker_ready.png");
@@ -113,18 +105,14 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_not_ready.png");
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_not_ready.png");
 
-	switch (deviceId)
-	{
-	case 0:
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "vive_tracker_waist");
-		break;
-	case 1:
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "vive_tracker_left_foot");
-		break;
-	case 2:
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "vive_tracker_right_foot");
-		break;
-	}
+    // Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
+    auto roleHint = getViveRoleHint(trackerRole);
+    if(roleHint != "")
+	    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, roleHint.c_str());
+
+    auto role = getViveRole(trackerRole);
+    if(role != "")
+        vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + this->serial_).c_str(), role.c_str());
 
     return vr::EVRInitError::VRInitError_None;
 }
@@ -154,3 +142,7 @@ vr::DriverPose_t SlimeVRDriver::TrackerDevice::GetPose()
     return last_pose_;
 }
 
+int SlimeVRDriver::TrackerDevice::getDeviceId()
+{
+    return deviceId_;
+}

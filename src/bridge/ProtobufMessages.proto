@@ -25,7 +25,7 @@
  */
 syntax = "proto3";
 
-package dev.slimevr.bridge;
+package messages;
 
 message Position {
     int32 tracker_id = 1;
@@ -53,7 +53,8 @@ message UserAction {
 message TrackerAdded {
     int32 tracker_id = 1;
     string tracker_name = 2;
-    string location = 3;
+    int32 tracker_role = 3;
+    string location = 4;
 }
 
 message TrackerStatus {

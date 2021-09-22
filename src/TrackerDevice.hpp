@@ -14,12 +14,13 @@
 #include <iostream>
 #include <string>
 #include "bridge/bridge.hpp"
+#include "TrackerRole.hpp"
 
 namespace SlimeVRDriver {
     class TrackerDevice : public IVRDevice {
         public:
 
-            TrackerDevice(std::string serial, int deviceId);
+            TrackerDevice(std::string serial, int deviceId, TrackerRole trackerRole);
             ~TrackerDevice() = default;
 
             // Inherited via IVRDevice
@@ -34,7 +35,8 @@ namespace SlimeVRDriver {
             virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
             virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
             virtual vr::DriverPose_t GetPose() override;
-            virtual void positionMessage(Position &position);
+            virtual int getDeviceId() override;
+            virtual void PositionMessage(messages::Position &position) override;
     private:
         vr::TrackedDeviceIndex_t device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;
@@ -43,7 +45,8 @@ namespace SlimeVRDriver {
         char buffer[1024];
         DWORD dwWritten;
         DWORD dwRead;
-		int deviceId;
+		int deviceId_;
+        TrackerRole trackerRole;
 
         vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
 

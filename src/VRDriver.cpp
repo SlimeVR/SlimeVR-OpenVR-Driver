@@ -4,6 +4,7 @@
 #include <ControllerDevice.hpp>
 #include <TrackingReferenceDevice.hpp>
 #include "bridge/bridge.hpp"
+#include "TrackerRole.hpp"
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
 {
@@ -31,7 +32,7 @@ void SlimeVRDriver::VRDriver::RunFrame()
     {
         events.push_back(event);
     }
-    this->openvr_events_ = events;
+    this->openvr_events_ = std::move(events);
 
     // Update frame timing
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
@@ -39,26 +40,34 @@ void SlimeVRDriver::VRDriver::RunFrame()
     this->last_frame_time_ = now;
 
     // Update devices
-    for (auto& device : this->devices_)
+    for(auto& device : this->devices_)
         device->Update();
     
     BridgeStatus status = runBridgeFrame();
     if(status == BRIDGE_CONNECTED) {
-        ProtobufMessage message = {};
+        messages::ProtobufMessage message = {};
         // Read all messages from the bridge
         while(getNextBridgeMessage(message)) {
             if(message.has_tracker_added()) {
-                TrackerAdded ta = message.tracker_added();
-                this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+ ta.tracker_id(), ta.tracker_id()));
+                messages::TrackerAdded ta = message.tracker_added();
+                switch(getDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
+                    case DeviceType::TRACKER:
+                        this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+ ta.tracker_id(),  ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
+                    break;
+                }
             } else if(message.has_position()) {
-
+                messages::Position pos = message.position();
+                auto device = this->devices_by_id.find(pos.tracker_id());
+                if(device != this->devices_by_id.end()) {
+                    device->second->PositionMessage(pos);
+                }
             }
         }
 
         if(!sentHmdAddMessage) {
             // Send add message for HMD
             message.Clear();
-            TrackerAdded trackerAdded = {};
+            messages::TrackerAdded trackerAdded = {};
             message.set_allocated_tracker_added(&trackerAdded);
             trackerAdded.set_location("HMD");
             trackerAdded.set_tracker_id(0);
@@ -73,11 +82,11 @@ void SlimeVRDriver::VRDriver::RunFrame()
         vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
 
         message.Clear();
-        Position hmdPosition = {};
+        messages::Position hmdPosition = {};
         message.set_allocated_position(&hmdPosition);
 
         hmdPosition.set_tracker_id(0);
-        hmdPosition.set_data_source(Position_DataSource_FULL);
+        hmdPosition.set_data_source(messages::Position_DataSource_FULL);
         hmdPosition.set_x(pos.v[0]);
         hmdPosition.set_y(pos.v[1]);
         hmdPosition.set_z(pos.v[2]);
@@ -87,6 +96,9 @@ void SlimeVRDriver::VRDriver::RunFrame()
         hmdPosition.set_qw(q.w);
 
         sendBridgeMessage(message);
+    } else {
+        // If bridge not connected, assume we need to resend hmd tracker add message
+        sentHmdAddMessage = false;
     }
 }
 
@@ -139,8 +151,10 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device)
             return false;
     }
     bool result = vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get());
-    if(result)
+    if(result) {
         this->devices_.push_back(device);
+        this->devices_by_id[device->getDeviceId()] = device;
+    }
     return result;
 }
 
@@ -198,7 +212,7 @@ vr::IVRServerDriverHost* SlimeVRDriver::VRDriver::GetDriverHost()
 // from: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
 //-----------------------------------------------------------------------------
 
-vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t matrix) {
+vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t &matrix) {
     vr::HmdQuaternion_t q;
 
     q.w = sqrt(fmax(0, 1 + matrix.m[0][0] + matrix.m[1][1] + matrix.m[2][2])) / 2;
@@ -215,7 +229,7 @@ vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t matri
 // from: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
 //-----------------------------------------------------------------------------
 
-vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t matrix) {
+vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t &matrix) {
     vr::HmdVector3_t vector;
 
     vector.v[0] = matrix.m[0][3];

@@ -1,7 +1,8 @@
 #include "HMDDevice.hpp"
 #include <Windows.h>
 
-SlimeVRDriver::HMDDevice::HMDDevice(std::string serial):serial_(serial)
+SlimeVRDriver::HMDDevice::HMDDevice(std::string serial, int deviceId):
+    serial_(serial), deviceId_(deviceId)
 {
 }
 
@@ -52,6 +53,25 @@ void SlimeVRDriver::HMDDevice::Update()
     pose.vecPosition[0] = (float) this->pos_x_;
     pose.vecPosition[1] = (float) this->pos_y_;
     pose.vecPosition[2] = (float) this->pos_z_;
+
+    // Post pose
+    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
+    this->last_pose_ = pose;
+}
+
+void SlimeVRDriver::HMDDevice::PositionMessage(messages::Position &position)
+{
+    // Setup pose for this frame
+    auto pose = this->last_pose_;
+    //send the new position and rotation from the pipe to the tracker object
+    pose.vecPosition[0] = position.x();
+    pose.vecPosition[1] = position.y();
+    pose.vecPosition[2] = position.z();
+
+    pose.qRotation.w = position.qw();
+    pose.qRotation.x = position.qx();
+    pose.qRotation.y = position.qy();
+    pose.qRotation.z = position.qz();
 
     // Post pose
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
@@ -220,4 +240,9 @@ vr::DistortionCoordinates_t SlimeVRDriver::HMDDevice::ComputeDistortion(vr::EVRE
     coordinates.rfRed[0] = fU;
     coordinates.rfRed[1] = fV;
     return coordinates;
+}
+
+int SlimeVRDriver::HMDDevice::getDeviceId()
+{
+    return deviceId_;
 }

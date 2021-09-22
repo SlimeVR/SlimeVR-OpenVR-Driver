@@ -20,25 +20,38 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 */
-/**
- * Header file for cross-platform handling of IPC between SteamVR driver/app
- * and SlimeVR server
- */
 #pragma once
 
-#define BRIDGE_USE_PIPES 1
-#include "ProtobufMessages.pb.h"
-#include <variant>
-#include <optional>
+#include <string>
+#include "DeviceType.hpp"
 
-enum BridgeStatus {
-    BRIDGE_DISCONNECTED = 0,
-    BRIDGE_CONNECTED = 1,
-    BRIDGE_ERROR = 2
+enum TrackerRole {
+    NONE = 0,
+    WAIST = 1,
+    LEFT_FOOT = 2,
+    RIGHT_FOOT = 3,
+    CHEST = 4,
+    LEFT_KNEE = 5,
+    RIGHT_KNEE = 6,
+    LEFT_ELBOW = 7,
+    RIGHT_ELBOW = 8,
+    LEFT_SHOULDER = 9,
+    RIGHT_SHOULDER = 10,
+    LEFT_HAND = 11,
+    RIGHT_HAND = 12,
+    LEFT_CONTROLLER = 13,
+    RIGHT_CONTROLLER = 14,
+    HEAD = 15,
+    NECK = 16,
+    CAMERA = 17,
+    KEYBOARD = 18,
+    HMD = 19,
+    BEACON = 20,
+    GENERIC_CONTROLLER = 21,
 };
 
-BridgeStatus runBridgeFrame();
+std::string getViveRoleHint(TrackerRole role);
 
-bool getNextBridgeMessage(messages::ProtobufMessage &message);
+std::string getViveRole(TrackerRole role);
 
-bool sendBridgeMessage(messages::ProtobufMessage &message);
+DeviceType getDeviceType(TrackerRole role);
