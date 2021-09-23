@@ -20,12 +20,26 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 */
-/**
- * Define all Proto Buffer messages that server and driver/app can exchange
+/*
+ Define all Proto Buffer messages that server and driver/app can exchange
  */
 syntax = "proto3";
 
 package messages;
+
+/**
+ Tracker designations clarifications
+
+ tracker_id field contains internal tracker id of a tracker on the SENDING side. Recieving
+ side can have their own ids, names, serials, etc. If two sides exchange tracker information
+ in both ways, they're allowed to reuse tracker ids for the trackers they create themselves.
+
+ tracker_name is user-readable descriptive name of a tracker, it is allowed to be non-unique.
+
+ tracker_serial is unique identificator of a tracker on the sender side, can be used to remap
+ trackers from one id to another during reconnect or session restart, or to save persistent
+ data or configuration between sessions
+ */
 
 message Position {
     int32 tracker_id = 1;
@@ -52,9 +66,9 @@ message UserAction {
 
 message TrackerAdded {
     int32 tracker_id = 1;
-    string tracker_name = 2;
-    int32 tracker_role = 3;
-    string location = 4;
+    string tracker_serial = 2;
+    string tracker_name = 3;
+    int32 tracker_role = 4;
 }
 
 message TrackerStatus {
@@ -67,13 +81,14 @@ message TrackerStatus {
         OCCLUDED = 4;
     }
     Status status = 2;
+    map<string, string> extra = 3;
     enum Confidence {
         NO = 0;
         LOW = 1;
         MEDIUM = 5;
         HIGH = 10;
     }
-    optional Confidence confidence = 3;
+    optional Confidence confidence = 4;
 }
 
 message ProtobufMessage {

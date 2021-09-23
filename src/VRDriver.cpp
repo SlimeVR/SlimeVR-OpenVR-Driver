@@ -69,8 +69,8 @@ void SlimeVRDriver::VRDriver::RunFrame()
             message.Clear();
             messages::TrackerAdded trackerAdded = {};
             message.set_allocated_tracker_added(&trackerAdded);
-            trackerAdded.set_location("HMD");
             trackerAdded.set_tracker_id(0);
+            trackerAdded.set_tracker_serial("HMD");
             trackerAdded.set_tracker_name("HMD");
             sendBridgeMessage(message);
         }
