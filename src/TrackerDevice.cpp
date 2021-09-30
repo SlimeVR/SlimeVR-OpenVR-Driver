@@ -47,9 +47,11 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     // Setup pose for this frame
     auto pose = this->last_pose_;
     //send the new position and rotation from the pipe to the tracker object
-    pose.vecPosition[0] = position.x();
-    pose.vecPosition[1] = position.y();
-    pose.vecPosition[2] = position.z();
+    if(position.has_x()) {
+        pose.vecPosition[0] = position.x();
+        pose.vecPosition[1] = position.y();
+        pose.vecPosition[2] = position.z();
+    }
 
     pose.qRotation.w = position.qw();
     pose.qRotation.x = position.qx();

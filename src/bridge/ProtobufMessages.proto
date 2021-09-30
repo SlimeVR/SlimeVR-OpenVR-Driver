@@ -41,11 +41,19 @@ package messages;
  data or configuration between sessions
  */
 
+/**
+ * Can be send each frame if there is nothing else to send,
+ * signaling to the other side that we're alive and ready to
+ * recieve messages this frame.
+ */
+message PingPong {
+}
+
 message Position {
     int32 tracker_id = 1;
-    float x = 2;
-    float y = 3;
-    float z = 4;
+    optional float x = 2;
+    optional float y = 3;
+    optional float z = 4;
     float qx = 5;
     float qy = 6;
     float qz = 7;
