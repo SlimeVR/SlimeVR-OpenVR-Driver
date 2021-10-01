@@ -84,7 +84,7 @@ void SlimeVRDriver::VRDriver::RunFrame()
             trackerStatus->set_tracker_id(0);
             trackerStatus->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
             sendBridgeMessage(*message, *this);
-            
+
             sentHmdAddMessage = true;
             Log("Sent HMD hello message");
         }

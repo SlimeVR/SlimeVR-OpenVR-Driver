@@ -60,8 +60,7 @@ namespace SlimeVRDriver {
         virtual vr::DriverPose_t GetPose() = 0;
 
         virtual int getDeviceId() = 0;
-        virtual void PositionMessage(messages::Position& position) {
-        }
+        virtual void PositionMessage(messages::Position& position) = 0;
 
         ~IVRDevice() = default;
     };
