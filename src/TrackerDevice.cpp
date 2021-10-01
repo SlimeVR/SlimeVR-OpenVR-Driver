@@ -77,7 +77,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
 {
     this->device_index_ = unObjectId;
 
-    GetDriver()->Log("[SlimeVR] Activating tracker " + this->serial_);
+    GetDriver()->Log("Activating tracker " + this->serial_);
 
     // Get the properties handle
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);

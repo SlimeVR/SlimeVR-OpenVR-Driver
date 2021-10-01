@@ -46,6 +46,10 @@ package messages;
  * signaling to the other side that we're alive and ready to
  * recieve messages this frame.
  */
+
+option java_package = "dev.slimevr.bridge";
+option java_outer_classname = "ProtobufMessages";
+
 message PingPong {
 }
 

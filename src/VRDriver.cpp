@@ -5,6 +5,8 @@
 #include <TrackingReferenceDevice.hpp>
 #include "bridge/bridge.hpp"
 #include "TrackerRole.hpp"
+#include <google/protobuf/arena.h>
+
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
 {
@@ -13,8 +15,8 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         return init_error;
     }
 
-    Log("[SlimeVR] Activating SlimeVR Driver...");
-    Log("[SlimeVR] SlimeVR Driver Loaded Successfully");
+    Log("Activating SlimeVR Driver...");
+    Log("SlimeVR Driver Loaded Successfully");
 
 	return vr::VRInitError_None;
 }
@@ -25,6 +27,8 @@ void SlimeVRDriver::VRDriver::Cleanup()
 
 void SlimeVRDriver::VRDriver::RunFrame()
 {
+    google::protobuf::Arena arena;
+
     // Collect events
     vr::VREvent_t event;
     std::vector<vr::VREvent_t> events;
@@ -43,20 +47,21 @@ void SlimeVRDriver::VRDriver::RunFrame()
     for(auto& device : this->devices_)
         device->Update();
     
-    BridgeStatus status = runBridgeFrame();
+    BridgeStatus status = runBridgeFrame(*this);
     if(status == BRIDGE_CONNECTED) {
-        messages::ProtobufMessage message = {};
+        messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
         // Read all messages from the bridge
-        while(getNextBridgeMessage(message)) {
-            if(message.has_tracker_added()) {
-                messages::TrackerAdded ta = message.tracker_added();
+        while(getNextBridgeMessage(*message, *this)) {
+            if(message->has_tracker_added()) {
+                messages::TrackerAdded ta = message->tracker_added();
                 switch(getDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
                     case DeviceType::TRACKER:
-                        this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+ ta.tracker_id(),  ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
+                        this->AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(),  ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
+                        Log("New tracker device added " + ta.tracker_serial() + " (id " + std::to_string(ta.tracker_id()) + ")");
                     break;
                 }
-            } else if(message.has_position()) {
-                messages::Position pos = message.position();
+            } else if(message->has_position()) {
+                messages::Position pos = message->position();
                 auto device = this->devices_by_id.find(pos.tracker_id());
                 if(device != this->devices_by_id.end()) {
                     device->second->PositionMessage(pos);
@@ -66,13 +71,22 @@ void SlimeVRDriver::VRDriver::RunFrame()
 
         if(!sentHmdAddMessage) {
             // Send add message for HMD
-            message.Clear();
-            messages::TrackerAdded trackerAdded = {};
-            message.set_allocated_tracker_added(&trackerAdded);
-            trackerAdded.set_tracker_id(0);
-            trackerAdded.set_tracker_serial("HMD");
-            trackerAdded.set_tracker_name("HMD");
-            sendBridgeMessage(message);
+            messages::TrackerAdded* trackerAdded = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
+            message->set_allocated_tracker_added(trackerAdded);
+            trackerAdded->set_tracker_id(0);
+            trackerAdded->set_tracker_role(TrackerRole::HMD);
+            trackerAdded->set_tracker_serial("HMD");
+            trackerAdded->set_tracker_name("HMD");
+            sendBridgeMessage(*message, *this);
+
+            messages::TrackerStatus* trackerStatus = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
+            message->set_allocated_tracker_status(trackerStatus);
+            trackerStatus->set_tracker_id(0);
+            trackerStatus->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
+            sendBridgeMessage(*message, *this);
+            
+            sentHmdAddMessage = true;
+            Log("Sent HMD hello message");
         }
 
         vr::TrackedDevicePose_t hmd_pose[10];
@@ -81,24 +95,24 @@ void SlimeVRDriver::VRDriver::RunFrame()
         vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
         vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
 
-        message.Clear();
-        messages::Position hmdPosition = {};
-        message.set_allocated_position(&hmdPosition);
+        messages::Position* hmdPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
+        message->set_allocated_position(hmdPosition);
 
-        hmdPosition.set_tracker_id(0);
-        hmdPosition.set_data_source(messages::Position_DataSource_FULL);
-        hmdPosition.set_x(pos.v[0]);
-        hmdPosition.set_y(pos.v[1]);
-        hmdPosition.set_z(pos.v[2]);
-        hmdPosition.set_qx(q.x);
-        hmdPosition.set_qy(q.y);
-        hmdPosition.set_qz(q.z);
-        hmdPosition.set_qw(q.w);
+        hmdPosition->set_tracker_id(0);
+        hmdPosition->set_data_source(messages::Position_DataSource_FULL);
+        hmdPosition->set_x(pos.v[0]);
+        hmdPosition->set_y(pos.v[1]);
+        hmdPosition->set_z(pos.v[2]);
+        hmdPosition->set_qx((float) q.x);
+        hmdPosition->set_qy((float) q.y);
+        hmdPosition->set_qz((float) q.z);
+        hmdPosition->set_qw((float) q.w);
 
-        sendBridgeMessage(message);
+        sendBridgeMessage(*message, *this);
     } else {
         // If bridge not connected, assume we need to resend hmd tracker add message
         sentHmdAddMessage = false;
+
     }
 }
 
@@ -154,6 +168,15 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device)
     if(result) {
         this->devices_.push_back(device);
         this->devices_by_id[device->getDeviceId()] = device;
+        this->devices_by_serial[device->GetSerial()] = device;
+    } else {
+        std::shared_ptr<IVRDevice> oldDevice = this->devices_by_serial[device->GetSerial()];
+        if(oldDevice->getDeviceId() != device->getDeviceId()) {
+            this->devices_by_id[device->getDeviceId()] = oldDevice;
+            Log("Device overriden from id " + std::to_string(oldDevice->getDeviceId()) + " to " + std::to_string(device->getDeviceId()) + " for serial " + device->GetSerial());
+        } else {
+            Log("Device readded id " + std::to_string(device->getDeviceId()) + ", serial " + device->GetSerial());
+        }
     }
     return result;
 }

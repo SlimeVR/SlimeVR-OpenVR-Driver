@@ -30,6 +30,7 @@
 #include "ProtobufMessages.pb.h"
 #include <variant>
 #include <optional>
+#include "../VRDriver.hpp"
 
 enum BridgeStatus {
     BRIDGE_DISCONNECTED = 0,
@@ -37,8 +38,8 @@ enum BridgeStatus {
     BRIDGE_ERROR = 2
 };
 
-BridgeStatus runBridgeFrame();
+BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver &driver);
 
-bool getNextBridgeMessage(messages::ProtobufMessage &message);
+bool getNextBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);
 
-bool sendBridgeMessage(messages::ProtobufMessage &message);
+bool sendBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);

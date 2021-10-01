@@ -36,27 +36,27 @@ HANDLE pipe = INVALID_HANDLE_VALUE;
 BridgeStatus currentBridgeStatus = BRIDGE_DISCONNECTED;
 char buffer[1024];
 
-void updatePipe();
-void resetPipe();
-void attemptPipeConnect();
+void updatePipe(SlimeVRDriver::VRDriver &driver);
+void resetPipe(SlimeVRDriver::VRDriver &driver);
+void attemptPipeConnect(SlimeVRDriver::VRDriver &driver);
 
-BridgeStatus runBridgeFrame() {
+BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver &driver) {
     switch(currentBridgeStatus) {
         case BRIDGE_DISCONNECTED:
-            attemptPipeConnect();
+            attemptPipeConnect(driver);
         break;
         case BRIDGE_ERROR:
-            resetPipe();
+            resetPipe(driver);
         break;
         case BRIDGE_CONNECTED:
-            updatePipe();
+            updatePipe(driver);
         break;
     }
 
     return currentBridgeStatus;
 }
 
-bool getNextBridgeMessage(messages::ProtobufMessage &message) {
+bool getNextBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver) {
     DWORD dwRead;
     DWORD dwAvailable;
     if(currentBridgeStatus == BRIDGE_CONNECTED) {
@@ -72,19 +72,25 @@ bool getNextBridgeMessage(messages::ProtobufMessage &message) {
                             return true;
                     } else {
                         currentBridgeStatus = BRIDGE_ERROR;
+                        driver.Log("Bridge error: " + std::to_string(GetLastError()));
                     }
                 }
             }
         } else {
             currentBridgeStatus = BRIDGE_ERROR;
+            driver.Log("Bridge error: " + std::to_string(GetLastError()));
         }
     }
     return false;
 }
 
-bool sendBridgeMessage(messages::ProtobufMessage &message) {
+bool sendBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver) {
     if(currentBridgeStatus == BRIDGE_CONNECTED) {
-        uint32_t size = message.ByteSize();
+        uint32_t size = (uint32_t) message.ByteSizeLong();
+        if(size > 1020) {
+            driver.Log("Message too big");
+            return false;
+        }
         message.SerializeToArray(buffer + 4, size);
         size += 4;
         buffer[0] = size & 0xFF;
@@ -95,22 +101,24 @@ bool sendBridgeMessage(messages::ProtobufMessage &message) {
             return true;
         }
         currentBridgeStatus = BRIDGE_ERROR;
+        driver.Log("Bridge error: " + std::to_string(GetLastError()));
     }
     return false;
 }
 
-void updatePipe() {
+void updatePipe(SlimeVRDriver::VRDriver &driver) {
 }
 
-void resetPipe() {
+void resetPipe(SlimeVRDriver::VRDriver &driver) {
     if(pipe != INVALID_HANDLE_VALUE) {
         CloseHandle(pipe);
         pipe = INVALID_HANDLE_VALUE;
         currentBridgeStatus = BRIDGE_DISCONNECTED;
+        driver.Log("Pipe was reset");
     }
 }
 
-void attemptPipeConnect() {
+void attemptPipeConnect(SlimeVRDriver::VRDriver &driver) {
     pipe = CreateFileA(PIPE_NAME,
         GENERIC_READ | GENERIC_WRITE,
         0,
@@ -120,7 +128,7 @@ void attemptPipeConnect() {
         NULL);
     if(pipe != INVALID_HANDLE_VALUE) {
         currentBridgeStatus = BRIDGE_CONNECTED;
-        // Log connected
+        driver.Log("Pipe was connected");
         return;
     }
 }
