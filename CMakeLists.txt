@@ -1,12 +1,27 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-# Edit this to target your vcpkg toolchain
-if(WIN32)
-    file(READ "$ENV{LOCALAPPDATA}\\vcpkg\\vcpkg.path.txt" VCPKG_PATH)
-elseif(UNIX)
-    file(READ "$ENV{HOME}\\.vcpkg\\vcpkg.path.txt" VCPKG_PATH)
+# If the toolchain is already defined, do not attempt to find it
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    # If the VCPKG_ROOT environment variable is not defined, try to automatically define it from AppData/home
+    if(NOT DEFINED ENV{VCPKG_ROOT})
+        if(WIN32)
+            file(READ "$ENV{LOCALAPPDATA}/vcpkg/vcpkg.path.txt" VCPKG_ROOT)
+        elseif(UNIX)
+            file(READ "$ENV{HOME}/.vcpkg/vcpkg.path.txt" VCPKG_ROOT)
+        endif()
+
+        set(VCPKG_PATH "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+    else()
+        set(VCPKG_PATH "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+    endif()
+    
+    if(EXISTS "${VCPKG_PATH}")
+        message("vcpkg CMake toolchain was found at \"${VCPKG_PATH}\"")
+        set(CMAKE_TOOLCHAIN_FILE "${VCPKG_PATH}")
+    else()
+        message(FATAL_ERROR "vcpkg could not be found")
+    endif()
 endif()
-set(CMAKE_TOOLCHAIN_FILE "${VCPKG_PATH}/scripts/buildsystems/vcpkg.cmake")
 
 project(SlimeVR-OpenVR-Driver VERSION 0.2.0)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -81,4 +96,13 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy 
     $<TARGET_FILE:${PROJECT_NAME}>
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/driver_${DRIVER_NAME}$<TARGET_FILE_SUFFIX:${PROJECT_NAME}>
+)
+
+# Copy libprotobuf dll to output folder
+add_custom_command(
+    TARGET ${PROJECT_NAME} 
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy 
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/libprotobuf.dll
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/libprotobuf.dll
 )

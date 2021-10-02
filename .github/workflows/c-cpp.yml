@@ -1,0 +1,81 @@
+name: SlimeVR OpenVR Driver
+
+on: [ push, pull_request ]
+
+jobs:
+  build:
+  
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest] # Others are disabled, this only targets Windows
+        include:
+          - os: windows-latest
+            triplet: x64-windows
+    env:
+      # Indicates the CMake build directory where project files and binaries are being produced.
+      CMAKE_BUILD_DIR: ${{ github.workspace }}/build
+      # Indicates the location of the vcpkg as a Git submodule of the project repository.
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+      
+    - uses: lukka/get-cmake@latest
+    
+    - name: Clone vcpkg
+      uses: actions/checkout@v2
+      with:
+        repository: microsoft/vcpkg
+        path: ${{ env.VCPKG_ROOT }}
+        submodules: true
+    
+    - name: Restore vcpkg and its artifacts
+      uses: actions/cache@v2
+      with:
+        # The first path is where vcpkg generates artifacts while consuming the vcpkg.json manifest file.
+        # The second path is the location of vcpkg (it contains the vcpkg executable and data files).
+        # The other paths starting with "!" are exclusions: they contain termporary files generated during the build of the installed packages.
+        path: |
+          ${{ env.CMAKE_BUILD_DIR }}/vcpkg_installed/
+          ${{ env.VCPKG_ROOT }}
+          !${{ env.VCPKG_ROOT }}/buildtrees
+          !${{ env.VCPKG_ROOT }}/packages
+          !${{ env.VCPKG_ROOT }}/downloads
+        # The key is composed in a way that it gets properly invalidated: this must happen whenever vcpkg's Git commit id changes, or the list of packages changes. In this case a cache miss must happen and a new entry with a new key with be pushed to GitHub the cache service.
+        # The key includes: hash of the vcpkg.json file, the hash of the vcpkg Git commit id, and the used vcpkg's triplet. The vcpkg's commit id would suffice, but computing an hash out it does not harm.
+        # Note: given a key, the cache content is immutable. If a cache entry has been created improperly, in order the recreate the right content the key must be changed as well, and it must be brand new (i.e. not existing already).
+        key: |
+          ${{ hashFiles( 'vcpkg_manifest/vcpkg.json' ) }}-${{ hashFiles( '.git/modules/vcpkg/HEAD' )}}-${{ hashFiles( '${{ env.VCPKG_ROOT }}/.git/HEAD' )}}-${{ matrix.triplet }}-invalidate
+    
+    - if: matrix.os == 'windows-latest'
+      name: Set up vcpkg for Windows
+      run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.bat
+      
+    - if: matrix.os != 'windows-latest'
+      name: Set up vcpkg for Unix
+      run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.sh
+    
+    - name: Install dependencies
+      run: ${{ env.VCPKG_ROOT }}/vcpkg install protobuf protobuf:${{ matrix.triplet }}
+    
+    - name: Configure CMake
+      run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}"
+      
+    - name: Build
+      run: cmake --build "${{env.CMAKE_BUILD_DIR}}" --config Release --target ALL_BUILD -j 6 --
+      
+    - name: Upload a build artifact
+      uses: actions/upload-artifact@v2
+      with:
+        # Artifact name
+        name: slimevr-openvr-driver-${{ matrix.triplet }} # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        # Using wildcards so that only the driver directory gets included (if you specify it, then it won't be included)
+        path: |
+          ${{env.CMAKE_BUILD_DIR}}/Release/*
+          !${{env.CMAKE_BUILD_DIR}}/Release/*.*
