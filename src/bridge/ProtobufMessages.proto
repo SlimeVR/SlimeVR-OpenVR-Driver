@@ -1,0 +1,113 @@
+/*
+    SlimeVR Code is placed under the MIT license
+    Copyright (c) 2021 Eiren Rain
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+*/
+/*
+ Define all Proto Buffer messages that server and driver/app can exchange
+ */
+syntax = "proto3";
+
+package messages;
+
+/**
+ Tracker designations clarifications
+
+ tracker_id field contains internal tracker id of a tracker on the SENDING side. Recieving
+ side can have their own ids, names, serials, etc. If two sides exchange tracker information
+ in both ways, they're allowed to reuse tracker ids for the trackers they create themselves.
+
+ tracker_name is user-readable descriptive name of a tracker, it is allowed to be non-unique.
+
+ tracker_serial is unique identificator of a tracker on the sender side, can be used to remap
+ trackers from one id to another during reconnect or session restart, or to save persistent
+ data or configuration between sessions
+ */
+
+/**
+ * Can be send each frame if there is nothing else to send,
+ * signaling to the other side that we're alive and ready to
+ * recieve messages this frame.
+ */
+
+option java_package = "dev.slimevr.bridge";
+option java_outer_classname = "ProtobufMessages";
+
+message PingPong {
+}
+
+message Position {
+    int32 tracker_id = 1;
+    optional float x = 2;
+    optional float y = 3;
+    optional float z = 4;
+    float qx = 5;
+    float qy = 6;
+    float qz = 7;
+    float qw = 8;
+    enum DataSource {
+        NONE = 0;
+        IMU = 1;
+        PRECISION = 2;
+        FULL = 3;
+    }
+    optional DataSource data_source = 9;
+}
+
+message UserAction {
+    string name = 1;
+    map<string, string> action_arguments = 2;
+}
+
+message TrackerAdded {
+    int32 tracker_id = 1;
+    string tracker_serial = 2;
+    string tracker_name = 3;
+    int32 tracker_role = 4;
+}
+
+message TrackerStatus {
+    int32 tracker_id = 1;
+    enum Status {
+        DISCONNECTED = 0;
+        OK = 1;
+        BUSY = 2;
+        ERROR = 3;
+        OCCLUDED = 4;
+    }
+    Status status = 2;
+    map<string, string> extra = 3;
+    enum Confidence {
+        NO = 0;
+        LOW = 1;
+        MEDIUM = 5;
+        HIGH = 10;
+    }
+    optional Confidence confidence = 4;
+}
+
+message ProtobufMessage {
+    oneof message {
+        Position position = 1;
+        UserAction user_action = 2;
+        TrackerAdded tracker_added = 3;
+        TrackerStatus tracker_status = 4;
+    }
+}

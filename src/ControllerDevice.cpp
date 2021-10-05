@@ -1,9 +1,8 @@
 #include "ControllerDevice.hpp"
 #include <Windows.h>
 
-SlimeVRDriver::ControllerDevice::ControllerDevice(std::string serial, ControllerDevice::Handedness handedness):
-    serial_(serial),
-    handedness_(handedness)
+SlimeVRDriver::ControllerDevice::ControllerDevice(std::string serial, int deviceId, ControllerDevice::Handedness handedness):
+    serial_(serial), handedness_(handedness), deviceId_(deviceId)
 {
 }
 
@@ -186,6 +185,27 @@ vr::EVRInitError SlimeVRDriver::ControllerDevice::Activate(uint32_t unObjectId)
     return vr::EVRInitError::VRInitError_None;
 }
 
+void SlimeVRDriver::ControllerDevice::PositionMessage(messages::Position &position)
+{
+    // Setup pose for this frame
+    auto pose = this->last_pose_;
+    //send the new position and rotation from the pipe to the tracker object
+    if(position.has_x()) {
+        pose.vecPosition[0] = position.x();
+        pose.vecPosition[1] = position.y();
+        pose.vecPosition[2] = position.z();
+    }
+
+    pose.qRotation.w = position.qw();
+    pose.qRotation.x = position.qx();
+    pose.qRotation.y = position.qy();
+    pose.qRotation.z = position.qz();
+
+    // Post pose
+    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
+    this->last_pose_ = pose;
+}
+
 void SlimeVRDriver::ControllerDevice::Deactivate()
 {
     this->device_index_ = vr::k_unTrackedDeviceIndexInvalid;
@@ -209,4 +229,9 @@ void SlimeVRDriver::ControllerDevice::DebugRequest(const char* pchRequest, char*
 vr::DriverPose_t SlimeVRDriver::ControllerDevice::GetPose()
 {
     return last_pose_;
+}
+
+int SlimeVRDriver::ControllerDevice::getDeviceId()
+{
+    return deviceId_;
 }

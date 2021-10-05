@@ -3,6 +3,10 @@
 #include <TrackerDevice.hpp>
 #include <ControllerDevice.hpp>
 #include <TrackingReferenceDevice.hpp>
+#include "bridge/bridge.hpp"
+#include "TrackerRole.hpp"
+#include <google/protobuf/arena.h>
+
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
 {
@@ -11,88 +15,8 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         return init_error;
     }
 
-    Log("[SlimeVR] Activating SlimeVR Driver...");
-
-    // Add a HMD
-    //this->AddDevice(std::make_shared<HMDDevice>("Example_HMDDevice"));
-
-    // Add a couple controllers
-    //this->AddDevice(std::make_shared<ControllerDevice>("Example_ControllerDevice_Left", ControllerDevice::Handedness::LEFT));
-    //this->AddDevice(std::make_shared<ControllerDevice>("Example_ControllerDevice_Right", ControllerDevice::Handedness::RIGHT));
-    
-    std::string hmdPipeName = "\\\\.\\pipe\\HMDPipe";
-
-    //open the pipe
-    hmdPipe = CreateFileA(hmdPipeName.c_str(),
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL);
-
-    if (hmdPipe == INVALID_HANDLE_VALUE)
-    {
-        //if connection was unsuccessful, return an error. This means SteamVR will start without this driver running
-        return vr::EVRInitError::VRInitError_Driver_Failed;
-    }
-    //wait for a second to ensure data was sent and next pipe is set up if there is more than one tracker
-
-    Sleep(1000);
-    
-    // Add a tracker
-    char buffer[1024];
-    DWORD dwWritten;
-    DWORD dwRead;
-    
-    //on init, we try to connect to our pipes
-    for (int i = 0; i < pipeNum; i++)
-    {
-        //MessageBoxA(NULL, "It works!  " + pipeNum, "Example Driver", MB_OK);
-        HANDLE pipe;
-        //pipe name, same as in our server program
-        std::string pipeName = "\\\\.\\pipe\\TrackPipe" + std::to_string(i);
-
-        //open the pipe
-        pipe = CreateFileA(pipeName.c_str(),
-            GENERIC_READ | GENERIC_WRITE,
-            0,
-            NULL,
-            OPEN_EXISTING,
-            0,
-            NULL);
-
-        if (pipe == INVALID_HANDLE_VALUE)
-        {
-            //if connection was unsuccessful, return an error. This means SteamVR will start without this driver running
-            return vr::EVRInitError::VRInitError_Driver_Failed;
-        }
-
-        //wait for a second to ensure data was sent and next pipe is set up if there is more than one tracker
-        Sleep(1000);
-
-        //read the number of pipes and smoothing factor from the pipe
-        if (ReadFile(pipe, buffer, sizeof(buffer) - 1, &dwRead, NULL) != FALSE)
-        {
-            //we receive raw data, so we first add terminating zero and save to a string.
-            buffer[dwRead] = '\0'; //add terminating zero
-            std::string s = buffer;
-            //from a string, we convert to a string stream for easier reading of each sent value
-            std::istringstream iss(s);
-            //read each value into our variables
-
-            iss >> pipeNum;
-            iss >> smoothFactor;
-        }
-        //save our pipe to global
-        this->AddDevice(std::make_shared<TrackerDevice>("SlimeVRTracker"+std::to_string(i),pipe, i));
-    }
-    
-    // Add a couple tracking references
-    //this->AddDevice(std::make_shared<TrackingReferenceDevice>("Example_TrackingReference_A"));
-    //this->AddDevice(std::make_shared<TrackingReferenceDevice>("Example_TrackingReference_B"));
-    
-    Log("[SlimeVR] SlimeVR Driver Loaded Successfully");
+    Log("Activating SlimeVR Driver...");
+    Log("SlimeVR Driver Loaded Successfully");
 
 	return vr::VRInitError_None;
 }
@@ -103,6 +27,8 @@ void SlimeVRDriver::VRDriver::Cleanup()
 
 void SlimeVRDriver::VRDriver::RunFrame()
 {
+    google::protobuf::Arena arena;
+
     // Collect events
     vr::VREvent_t event;
     std::vector<vr::VREvent_t> events;
@@ -110,7 +36,7 @@ void SlimeVRDriver::VRDriver::RunFrame()
     {
         events.push_back(event);
     }
-    this->openvr_events_ = events;
+    this->openvr_events_ = std::move(events);
 
     // Update frame timing
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
@@ -118,31 +44,76 @@ void SlimeVRDriver::VRDriver::RunFrame()
     this->last_frame_time_ = now;
 
     // Update devices
-    for (auto& device : this->devices_)
+    for(auto& device : this->devices_)
         device->Update();
-
-    vr::TrackedDevicePose_t hmd_pose[10];
-    vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
-
-    vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
-    vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
-
-    std::string s;
-    s = std::to_string(pos.v[0]) +
-        " " + std::to_string(pos.v[1]) +
-        " " + std::to_string(pos.v[2]) +
-        " " + std::to_string(q.w) +
-        " " + std::to_string(q.x) +
-        " " + std::to_string(q.y) +
-        " " + std::to_string(q.z) + "\n";
-
-    DWORD dwWritten;
-    WriteFile(hmdPipe,
-        s.c_str(),
-        (s.length() + 1),   // = length of string + terminating '\0' !!!
-        &dwWritten,
-        NULL);
     
+    BridgeStatus status = runBridgeFrame(*this);
+    if(status == BRIDGE_CONNECTED) {
+        messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
+        // Read all messages from the bridge
+        while(getNextBridgeMessage(*message, *this)) {
+            if(message->has_tracker_added()) {
+                messages::TrackerAdded ta = message->tracker_added();
+                switch(getDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
+                    case DeviceType::TRACKER:
+                        this->AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(),  ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
+                        Log("New tracker device added " + ta.tracker_serial() + " (id " + std::to_string(ta.tracker_id()) + ")");
+                    break;
+                }
+            } else if(message->has_position()) {
+                messages::Position pos = message->position();
+                auto device = this->devices_by_id.find(pos.tracker_id());
+                if(device != this->devices_by_id.end()) {
+                    device->second->PositionMessage(pos);
+                }
+            }
+        }
+
+        if(!sentHmdAddMessage) {
+            // Send add message for HMD
+            messages::TrackerAdded* trackerAdded = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
+            message->set_allocated_tracker_added(trackerAdded);
+            trackerAdded->set_tracker_id(0);
+            trackerAdded->set_tracker_role(TrackerRole::HMD);
+            trackerAdded->set_tracker_serial("HMD");
+            trackerAdded->set_tracker_name("HMD");
+            sendBridgeMessage(*message, *this);
+
+            messages::TrackerStatus* trackerStatus = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
+            message->set_allocated_tracker_status(trackerStatus);
+            trackerStatus->set_tracker_id(0);
+            trackerStatus->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
+            sendBridgeMessage(*message, *this);
+
+            sentHmdAddMessage = true;
+            Log("Sent HMD hello message");
+        }
+
+        vr::TrackedDevicePose_t hmd_pose[10];
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
+
+        vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
+        vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
+
+        messages::Position* hmdPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
+        message->set_allocated_position(hmdPosition);
+
+        hmdPosition->set_tracker_id(0);
+        hmdPosition->set_data_source(messages::Position_DataSource_FULL);
+        hmdPosition->set_x(pos.v[0]);
+        hmdPosition->set_y(pos.v[1]);
+        hmdPosition->set_z(pos.v[2]);
+        hmdPosition->set_qx((float) q.x);
+        hmdPosition->set_qy((float) q.y);
+        hmdPosition->set_qz((float) q.z);
+        hmdPosition->set_qw((float) q.w);
+
+        sendBridgeMessage(*message, *this);
+    } else {
+        // If bridge not connected, assume we need to resend hmd tracker add message
+        sentHmdAddMessage = false;
+
+    }
 }
 
 bool SlimeVRDriver::VRDriver::ShouldBlockStandbyMode()
@@ -194,8 +165,19 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device)
             return false;
     }
     bool result = vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get());
-    if(result)
+    if(result) {
         this->devices_.push_back(device);
+        this->devices_by_id[device->getDeviceId()] = device;
+        this->devices_by_serial[device->GetSerial()] = device;
+    } else {
+        std::shared_ptr<IVRDevice> oldDevice = this->devices_by_serial[device->GetSerial()];
+        if(oldDevice->getDeviceId() != device->getDeviceId()) {
+            this->devices_by_id[device->getDeviceId()] = oldDevice;
+            Log("Device overriden from id " + std::to_string(oldDevice->getDeviceId()) + " to " + std::to_string(device->getDeviceId()) + " for serial " + device->GetSerial());
+        } else {
+            Log("Device readded id " + std::to_string(device->getDeviceId()) + ", serial " + device->GetSerial());
+        }
+    }
     return result;
 }
 
@@ -253,7 +235,7 @@ vr::IVRServerDriverHost* SlimeVRDriver::VRDriver::GetDriverHost()
 // from: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
 //-----------------------------------------------------------------------------
 
-vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t matrix) {
+vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t &matrix) {
     vr::HmdQuaternion_t q;
 
     q.w = sqrt(fmax(0, 1 + matrix.m[0][0] + matrix.m[1][1] + matrix.m[2][2])) / 2;
@@ -270,7 +252,7 @@ vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t matri
 // from: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
 //-----------------------------------------------------------------------------
 
-vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t matrix) {
+vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t &matrix) {
     vr::HmdVector3_t vector;
 
     vector.v[0] = matrix.m[0][3];

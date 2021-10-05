@@ -3,6 +3,7 @@
 #include <variant>
 #include <openvr_driver.h>
 #include <DeviceType.hpp>
+#include "ProtobufMessages.pb.h"
 
 namespace SlimeVRDriver {
 
@@ -57,6 +58,9 @@ namespace SlimeVRDriver {
         virtual void* GetComponent(const char* pchComponentNameAndVersion) = 0;
         virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) = 0;
         virtual vr::DriverPose_t GetPose() = 0;
+
+        virtual int getDeviceId() = 0;
+        virtual void PositionMessage(messages::Position& position) = 0;
 
         ~IVRDevice() = default;
     };

@@ -11,7 +11,7 @@
 namespace SlimeVRDriver {
     class HMDDevice : public IVRDevice, public vr::IVRDisplayComponent {
         public:
-            HMDDevice(std::string serial);
+            HMDDevice(std::string serial, int deviceId);
             ~HMDDevice() = default;
 
             // Inherited via IVRDevice
@@ -35,9 +35,12 @@ namespace SlimeVRDriver {
             virtual void GetEyeOutputViewport(vr::EVREye eEye, uint32_t* pnX, uint32_t* pnY, uint32_t* pnWidth, uint32_t* pnHeight) override;
             virtual void GetProjectionRaw(vr::EVREye eEye, float* pfLeft, float* pfRight, float* pfTop, float* pfBottom) override;
             virtual vr::DistortionCoordinates_t ComputeDistortion(vr::EVREye eEye, float fU, float fV) override;
+            virtual int getDeviceId() override;
+            virtual void PositionMessage(messages::Position &position) override;
     private:
         vr::TrackedDeviceIndex_t device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;
+		int deviceId_;
 
         vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
 

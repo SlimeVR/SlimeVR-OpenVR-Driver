@@ -1,4 +1,5 @@
 #pragma once
+
 enum class DeviceType {
     HMD,
     CONTROLLER,
