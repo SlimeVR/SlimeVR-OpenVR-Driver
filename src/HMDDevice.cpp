@@ -27,9 +27,9 @@ void SlimeVRDriver::HMDDevice::Update()
     this->rot_x_ = std::fmax(this->rot_x_, -3.14159f/2);
     this->rot_x_ = std::fmin(this->rot_x_, 3.14159f/2);
 
-    linalg::vec<float, 4> y_quat{ 0, std::sinf(this->rot_y_ / 2), 0, std::cosf(this->rot_y_ / 2) };
+    linalg::vec<float, 4> y_quat{ 0, std::sin(this->rot_y_ / 2), 0, std::cosf(this->rot_y_ / 2) };
 
-    linalg::vec<float, 4> x_quat{ std::sinf(this->rot_x_ / 2), 0, 0, std::cosf(this->rot_x_ / 2) };
+    linalg::vec<float, 4> x_quat{ std::sin(this->rot_x_ / 2), 0, 0, std::cosf(this->rot_x_ / 2) };
 
     linalg::vec<float, 4> pose_rot = linalg::qmul(y_quat, x_quat);
 
