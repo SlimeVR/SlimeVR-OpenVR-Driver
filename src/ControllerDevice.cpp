@@ -53,7 +53,7 @@ void SlimeVRDriver::ControllerDevice::Update()
         linalg::vec<float, 4> hmd_rotation{ (float)hmd_pose.qRotation.x, (float)hmd_pose.qRotation.y, (float)hmd_pose.qRotation.z, (float)hmd_pose.qRotation.w };
 
         // Do shaking animation if haptic vibration was requested
-        float controller_y = -0.2f + 0.01f * std::sinf(8 * 3.1415f * vibrate_anim_state_);
+        float controller_y = -0.2f + 0.01f * std::sin(8 * 3.1415f * vibrate_anim_state_);
 
         // Left hand controller on the left, right hand controller on the right, any other handedness sticks to the middle
         float controller_x = this->handedness_ == Handedness::LEFT ? -0.2f : (this->handedness_ == Handedness::RIGHT ? 0.2f : 0.f);

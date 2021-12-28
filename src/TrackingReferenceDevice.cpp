@@ -1,5 +1,4 @@
 #include "TrackingReferenceDevice.hpp"
-#include <Windows.h>
 
 SlimeVRDriver::TrackingReferenceDevice::TrackingReferenceDevice(std::string serial):
     serial_(serial)
@@ -25,9 +24,9 @@ void SlimeVRDriver::TrackingReferenceDevice::Update()
 
     linalg::vec<float, 3> device_position{ 0.f, 1.f, 1.f };
 
-    linalg::vec<float, 4> y_quat{ 0, std::sinf(this->random_angle_rad_ / 2), 0, std::cosf(this->random_angle_rad_ / 2) }; // Point inwards (z- is forward)
+    linalg::vec<float, 4> y_quat{ 0, std::sin(this->random_angle_rad_ / 2), 0, std::cos(this->random_angle_rad_ / 2) }; // Point inwards (z- is forward)
 
-    linalg::vec<float, 4> x_look_down{ std::sinf((-3.1415f/4) / 2), 0, 0, std::cosf((-3.1415f / 4) / 2) }; // Tilt downwards to look at the centre
+    linalg::vec<float, 4> x_look_down{ std::sin((-3.1415f/4) / 2), 0, 0, std::cos((-3.1415f / 4) / 2) }; // Tilt downwards to look at the centre
 
     linalg::vec<float, 4> device_rotation = linalg::qmul(y_quat, x_look_down);
 
