@@ -88,6 +88,9 @@ vr::DriverPose_t SlimeVRDriver::TrackingReferenceDevice::GetPose()
 
 void SlimeVRDriver::TrackingReferenceDevice::PositionMessage(messages::Position &position)
 {
+    if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
+        return;
+
     // Setup pose for this frame
     auto pose = this->last_pose_;
     //send the new position and rotation from the pipe to the tracker object
