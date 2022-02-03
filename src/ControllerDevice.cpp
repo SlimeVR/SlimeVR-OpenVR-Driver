@@ -37,57 +37,6 @@ void SlimeVRDriver::ControllerDevice::Update()
             this->vibrate_anim_state_ = 0.0f;
         }
     }
-
-    // Setup pose for this frame
-    auto pose = IVRDevice::MakeDefaultPose();
-
-    // Find a HMD
-    auto devices = GetDriver()->GetDevices();
-    auto hmd = std::find_if(devices.begin(), devices.end(), [](const std::shared_ptr<IVRDevice>& device_ptr) {return device_ptr->GetDeviceType() == DeviceType::HMD; });
-    if (hmd != devices.end()) {
-        // Found a HMD
-        vr::DriverPose_t hmd_pose = (*hmd)->GetPose();
-
-        // Here we setup some transforms so our controllers are offset from the headset by a small amount so we can see them
-        linalg::vec<float, 3> hmd_position{ (float)hmd_pose.vecPosition[0], (float)hmd_pose.vecPosition[1], (float)hmd_pose.vecPosition[2] };
-        linalg::vec<float, 4> hmd_rotation{ (float)hmd_pose.qRotation.x, (float)hmd_pose.qRotation.y, (float)hmd_pose.qRotation.z, (float)hmd_pose.qRotation.w };
-
-        // Do shaking animation if haptic vibration was requested
-        float controller_y = -0.2f + 0.01f * std::sin(8 * 3.1415f * vibrate_anim_state_);
-
-        // Left hand controller on the left, right hand controller on the right, any other handedness sticks to the middle
-        float controller_x = this->handedness_ == Handedness::LEFT ? -0.2f : (this->handedness_ == Handedness::RIGHT ? 0.2f : 0.f);
-
-        linalg::vec<float, 3> hmd_pose_offset = { controller_x, controller_y, -0.5f };
-
-        hmd_pose_offset = linalg::qrot(hmd_rotation, hmd_pose_offset);
-
-        linalg::vec<float, 3> final_pose = hmd_pose_offset + hmd_position;
-
-        pose.vecPosition[0] = final_pose.x;
-        pose.vecPosition[1] = final_pose.y;
-        pose.vecPosition[2] = final_pose.z;
-
-        pose.qRotation.w = hmd_rotation.w;
-        pose.qRotation.x = hmd_rotation.x;
-        pose.qRotation.y = hmd_rotation.y;
-        pose.qRotation.z = hmd_rotation.z;
-    }
-
-    // Check if we need to press any buttons (I am only hooking up the A button here but the process is the same for the others)
-    // You will still need to go into the games button bindings and hook up each one (ie. a to left click, b to right click, etc.) for them to work properly
-    if (GetAsyncKeyState(0x45 /* E */) != 0) {
-        GetDriver()->GetInput()->UpdateBooleanComponent(this->a_button_click_component_, true, 0);
-        GetDriver()->GetInput()->UpdateBooleanComponent(this->a_button_touch_component_, true, 0);
-    }
-    else {
-        GetDriver()->GetInput()->UpdateBooleanComponent(this->a_button_click_component_, false, 0);
-        GetDriver()->GetInput()->UpdateBooleanComponent(this->a_button_touch_component_, false, 0);
-    }
-
-    // Post pose
-    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
-    this->last_pose_ = pose;
 }
 
 DeviceType SlimeVRDriver::ControllerDevice::GetDeviceType()

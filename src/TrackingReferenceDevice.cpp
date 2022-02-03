@@ -17,33 +17,6 @@ void SlimeVRDriver::TrackingReferenceDevice::Update()
 {
     if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
-
-
-    // Setup pose for this frame
-    auto pose = IVRDevice::MakeDefaultPose();
-
-    linalg::vec<float, 3> device_position{ 0.f, 1.f, 1.f };
-
-    linalg::vec<float, 4> y_quat{ 0, std::sin(this->random_angle_rad_ / 2), 0, std::cos(this->random_angle_rad_ / 2) }; // Point inwards (z- is forward)
-
-    linalg::vec<float, 4> x_look_down{ std::sin((-3.1415f/4) / 2), 0, 0, std::cos((-3.1415f / 4) / 2) }; // Tilt downwards to look at the centre
-
-    linalg::vec<float, 4> device_rotation = linalg::qmul(y_quat, x_look_down);
-
-    device_position = linalg::qrot(y_quat, device_position);
-
-    pose.vecPosition[0] = device_position.x;
-    pose.vecPosition[1] = device_position.y;
-    pose.vecPosition[2] = device_position.z;
-
-    pose.qRotation.w = device_rotation.w;
-    pose.qRotation.x = device_rotation.x;
-    pose.qRotation.y = device_rotation.y;
-    pose.qRotation.z = device_rotation.z;
-
-    // Post pose
-    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
-    this->last_pose_ = pose;
 }
 
 DeviceType SlimeVRDriver::TrackingReferenceDevice::GetDeviceType()
