@@ -27,6 +27,7 @@ namespace SlimeVRDriver {
             virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
             virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
             virtual vr::DriverPose_t GetPose() override;
+            virtual void PositionMessage(messages::Position &position) override;
 
     private:
         vr::TrackedDeviceIndex_t device_index_ = vr::k_unTrackedDeviceIndexInvalid;
