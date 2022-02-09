@@ -173,7 +173,7 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device)
         std::shared_ptr<IVRDevice> oldDevice = this->devices_by_serial[device->GetSerial()];
         if(oldDevice->getDeviceId() != device->getDeviceId()) {
             this->devices_by_id[device->getDeviceId()] = oldDevice;
-            Log("Device overriden from id " + std::to_string(oldDevice->getDeviceId()) + " to " + std::to_string(device->getDeviceId()) + " for serial " + device->GetSerial());
+            Log("Device overridden from id " + std::to_string(oldDevice->getDeviceId()) + " to " + std::to_string(device->getDeviceId()) + " for serial " + device->GetSerial());
         } else {
             Log("Device readded id " + std::to_string(device->getDeviceId()) + ", serial " + device->GetSerial());
         }
