@@ -64,28 +64,28 @@ vr::EVRInitError SlimeVRDriver::HMDDevice::Activate(uint32_t unObjectId)
         if (window_x > 0)
             this->window_x_ = window_x;
     }
-    catch (const std::bad_variant_access&) {}; // Wrong type or doesnt exist
+    catch (const std::bad_variant_access&) {}; // Wrong type or doesn't exist
 
     try {
         int window_y = std::get<int>(GetDriver()->GetSettingsValue("window_y"));
         if (window_y > 0)
             this->window_x_ = window_y;
     }
-    catch (const std::bad_variant_access&) {}; // Wrong type or doesnt exist
+    catch (const std::bad_variant_access&) {}; // Wrong type or doesn't exist
 
     try {
         int window_width = std::get<int>(GetDriver()->GetSettingsValue("window_width"));
         if (window_width > 0)
             this->window_width_ = window_width;
     }
-    catch (const std::bad_variant_access&) {}; // Wrong type or doesnt exist
+    catch (const std::bad_variant_access&) {}; // Wrong type or doesn't exist
 
     try {
         int window_height = std::get<int>(GetDriver()->GetSettingsValue("window_height"));
         if (window_height > 0)
             this->window_height_ = window_height;
     }
-    catch (const std::bad_variant_access&) {}; // Wrong type or doesnt exist
+    catch (const std::bad_variant_access&) {}; // Wrong type or doesn't exist
 
     // Get the properties handle
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
