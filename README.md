@@ -52,7 +52,8 @@ Run `cmake -B build/ -S . -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems
 
 Run `cmake --build build/`
 
-Currently Fails
+Should finish building if it doesn't ask for help in the discord
+https://discord.gg/SlimeVR
 
 ## Contributions
 
