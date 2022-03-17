@@ -1,5 +1,4 @@
 #include "HMDDevice.hpp"
-#include <Windows.h>
 
 SlimeVRDriver::HMDDevice::HMDDevice(std::string serial, int deviceId):
     serial_(serial), deviceId_(deviceId)

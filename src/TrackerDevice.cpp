@@ -1,6 +1,4 @@
 #include "TrackerDevice.hpp"
-#include <Windows.h>
-
 
 SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int deviceId, TrackerRole trackerRole_):
     serial_(serial), trackerRole(trackerRole_), deviceId_(deviceId)

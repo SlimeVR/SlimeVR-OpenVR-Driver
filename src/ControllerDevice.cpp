@@ -1,5 +1,4 @@
 #include "ControllerDevice.hpp"
-#include <Windows.h>
 
 SlimeVRDriver::ControllerDevice::ControllerDevice(std::string serial, int deviceId, ControllerDevice::Handedness handedness):
     serial_(serial), handedness_(handedness), deviceId_(deviceId)
