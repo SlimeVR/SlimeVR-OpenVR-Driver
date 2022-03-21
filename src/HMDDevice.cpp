@@ -129,7 +129,7 @@ void SlimeVRDriver::HMDDevice::EnterStandby()
 
 void* SlimeVRDriver::HMDDevice::GetComponent(const char* pchComponentNameAndVersion)
 {
-    if (!_stricmp(pchComponentNameAndVersion, vr::IVRDisplayComponent_Version)) {
+    if (!std::strcmp(pchComponentNameAndVersion, vr::IVRDisplayComponent_Version)) {
         return static_cast<vr::IVRDisplayComponent*>(this);
     }
     return nullptr;

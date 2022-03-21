@@ -7,7 +7,11 @@
 
 #include <IVRDriver.hpp>
 
+#ifdef WIN32
 extern "C" __declspec(dllexport) void* HmdDriverFactory(const char* interface_name, int* return_code);
+#else
+extern "C" void* HmdDriverFactory(const char* interface_name, int* return_code);
+#endif
 
 namespace SlimeVRDriver {
     std::shared_ptr<SlimeVRDriver::IVRDriver> GetDriver();

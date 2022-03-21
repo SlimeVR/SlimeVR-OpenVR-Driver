@@ -1,7 +1,6 @@
 #include "DriverFactory.hpp"
 #include <thread>
 #include <VRDriver.hpp>
-#include <Windows.h>
 #include <sstream>
 
 static std::shared_ptr<SlimeVRDriver::IVRDriver> driver;
