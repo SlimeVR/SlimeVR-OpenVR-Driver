@@ -1,21 +1,24 @@
 # SlimeVR-OpenVR-Driver
-SlimeVR driver for OpenVR
+SlimeVR driver for OpenVR. Used to communicate between the SlimeVR server and SteamVR.
 
-## Installation
+## How to get
 
-Downloaded the latest release, and use one of two options to install the driver (in the future Server will do it for you).
+It's recommended to install the driver via the SlimeVR installer here: https://github.com/SlimeVR/SlimeVR-Installer/releases/latest/download/slimevr_web_installer.exe
+
+Alternatively, you can also manually install it by following one of the two methods below.
 
 ### Option one
 
+Downloaded the latest release here: https://github.com/SlimeVR/SlimeVR-OpenVR-Driver/releases/latest/download/slimevr-openvr-driver-win64.zip.
 Copy the `slimevr` folder in your SteamVR folder, usually it's located in `C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers`. This should look like this:
 
-![img](https://eiren.cat/SQpk)
+![img](https://eiren.cat/SQpk)  
 
 ### Option two
 
 Edit file `C:\Users\<Username>\AppData\Local\openvr\openvrpaths.vrpath`, add `"Path\\to\\slimevr",` to the list of external_drivers there, like this:
 
-![img](https://eiren.cat/ib4_)
+![img](https://eiren.cat/ib4_)  
 *Don't forget to double backwards slashes!*
 
 ## Contributions
