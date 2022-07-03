@@ -60,9 +60,6 @@ jobs:
       name: Set up vcpkg for Unix
       run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.sh
     
-    - name: Install dependencies
-      run: ${{ env.VCPKG_ROOT }}/vcpkg install protobuf protobuf:${{ matrix.triplet }}
-    
     - name: Configure CMake
       run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}"
       
