@@ -64,6 +64,33 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     this->last_pose_ = pose;
 }
 
+void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status)
+{
+    auto pose = this->last_pose_;
+    switch (status.status())
+    {
+    case messages::TrackerStatus_Status_OK:
+        pose.deviceIsConnected = true;
+        pose.poseIsValid = true;
+        break;
+    case messages::TrackerStatus_Status_DISCONNECTED:
+        pose.deviceIsConnected = false;
+        pose.poseIsValid = false;
+    default:
+    case messages::TrackerStatus_Status_ERROR:
+    case messages::TrackerStatus_Status_BUSY:
+        pose.deviceIsConnected = true;
+        pose.poseIsValid = false;
+        break;
+    }
+
+    // TODO: send position/rotation of 0 instead of last pose?
+
+    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
+
+    // TODO: update this->last_pose_?
+}
+
 DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType()
 {
     return DeviceType::TRACKER;
