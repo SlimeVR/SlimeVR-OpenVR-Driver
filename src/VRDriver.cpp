@@ -66,6 +66,12 @@ void SlimeVRDriver::VRDriver::RunFrame()
                 if(device != this->devices_by_id.end()) {
                     device->second->PositionMessage(pos);
                 }
+            } else if(message->has_tracker_status()) {
+                messages::TrackerStatus status = message->tracker_status();
+                auto device = this->devices_by_id.find(status.tracker_id());
+                if (device != this->devices_by_id.end()) {
+                    device->second->StatusMessage(status);
+                }
             }
         }
 

@@ -36,6 +36,7 @@ namespace SlimeVRDriver {
             virtual vr::DriverPose_t GetPose() override;
             virtual int getDeviceId() override;
             virtual void PositionMessage(messages::Position &position) override;
+            virtual void StatusMessage(messages::TrackerStatus &status) override;
     private:
         vr::TrackedDeviceIndex_t device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;
