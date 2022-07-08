@@ -25,113 +25,155 @@
  * on named pipes
  */
 #include "bridge.hpp"
-#if defined(WIN32) && defined(BRIDGE_USE_PIPES)
+#include "../VRDriver.hpp"
 #include <windows.h>
 
-#define PIPE_NAME "\\\\.\\pipe\\SlimeVRDriver"
 
-unsigned long lastReconnectFrame = 0;
+SlimeVRDriver::Bridge::Bridge(VRDriver* i_pDriver)
+    : m_pDriver(i_pDriver)
+    , m_pPipe(INVALID_HANDLE_VALUE)
+    , m_pBuffer(new char[1024])
+    , m_eState(EState::BRIDGE_DISCONNECTED)
+    , m_bStop(false)
+{}
 
-HANDLE pipe = INVALID_HANDLE_VALUE;
-BridgeStatus currentBridgeStatus = BRIDGE_DISCONNECTED;
-char buffer[1024];
-
-void updatePipe(SlimeVRDriver::VRDriver &driver);
-void resetPipe(SlimeVRDriver::VRDriver &driver);
-void attemptPipeConnect(SlimeVRDriver::VRDriver &driver);
-
-BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver &driver) {
-    switch(currentBridgeStatus) {
-        case BRIDGE_DISCONNECTED:
-            attemptPipeConnect(driver);
-        break;
-        case BRIDGE_ERROR:
-            resetPipe(driver);
-        break;
-        case BRIDGE_CONNECTED:
-            updatePipe(driver);
-        break;
-    }
-
-    return currentBridgeStatus;
+SlimeVRDriver::Bridge::~Bridge()
+{
+    this->stop();
+    delete[] this->m_pBuffer;
 }
 
-bool getNextBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver) {
+void SlimeVRDriver::Bridge::run() {
+
+    messages::ProtobufMessage oMsg;
+    
+    while(!this->m_bStop) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+
+        switch (this->m_eState) {
+        case EState::BRIDGE_DISCONNECTED:
+            attemptPipeConnect();
+            break;
+        case EState::BRIDGE_ERROR:
+            resetPipe();
+            break;
+        case EState::BRIDGE_CONNECTED:
+        default:
+            break;
+        }
+
+        // Read all msg
+        while (this->fetchNextBridgeMessage(oMsg)) {
+            std::lock_guard<std::recursive_mutex> lk(this->m_oMutex);
+            this->m_aRecvQueue.push(std::move(oMsg));
+        };
+
+
+        while (true)
+        {
+            {   // Custom scope for send queue mutex
+                std::lock_guard<std::recursive_mutex> lk(this->m_oMutex);
+                if (this->m_aSendQueue.empty()) {
+                    break;
+                }
+
+                oMsg = std::move(this->m_aSendQueue.front());
+                this->m_aSendQueue.pop();
+            }
+
+            this->sendBridgeMessageFromQueue(oMsg);
+        }
+
+    }
+}
+
+void SlimeVRDriver::Bridge::start()
+{
+    this->m_bStop = false;
+    this->m_oThread = std::thread(&Bridge::run, this);
+}
+
+void SlimeVRDriver::Bridge::stop()
+{
+    if (this->m_oThread.joinable()) {
+        this->m_oThread.join();
+    }
+}
+
+bool SlimeVRDriver::Bridge::fetchNextBridgeMessage(messages::ProtobufMessage& i_oMessage) {
+    if (this->m_eState != EState::BRIDGE_CONNECTED) {
+        return false;
+    }
+
     DWORD dwRead;
     DWORD dwAvailable;
-    if(currentBridgeStatus == BRIDGE_CONNECTED) {
-        if(PeekNamedPipe(pipe, buffer, 4, &dwRead, &dwAvailable, NULL)) {
-            if(dwRead == 4) {
-                uint32_t messageLength = (buffer[3] << 24) | (buffer[2] << 16) | (buffer[1] << 8) | buffer[0];
-                if(messageLength > 1024) {
-                    // TODO Buffer overflow
-                }
-                if(dwAvailable >= messageLength) {
-                    if(ReadFile(pipe, buffer, messageLength, &dwRead, NULL)) {
-                        if(message.ParseFromArray(buffer + 4, messageLength - 4))
-                            return true;
-                    } else {
-                        currentBridgeStatus = BRIDGE_ERROR;
-                        driver.Log("Bridge error: " + std::to_string(GetLastError()));
-                    }
-                }
+    uint32_t messageLength;
+    bool bNewMessage = false;
+
+    if(PeekNamedPipe(this->m_pPipe, &messageLength, 4, &dwRead, &dwAvailable, NULL)) {
+        if(dwRead == 4 && messageLength <= 1023 && dwAvailable >= messageLength) {
+            if(ReadFile(this->m_pPipe, this->m_pBuffer, messageLength, &dwRead, NULL)) {
+                bNewMessage = i_oMessage.ParseFromArray(this->m_pBuffer + 4, messageLength - 4);
             }
-        } else {
-            currentBridgeStatus = BRIDGE_ERROR;
-            driver.Log("Bridge error: " + std::to_string(GetLastError()));
+            else {
+                setBridgeError();
+            }
         }
+    } else {
+        setBridgeError();
     }
-    return false;
+
+
+    return bNewMessage;
 }
 
-bool sendBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver) {
-    if(currentBridgeStatus == BRIDGE_CONNECTED) {
-        uint32_t size = (uint32_t) message.ByteSizeLong();
-        if(size > 1020) {
-            driver.Log("Message too big");
-            return false;
-        }
-        message.SerializeToArray(buffer + 4, size);
-        size += 4;
-        buffer[0] = size & 0xFF;
-        buffer[1] = (size >> 8) & 0xFF;
-        buffer[2] = (size >> 16) & 0xFF;
-        buffer[3] = (size >> 24) & 0xFF;
-        if(WriteFile(pipe, buffer, size, NULL, NULL)) {
-            return true;
-        }
-        currentBridgeStatus = BRIDGE_ERROR;
-        driver.Log("Bridge error: " + std::to_string(GetLastError()));
+void SlimeVRDriver::Bridge::sendBridgeMessageFromQueue(messages::ProtobufMessage& i_oMessage) {
+    if (this->m_eState != EState::BRIDGE_CONNECTED) {
+        return;
     }
-    return false;
-}
 
-void updatePipe(SlimeVRDriver::VRDriver &driver) {
-}
+    uint32_t size = static_cast<uint32_t>(i_oMessage.ByteSizeLong());
+    if(size > 1020) {
+        this->m_pDriver->Log("Message too big");
+        return;
+    }
 
-void resetPipe(SlimeVRDriver::VRDriver &driver) {
-    if(pipe != INVALID_HANDLE_VALUE) {
-        CloseHandle(pipe);
-        pipe = INVALID_HANDLE_VALUE;
-        currentBridgeStatus = BRIDGE_DISCONNECTED;
-        driver.Log("Pipe was reset");
+    i_oMessage.SerializeToArray(this->m_pBuffer + 4, size);
+    size += 4;
+    *reinterpret_cast<uint32_t*>(this->m_pBuffer) = size;
+    if(!WriteFile(this->m_pPipe, this->m_pBuffer, size, NULL, NULL)) {
+        setBridgeError();
+        return;
     }
 }
 
-void attemptPipeConnect(SlimeVRDriver::VRDriver &driver) {
-    pipe = CreateFileA(PIPE_NAME,
+void SlimeVRDriver::Bridge::setBridgeError() {
+    this->m_eState = EState::BRIDGE_ERROR;
+    this->m_pDriver->Log("Bridge error: " + std::to_string(GetLastError()));
+}
+
+void SlimeVRDriver::Bridge::resetPipe() {
+    if(this->m_pPipe != INVALID_HANDLE_VALUE) {
+        CloseHandle(this->m_pPipe);
+        this->m_pPipe = INVALID_HANDLE_VALUE;
+
+        this->m_eState = EState::BRIDGE_DISCONNECTED;
+        this->m_pDriver->Log("Pipe was reset");
+    }
+}
+
+void SlimeVRDriver::Bridge::attemptPipeConnect() {
+    this->m_pPipe = CreateFileA(PIPE_NAME,
         GENERIC_READ | GENERIC_WRITE,
         0,
         NULL,
         OPEN_EXISTING,
         0, // TODO : Overlapped
         NULL);
-    if(pipe != INVALID_HANDLE_VALUE) {
-        currentBridgeStatus = BRIDGE_CONNECTED;
-        driver.Log("Pipe was connected");
+
+    if(m_pPipe != INVALID_HANDLE_VALUE) {
+        this->m_eState = EState::BRIDGE_CONNECTED;
+        this->m_pDriver->Log("Pipe was connected");
         return;
     }
 }
-
-
-#endif // PLATFORM_WINDOWS && BRIDGE_USE_PIPES

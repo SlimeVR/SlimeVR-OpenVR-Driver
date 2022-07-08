@@ -1,8 +1,10 @@
 #pragma once
+
 #define NOMINMAX
 
 #include <vector>
 #include <memory>
+#include <map>
 
 #include <openvr_driver.h>
 
@@ -10,8 +12,11 @@
 #include <IVRDevice.hpp>
 
 namespace SlimeVRDriver {
+    class Bridge;
     class VRDriver : public IVRDriver {
     public:
+        VRDriver();
+        virtual ~VRDriver();
 
         // Inherited via IVRDriver
         virtual std::vector<std::shared_ptr<IVRDevice>> GetDevices() override;
@@ -32,7 +37,6 @@ namespace SlimeVRDriver {
         virtual bool ShouldBlockStandbyMode() override;
         virtual void EnterStandby() override;
         virtual void LeaveStandby() override;
-        virtual ~VRDriver() = default;
 
     private:
         std::vector<std::shared_ptr<IVRDevice>> devices_;
@@ -47,5 +51,6 @@ namespace SlimeVRDriver {
         vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);
 
         bool sentHmdAddMessage = false;
+        Bridge *m_pBridge;
     };
 };
