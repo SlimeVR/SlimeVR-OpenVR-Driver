@@ -54,8 +54,8 @@ find_library(OPENVR_LIB openvr_api HINTS "${CMAKE_CURRENT_SOURCE_DIR}/libraries/
 # Installation:
 # Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
 # WARNING: CLang has an arror building protobuf messages, use MSVC 2019
-INCLUDE(FindProtobuf)
-find_package(protobuf CONFIG REQUIRED)
+set(protobuf_MODULE_COMPATIBLE ON CACHE BOOL "")
+find_package(Protobuf CONFIG REQUIRED)
 protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
 SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
 
@@ -99,6 +99,7 @@ add_custom_command(
 )
 
 # Copy libprotobuf dll to output folder
+# NOTE: This only works with Release/RelWithDebInfo, because Debug uses libprotobufd.dll
 add_custom_command(
     TARGET ${PROJECT_NAME} 
     POST_BUILD
