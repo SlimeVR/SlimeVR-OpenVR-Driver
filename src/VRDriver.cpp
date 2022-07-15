@@ -17,14 +17,12 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     Log("Activating SlimeVR Driver...");
 
     try {
-        // TODO: ideally we preserve a single parser.
-        simdjson::ondemand::parser parser;
         auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
-        simdjson::ondemand::document doc = parser.iterate(json);
+        simdjson::ondemand::document doc = json_parser.iterate(json);
         auto path = std::string { doc.get_object()["config"].at(0).get_string().value() };
         // Log(path);
-        this->openvr_config_path_ = path;
-    } catch(simdjson::simdjson_error& e) {
+        openvr_config_path_ = path;
+    } catch (simdjson::simdjson_error& e) {
         std::stringstream ss;
         ss << "Error getting VR Config path, continuing: " << e.error();
         Log(ss.str());
@@ -280,4 +278,36 @@ vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t &matrix)
     vector.v[2] = matrix.m[2][3];
 
     return vector;
+}
+
+SlimeVRDriver::UniverseTranslation SlimeVRDriver::UniverseTranslation::parse(simdjson::ondemand::object &obj) {
+    SlimeVRDriver::UniverseTranslation res;
+    int iii = 0;
+    for (auto component: obj["translation"]) {
+        if (iii > 2) {
+            break; // TODO: 4 components in a translation vector? should this be an error?
+        }
+        res.translation.v[iii] = component.get_double();
+        iii += 1;
+    }
+    res.yaw = obj["yaw"].get_double();
+
+    return res;
+}
+
+void SlimeVRDriver::VRDriver::parse_universes(std::string path) {
+    try {
+        auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
+        simdjson::ondemand::document doc = json_parser.iterate(json);
+
+        for (simdjson::ondemand::object uni: doc["universes"]) {
+            auto translation = SlimeVRDriver::UniverseTranslation::parse(uni["standing"].get_object().value());
+            auto universe_id = uni["universeID"].get_uint64_in_string().value();
+            universes.insert_or_assign(universe_id, translation);
+        }
+    } catch (simdjson::simdjson_error& e) {
+        std::stringstream ss;
+        ss << "Error getting universes from \"" << path << "\": " << e.error();
+        Log(ss.str());
+    }
 }
