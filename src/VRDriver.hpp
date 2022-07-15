@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include <optional>
 
 #include <openvr_driver.h>
 
@@ -42,6 +43,7 @@ namespace SlimeVRDriver {
         std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
         std::chrono::system_clock::time_point last_frame_time_ = std::chrono::system_clock::now();
         std::string settings_key_ = "driver_slimevr";
+        std::optional<std::string> openvr_config_path_ = std::nullopt;
 
         vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);
         vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);

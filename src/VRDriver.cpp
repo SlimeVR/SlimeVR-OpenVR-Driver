@@ -3,6 +3,8 @@
 #include "bridge/bridge.hpp"
 #include "TrackerRole.hpp"
 #include <google/protobuf/arena.h>
+#include <simdjson.h>
+#include "VRPaths_openvr.hpp"
 
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
@@ -13,6 +15,21 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     }
 
     Log("Activating SlimeVR Driver...");
+
+    try {
+        // TODO: ideally we preserve a single parser.
+        simdjson::ondemand::parser parser;
+        auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
+        simdjson::ondemand::document doc = parser.iterate(json);
+        auto path = std::string { doc.get_object()["config"].at(0).get_string().value() };
+        // Log(path);
+        this->openvr_config_path_ = path;
+    } catch(simdjson::simdjson_error& e) {
+        std::stringstream ss;
+        ss << "Error getting VR Config path, continuing: " << e.error();
+        Log(ss.str());
+    }
+
     Log("SlimeVR Driver Loaded Successfully");
 
 	return vr::VRInitError_None;
