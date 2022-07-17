@@ -13,15 +13,6 @@
 #include <simdjson.h>
 
 namespace SlimeVRDriver {
-    class UniverseTranslation {
-        public:
-            // TODO: do we want to store this differently?
-            vr::HmdVector3_t translation;
-            float yaw;
-
-            static UniverseTranslation parse(simdjson::ondemand::object &obj);
-    };
-
     class VRDriver : public IVRDriver {
     public:
 
@@ -46,6 +37,8 @@ namespace SlimeVRDriver {
         virtual void LeaveStandby() override;
         virtual ~VRDriver() = default;
 
+        virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
+
     private:
         std::vector<std::shared_ptr<IVRDevice>> devices_;
         std::vector<vr::VREvent_t> openvr_events_;
@@ -61,9 +54,12 @@ namespace SlimeVRDriver {
         bool sentHmdAddMessage = false;
 
         simdjson::ondemand::parser json_parser;
-        std::optional<std::string> openvr_config_path_ = std::nullopt;
-        std::map<int, UniverseTranslation> universes;
+        std::optional<std::string> default_chap_path_ = std::nullopt;
+        //std::map<int, UniverseTranslation> universes;
 
-        void parse_universes(std::string path);
+        std::optional<std::pair<uint64_t, UniverseTranslation>> current_universe = std::nullopt;
+
+        std::optional<UniverseTranslation> search_universe(std::string path, uint64_t target);
+        std::optional<UniverseTranslation> search_universes(uint64_t target);
     };
 };

@@ -21,7 +21,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         simdjson::ondemand::document doc = json_parser.iterate(json);
         auto path = std::string { doc.get_object()["config"].at(0).get_string().value() };
         // Log(path);
-        openvr_config_path_ = path;
+        default_chap_path_ = GetDefaultChaperoneFromConfigPath(path);
     } catch (simdjson::simdjson_error& e) {
         std::stringstream ss;
         ss << "Error getting VR Config path, continuing: " << e.error();
@@ -107,11 +107,30 @@ void SlimeVRDriver::VRDriver::RunFrame()
             Log("Sent HMD hello message");
         }
 
+        uint64_t universe = vr::VRProperties()->GetUint64Property(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_CurrentUniverseId_Uint64);
+        if (!current_universe.has_value() || current_universe.value().first != universe) {
+            auto res = search_universes(universe);
+            if (res.has_value()) {
+                current_universe.emplace(universe, res.value());
+            } else {
+                Log("Failed to find current universe!");
+            }
+        }
+
         vr::TrackedDevicePose_t hmd_pose[10];
         vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
 
         vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
         vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
+
+        if (current_universe.has_value()) {
+            auto trans = current_universe.value().second;
+            pos.v[0] += trans.translation.v[0];
+            pos.v[1] += trans.translation.v[1];
+            pos.v[2] += trans.translation.v[2];
+
+            // TODO: handle yaw rotation?
+        }
 
         messages::Position* hmdPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
         message->set_allocated_position(hmdPosition);
@@ -295,19 +314,47 @@ SlimeVRDriver::UniverseTranslation SlimeVRDriver::UniverseTranslation::parse(sim
     return res;
 }
 
-void SlimeVRDriver::VRDriver::parse_universes(std::string path) {
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::search_universe(std::string path, uint64_t target) {
     try {
-        auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
+        auto json = simdjson::padded_string::load(path); // load VR Path Registry
         simdjson::ondemand::document doc = json_parser.iterate(json);
 
         for (simdjson::ondemand::object uni: doc["universes"]) {
-            auto translation = SlimeVRDriver::UniverseTranslation::parse(uni["standing"].get_object().value());
-            auto universe_id = uni["universeID"].get_uint64_in_string().value();
-            universes.insert_or_assign(universe_id, translation);
+            // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
+            if (uni["universeID"].get_uint64_in_string() == target) {
+                return SlimeVRDriver::UniverseTranslation::parse(uni["standing"].get_object().value());
+            }
         }
     } catch (simdjson::simdjson_error& e) {
         std::stringstream ss;
         ss << "Error getting universes from \"" << path << "\": " << e.error();
         Log(ss.str());
+        return std::nullopt;
+    }
+
+    return std::nullopt;
+}
+
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::search_universes(uint64_t target) {
+    auto driver_chap_path = vr::VRProperties()->GetStringProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DriverProvidedChaperonePath_String);
+    if (driver_chap_path != "") {
+        auto driver_res = search_universe(driver_chap_path, target);
+        if (driver_res.has_value()) {
+            return driver_res.value();
+        }
+    }
+
+    if (default_chap_path_.has_value()) {
+        return search_universe(default_chap_path_.value(), target);
+    }
+    
+    return std::nullopt;
+}
+
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::GetCurrentUniverse() {
+    if (current_universe.has_value()) {
+        return current_universe.value().second;
+    } else {
+        return std::nullopt;
     }
 }
