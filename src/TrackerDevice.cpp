@@ -1,4 +1,6 @@
 #include "TrackerDevice.hpp"
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int deviceId, TrackerRole trackerRole_):
     serial_(serial), trackerRole(trackerRole_), deviceId_(deviceId)
@@ -62,9 +64,19 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     auto current_universe = GetDriver()->GetCurrentUniverse();
     if (current_universe.has_value()) {
         auto trans = current_universe.value();
-        pose.vecPosition[0] -= trans.translation.v[0];
-        pose.vecPosition[1] -= trans.translation.v[1];
-        pose.vecPosition[2] -= trans.translation.v[2];
+        // pose.vecPosition[0] -= trans.translation.v[0];
+        // pose.vecPosition[1] -= trans.translation.v[1];
+        // pose.vecPosition[2] -= trans.translation.v[2];
+
+        // TODO: set this once, somewhere?
+        pose.vecWorldFromDriverTranslation[0] = -trans.translation.v[0];
+        pose.vecWorldFromDriverTranslation[1] = -trans.translation.v[1];
+        pose.vecWorldFromDriverTranslation[2] = -trans.translation.v[2];
+
+        pose.qWorldFromDriverRotation.w = cos(-(trans.yaw + M_PI/2) / 2);
+        pose.qWorldFromDriverRotation.x = 0;
+        pose.qWorldFromDriverRotation.y = sin(-(trans.yaw + M_PI/2) / 2);
+        pose.qWorldFromDriverRotation.z = 0;
 
         // TODO: handle yaw rotation?
     }

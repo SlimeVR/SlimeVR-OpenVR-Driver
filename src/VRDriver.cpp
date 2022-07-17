@@ -5,6 +5,8 @@
 #include <google/protobuf/arena.h>
 #include <simdjson.h>
 #include "VRPaths_openvr.hpp"
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
@@ -129,7 +131,29 @@ void SlimeVRDriver::VRDriver::RunFrame()
             pos.v[1] += trans.translation.v[1];
             pos.v[2] += trans.translation.v[2];
 
-            // TODO: handle yaw rotation?
+            // rotate by quaternion w = cos(trans.yaw / 2), x = 0, y = sin(trans.yaw / 2), z = 0
+            // add a factor of PI/2 to fudge a 90 degree rotation. (why...?)
+            auto tmp_w = cos((trans.yaw + M_PI/2) / 2);
+            auto tmp_y = sin((trans.yaw + M_PI/2) / 2);
+            // auto new_w = q.w * tmp_w - q.y * tmp_y;
+            // auto new_x = q.x * tmp_w - q.z * tmp_y;
+            // auto new_y = q.w * tmp_y + q.y * tmp_w;
+            // auto new_z = q.x * tmp_y + q.z * tmp_y;
+            auto new_w = tmp_w * q.w - tmp_y * q.y;
+            auto new_x = tmp_w * q.x + tmp_y * q.z;
+            auto new_y = tmp_w * q.y + tmp_y * q.w;
+            auto new_z = tmp_w * q.z - tmp_y * q.x;
+
+            q.w = new_w;
+            q.x = new_x;
+            q.y = new_y;
+            q.z = new_z;
+
+            auto pos_x = pos.v[0] * tmp_w - pos.v[2] * tmp_y;
+            auto pos_z = pos.v[2] * tmp_w + pos.v[0] * tmp_y;
+
+            pos.v[0] = pos_x;
+            pos.v[2] = pos_z;
         }
 
         messages::Position* hmdPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
