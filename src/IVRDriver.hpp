@@ -3,10 +3,20 @@
 #include <vector>
 #include <chrono>
 #include <variant>
+#include <optional>
 #include <openvr_driver.h>
 #include "IVRDevice.hpp"
+#include <simdjson.h>
 
 namespace SlimeVRDriver {
+    class UniverseTranslation {
+        public:
+            // TODO: do we want to store this differently?
+            vr::HmdVector3_t translation;
+            float yaw;
+
+            static UniverseTranslation parse(simdjson::ondemand::object &obj);
+    };
 
     typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
 
@@ -62,6 +72,11 @@ namespace SlimeVRDriver {
         /// </summary>
         /// <returns>OpenVR VRServerDriverHost pointer</returns>
         virtual vr::IVRServerDriverHost* GetDriverHost() = 0;
+
+        /// <summary>
+        /// Gets the current UniverseTranslation
+        /// </summary>
+        virtual std::optional<UniverseTranslation> GetCurrentUniverse() = 0;
 
         /// <summary>
         /// Writes a log message

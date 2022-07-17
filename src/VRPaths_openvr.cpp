@@ -255,3 +255,8 @@ std::string GetVRPathRegistryFilename()
 	sPath = Path_FixSlashes( sPath );
 	return sPath;
 }
+
+std::string GetDefaultChaperoneFromConfigPath(std::string path)
+{
+	return Path_Join(path, "chaperone_info.vrchap");
+}
