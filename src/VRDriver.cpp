@@ -130,13 +130,8 @@ void SlimeVRDriver::VRDriver::RunFrame()
             pos.v[2] += trans.translation.v[2];
 
             // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
-            // add a factor of PI/2 to fudge a 90 degree rotation. (why...?)
             auto tmp_w = cos(-trans.yaw / 2);
             auto tmp_y = sin(-trans.yaw / 2);
-            // auto new_w = q.w * tmp_w - q.y * tmp_y;
-            // auto new_x = q.x * tmp_w - q.z * tmp_y;
-            // auto new_y = q.w * tmp_y + q.y * tmp_w;
-            // auto new_z = q.x * tmp_y + q.z * tmp_y;
             auto new_w = tmp_w * q.w - tmp_y * q.y;
             auto new_x = tmp_w * q.x + tmp_y * q.z;
             auto new_y = tmp_w * q.y + tmp_y * q.w;
@@ -147,8 +142,12 @@ void SlimeVRDriver::VRDriver::RunFrame()
             q.y = new_y;
             q.z = new_z;
 
-            auto pos_x = pos.v[0] * tmp_w - pos.v[2] * tmp_y;
-            auto pos_z = pos.v[2] * tmp_w + pos.v[0] * tmp_y;
+            // rotate point on the xz plane by -trans.yaw radians
+            // this is equivilant to the quaternion multiplication, after applying the double angle formula.
+            float tmp_sin = sin(-trans.yaw);
+            float tmp_cos = cos(-trans.yaw);
+            auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
+            auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
 
             pos.v[0] = pos_x;
             pos.v[2] = pos_z;
