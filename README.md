@@ -24,3 +24,11 @@ Edit file `C:\Users\<Username>\AppData\Local\openvr\openvrpaths.vrpath`, add `"P
 ## Contributions
 
 By contributing to this project you are placing all your code under MIT or less restricting licenses, and you certify that the code you have used is compatible with those licenses or is authored by you. If you're doing so on your work time, you certify that your employer is okay with this.
+
+### Building
+
+To build the project with VSCode you need to install two things: [vcpkg](https://vcpkg.io/en/getting-started.html) and [VS Build Tools](https://visualstudio.microsoft.com/downloads/).
+
+After installing vcpkg if you're on Windows, you need to run `vcpkg integrate install` command from the vcpkg folder to integrate it for VSCode.
+
+For other systems and IDEs instructions are not available as of now, contributions are welcome.
