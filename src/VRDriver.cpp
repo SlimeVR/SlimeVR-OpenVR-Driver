@@ -342,7 +342,14 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::searc
 
         for (simdjson::ondemand::object uni: doc["universes"]) {
             // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
-            if (uni["universeID"].get_uint64_in_string() == target) {
+            auto elem = uni["universeID"];
+            uint64_t parsed_universe;
+            if (elem.is_integer()) {
+                parsed_universe = elem.get_uint64();
+            } else {
+                parsed_universe = elem.get_uint64_in_string();
+            }
+            if (parsed_universe == target) {
                 return SlimeVRDriver::UniverseTranslation::parse(uni["standing"].get_object().value());
             }
         }
