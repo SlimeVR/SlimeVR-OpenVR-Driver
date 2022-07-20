@@ -59,6 +59,8 @@ find_package(Protobuf CONFIG REQUIRED)
 protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
 SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
 
+find_package(simdjson CONFIG REQUIRED)
+
 # Project
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -66,7 +68,7 @@ add_library("${PROJECT_NAME}" SHARED "${HEADERS}" "${SOURCES}" ${PROTO_HEADER} $
 target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
-target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}" protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
+target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}" protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite simdjson::simdjson)
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -106,4 +108,12 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy 
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/libprotobuf.dll
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/libprotobuf.dll
+)
+
+add_custom_command(
+    TARGET ${PROJECT_NAME} 
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy 
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/simdjson.dll
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/simdjson.dll
 )
