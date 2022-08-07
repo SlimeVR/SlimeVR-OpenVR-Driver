@@ -30,7 +30,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
 
     Log("SlimeVR Driver Loaded Successfully");
 
-	return vr::VRInitError_None;
+    return vr::VRInitError_None;
 }
 
 void SlimeVRDriver::VRDriver::Cleanup()
@@ -344,11 +344,14 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::searc
             // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
             auto elem = uni["universeID"];
             uint64_t parsed_universe;
-            if (elem.is_integer()) {
+
+            auto is_integer = elem.is_integer();
+            if (!is_integer.error() && is_integer.value_unsafe()) {
                 parsed_universe = elem.get_uint64();
             } else {
                 parsed_universe = elem.get_uint64_in_string();
             }
+
             if (parsed_universe == target) {
                 return SlimeVRDriver::UniverseTranslation::parse(uni["standing"].get_object().value());
             }
