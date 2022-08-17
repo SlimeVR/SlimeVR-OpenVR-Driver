@@ -10,10 +10,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest] # Others are disabled, this only targets Windows
+        os: [windows-latest, ubuntu-latest] # Others are disabled, this only targets Windows
         include:
           - os: windows-latest
             triplet: x64-windows-static-md
+          - os: ubuntu-latest
+            triplet: x64-linux
     env:
       # Indicates the CMake build directory where project files and binaries are being produced.
       CMAKE_BUILD_DIR: ${{ github.workspace }}/build
