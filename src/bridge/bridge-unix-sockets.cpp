@@ -30,7 +30,7 @@
 #include <string_view>
 #include <memory>
 
-#define SOCKET_PATH "/SlimeVRDriver"
+#define SOCKET_PATH "/tmp/SlimeVRDriver"
 
 namespace {
 
