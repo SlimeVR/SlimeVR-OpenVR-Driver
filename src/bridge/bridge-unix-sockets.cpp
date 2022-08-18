@@ -80,60 +80,58 @@ ByteBuffer byteBuffer;
 
 bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
     if (!server.IsConnected()) return false;
+    const auto bufBegin = byteBuffer.begin();
+    const int bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
+    int bytesRecv = 0;
     try {
-        const auto bufBegin = byteBuffer.begin();
-
-        const int bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
-        const std::optional<int> bytesRecv = server.TryRecv(bufBegin, bufferSize);
-        if (!bytesRecv) return false; // blocking, poll and try again
-        if (*bytesRecv == 0) return false; // no message waiting
-
-        int outMsgSize = 0;
-        const std::optional msgBeginIt = ReadHeader(bufBegin, *bytesRecv, outMsgSize);
-        if (!msgBeginIt) {
-            driver.Log("bridge recv error: invalid message header or size");
-            return false;
-        }
-        if (outMsgSize <= 0) {
-            driver.Log("bridge recv error: empty message");
-            return false;
-        }
-        if (!message.ParseFromArray(&(**msgBeginIt), outMsgSize)) {
-            driver.Log("bridge recv error: failed to parse");
-            return false;
-        }
-        return true;
-    } catch (const std::system_error& e) {
+        bytesRecv = server.Recv(bufBegin, bufferSize);
+    } catch (const std::exception& e) {
         server.CloseConnector();
         driver.Log("bridge recv error: " + std::string(e.what()));
         return false;
     }
+    if (bytesRecv <= 0) return false; // no message waiting
+    int outMsgSize = 0;
+    const std::optional msgBeginIt = ReadHeader(bufBegin, bytesRecv, outMsgSize);
+    if (!msgBeginIt) {
+        driver.Log("bridge recv error: invalid message header or size");
+        return false;
+    }
+    if (outMsgSize <= 0) {
+        driver.Log("bridge recv error: empty message");
+        return false;
+    }
+    if (!message.ParseFromArray(&(**msgBeginIt), outMsgSize)) {
+        driver.Log("bridge recv error: failed to parse");
+        return false;
+    }
+    return true;
 }
 
 bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
     if (!server.IsConnected()) return false;
+    const auto bufBegin = byteBuffer.begin();
+    const auto bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
+    const auto msgSize = static_cast<int>(message.ByteSizeLong());
+    const std::optional msgBeginIt = WriteHeader(bufBegin, bufferSize, msgSize);
+    if (!msgBeginIt) {
+        driver.Log("bridge send error: failed to write header");
+        return false;
+    }
+    if (!message.SerializeToArray(&(**msgBeginIt), msgSize)) {
+        driver.Log("bridge send error: failed to serialize");
+        return false;
+    }
+    int bytesToSend = static_cast<int>(std::distance(bufBegin, *msgBeginIt + msgSize));
+    if (bytesToSend <= 0) {
+        driver.Log("bridge send error: empty message");
+        return false;
+    }
+    if (bytesToSend > bufferSize) {
+        driver.Log("bridge send error: message too big");
+        return false;
+    }
     try {
-        const auto bufBegin = byteBuffer.begin();
-        const auto bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
-        const auto msgSize = static_cast<int>(message.ByteSizeLong());
-        const std::optional msgBeginIt = WriteHeader(bufBegin, bufferSize, msgSize);
-        if (!msgBeginIt) {
-            driver.Log("bridge send error: failed to write header");
-            return false;
-        }
-        if (!message.SerializeToArray(&(**msgBeginIt), msgSize)) {
-            driver.Log("bridge send error: failed to serialize");
-            return false;
-        }
-        int bytesToSend = static_cast<int>(std::distance(bufBegin, *msgBeginIt + msgSize));
-        if (bytesToSend <= 0) {
-            driver.Log("bridge send error: empty message");
-            return false;
-        }
-        if (bytesToSend > bufferSize) {
-            driver.Log("bridge send error: message too big");
-            return false;
-        }
         return server.Send(bufBegin, bytesToSend);
     } catch (const std::exception& e) {
         server.CloseConnector();
@@ -144,8 +142,9 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
 
 BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
-        if (!server.IsOpen()) server.Open(SOCKET_PATH);
-
+        if (!server.IsOpen()) {
+            server.Open(SOCKET_PATH);
+        }
         server.UpdateOnce();
 
         if (!server.IsConnected()) {

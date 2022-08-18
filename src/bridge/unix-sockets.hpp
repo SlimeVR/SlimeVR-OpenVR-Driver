@@ -163,6 +163,7 @@ public:
             throw std::system_error(std::make_error_code(GetError()));
         }
         if (res.IsInvalid() || res.IsClosed()) {
+            // TODO: technically could still have bytes waiting to be read on the close event
             return false;
         }
         if (res.IsReadable()) {
@@ -336,6 +337,7 @@ public:
         mConnector.reset();
         if (mPoller.GetSize() == 2) mPoller.Remove(1);
     }
+
     /// default timeout returns immediately
     void UpdateOnce(int timeoutMs = 0) {
         assert(IsOpen());
@@ -386,11 +388,14 @@ public:
 
     /// receive a byte buffer
     /// @tparam TBufIt iterator to contiguous memory
-    /// @return number of bytes written to buffer or nullopt if blocking
+    /// @return number of bytes written to buffer, 0 indicating there is no message waiting
     template <typename TBufIt>
-    std::optional<int> TryRecv(TBufIt bufBegin, int bufSize) {
-        assert(IsConnected());
-        return mConnector->TryRecv(bufBegin, bufSize);
+    int Recv(TBufIt bufBegin, int bufSize) {
+        std::optional<int> bytesRecv = mConnector->TryRecv(bufBegin, bufSize);
+        // if the user is doing while(messageReceived) {  } to empty the message queue
+        // then need to poll once before the next iteration, but only if there were bytes received
+        if (bytesRecv && *bytesRecv > 0) UpdateOnce();
+        return bytesRecv.value_or(0);
     }
 
     bool IsOpen() const { return mAcceptor.has_value(); }
