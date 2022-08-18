@@ -34,81 +34,14 @@
 
 namespace {
 
-class BasicLocalServer {
-public:
-    void Open(std::string_view path) {
-        mAcceptor = LocalAcceptorSocket(path, 1);
-        mPoller.AddAcceptor(mAcceptor->GetDescriptor());
-        assert(mPoller.GetSize() == 1);
-    }
-    void Close() {
-        mAcceptor.reset();
-        mConnector.reset();
-        mPoller.Clear();
-    }
-    void CloseConnector() {
-        mConnector.reset();
-        if (mPoller.GetSize() == 2) mPoller.Remove(1);
-    }
-
-    void UpdateOnce() {
-        assert(IsOpen());
-        constexpr int timeoutMs = 0; // no block
-        mPoller.Poll(timeoutMs);
-
-        if (!mAcceptor->Update(mPoller.At(0))) {
-            Close();
-            return;
-        }
-        if (!IsConnected()) {
-            TryOpenConnector();
-            return;
-        }
-        if (!mConnector->Update(mPoller.At(1))) {
-            CloseConnector();
-            return;
-        }
-    }
-    /// send a byte buffer
-    /// @tparam TBufIt iterator to contiguous memory
-    /// @return number of bytes sent or nullopt if blocking
-    template <typename TBufIt>
-    std::optional<int> TrySend(TBufIt bufBegin, int bytesToSend) {
-        assert(IsConnected());
-        return mConnector->TrySend(bufBegin, bytesToSend);
-    }
-    /// receive a byte buffer
-    /// @tparam TBufIt iterator to contiguous memory
-    /// @return number of bytes written to buffer or nullopt if blocking
-    template <typename TBufIt>
-    std::optional<int> TryRecv(TBufIt bufBegin, int bufSize) {
-        assert(IsConnected());
-        return mConnector->TryRecv(bufBegin, bufSize);
-    }
-
-    bool IsOpen() const { return mAcceptor.has_value(); }
-    bool IsConnected() const { return IsOpen() && mConnector.has_value(); }
-
-private:
-    void TryOpenConnector() {
-        mConnector = mAcceptor->Accept();
-        if (!mConnector) return;
-        mPoller.AddConnector(mConnector->GetDescriptor());
-        assert(mPoller.GetSize() == 2);
-    }
-
-    std::optional<LocalAcceptorSocket> mAcceptor{};
-    std::optional<LocalConnectorSocket> mConnector{};
-    event::Poller mPoller; // index 0 is acceptor, 1 is connector if open
-};
-
 /// @return iterator after header
 template <typename TBufIt>
 std::optional<TBufIt> WriteHeader(TBufIt bufBegin, int bufSize, int msgSize) {
     static constexpr int headerSize = 4;
-    if (bufSize < headerSize) return std::nullopt; // header won't fit
+    const int totalSize = msgSize + headerSize; // include header bytes in total size
+    if (bufSize < totalSize) return std::nullopt; // header won't fit
 
-    const auto size = static_cast<uint32_t>(msgSize + headerSize); // include header bytes in total size
+    const auto size = static_cast<uint32_t>(totalSize);
     TBufIt it = bufBegin;
     *(it++) = static_cast<uint8_t>(size);
     *(it++) = static_cast<uint8_t>(size >> 8U);
@@ -119,9 +52,9 @@ std::optional<TBufIt> WriteHeader(TBufIt bufBegin, int bufSize, int msgSize) {
 
 /// @return iterator after header
 template <typename TBufIt>
-std::optional<TBufIt> ReadHeader(TBufIt bufBegin, int bytesRecv, int& outMsgSize) {
+std::optional<TBufIt> ReadHeader(TBufIt bufBegin, int bufSize, int& outMsgSize) {
     static constexpr int headerSize = 4;
-    if (bytesRecv < headerSize) return std::nullopt; // header won't fit
+    if (bufSize < headerSize) return std::nullopt; // header won't fit
 
     uint32_t size = 0;
     TBufIt it = bufBegin;
@@ -132,7 +65,7 @@ std::optional<TBufIt> ReadHeader(TBufIt bufBegin, int bytesRecv, int& outMsgSize
 
     const auto totalSize = static_cast<int>(size);
     // expecting the recv bytes to be exactly the message, as SOCK_SEQPACKET maintains message boundaries
-    if (totalSize < headerSize || totalSize != bytesRecv) return std::nullopt;
+    if (totalSize < headerSize || totalSize != bufSize) return std::nullopt;
     outMsgSize = totalSize - headerSize;
     return it;
 }
@@ -161,7 +94,7 @@ bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRD
             driver.Log("bridge recv error: invalid message header or size");
             return false;
         }
-        if (outMsgSize == 0) {
+        if (outMsgSize <= 0) {
             driver.Log("bridge recv error: empty message");
             return false;
         }
@@ -184,13 +117,16 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
         const auto bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
         const auto msgSize = static_cast<int>(message.ByteSizeLong());
         const std::optional msgBeginIt = WriteHeader(bufBegin, bufferSize, msgSize);
-        if (!msgBeginIt) return false; // header couldn't fit
+        if (!msgBeginIt) {
+            driver.Log("bridge send error: failed to write header");
+            return false;
+        }
         if (!message.SerializeToArray(&(**msgBeginIt), msgSize)) {
             driver.Log("bridge send error: failed to serialize");
             return false;
         }
         int bytesToSend = static_cast<int>(std::distance(bufBegin, *msgBeginIt + msgSize));
-        if (bytesToSend == 0) {
+        if (bytesToSend <= 0) {
             driver.Log("bridge send error: empty message");
             return false;
         }
@@ -198,30 +134,7 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
             driver.Log("bridge send error: message too big");
             return false;
         }
-        auto msgIt = bufBegin;
-        while (bytesToSend > 0) {
-            std::optional<int> bytesSent = server.TrySend(msgIt, bytesToSend);
-            if (!bytesSent) {
-                // blocking, poll and try again
-                server.UpdateOnce();
-                if (!server.IsConnected()) return false;
-            } else if (*bytesSent <= 0) {
-                // very unlikely given the small amount of data, something about filling up the internal buffer?
-                // handle it the same as a would block error, and hope eventually it'll resolve itself
-                server.UpdateOnce();
-                if (!server.IsConnected()) return false;
-            } else if (*bytesSent > bytesToSend) {
-                // probably guaranteed to not happen
-                driver.Log("bridge send error: sent bytes > bytes to send");
-                return false;
-            } else {
-                // SOCK_SEQPACKET means sending the message in parts is likely unecessary...
-                bytesToSend -= *bytesSent;
-                msgIt += *bytesSent;
-            }
-        }
-
-        return true;
+        return server.Send(bufBegin, bytesToSend);
     } catch (const std::exception& e) {
         server.CloseConnector();
         driver.Log("bridge send error: " + std::string(e.what()));

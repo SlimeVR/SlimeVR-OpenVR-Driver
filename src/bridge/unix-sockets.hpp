@@ -1,4 +1,5 @@
 #include <system_error>
+#include <stdexcept>
 #include <array>
 #include <string_view>
 #include <vector>
@@ -33,8 +34,8 @@ using Descriptor = int;
 class SysReturn {
     static constexpr std::errc sNotAnError = std::errc();
 public:
-    constexpr SysReturn(int value) noexcept : mCode(sNotAnError), mValue(value) {}
-    constexpr SysReturn(std::errc code) noexcept : mCode(code), mValue() {}
+    constexpr explicit SysReturn(int value) noexcept : mCode(sNotAnError), mValue(value) {}
+    constexpr explicit SysReturn(std::errc code) noexcept : mCode(code), mValue() {}
     constexpr bool IsError() const { return mCode != sNotAnError; }
     [[noreturn]] void ThrowCode() const { throw std::system_error(std::make_error_code(mCode)); }
     constexpr int Unwrap() const { if (IsError()) ThrowCode(); return mValue; }
@@ -44,12 +45,12 @@ private:
     int mValue;
 };
 
-/// call a system function and return a errc_or<ReturnT> (usually int)
+/// call a system function and wrap the errno or int result in a SysReturn
 template <typename Fn, typename... Args>
 [[nodiscard]] inline SysReturn SysCall(Fn&& func, Args&&... args) noexcept {
     const int result = static_cast<int>(func(std::forward<Args>(args)...));
-    if (result != -1) return result;
-    return std::errc(errno);
+    if (result != -1) return SysReturn(result);
+    return SysReturn(std::errc(errno));
 }
 
 /// wrap a blocking syscall and return nullopt if it would block
@@ -121,7 +122,7 @@ public:
     /// using file descriptor returned from system call
     explicit Socket(Descriptor descriptor) : mDescriptor(descriptor) {
         if (descriptor == sInvalidSocket) throw std::invalid_argument("invalid socket descriptor");
-        SetNonBlocking();
+        SetNonBlocking(); // accepted from non-blocking socket still needs to be set
     }
     ~Socket() {
         // owns resource and must close it, descriptor will be set invalid if moved from
@@ -129,11 +130,18 @@ public:
         if (mDescriptor != sInvalidSocket) (void)SysCall(::close, mDescriptor);
     }
     // manage descriptor like never null unique_ptr
-    Socket(Socket&& other) noexcept : mDescriptor(other.mDescriptor) {
+    Socket(Socket&& other) noexcept :
+        mDescriptor(other.mDescriptor),
+        mIsReadable(other.mIsReadable),
+        mIsWritable(other.mIsWritable),
+        mIsNonBlocking(other.mIsNonBlocking) {
         other.mDescriptor = sInvalidSocket;
     }
     Socket& operator=(Socket&& rhs) noexcept {
         std::swap(mDescriptor, rhs.mDescriptor);
+        mIsReadable = rhs.mIsReadable;
+        mIsWritable = rhs.mIsWritable;
+        mIsNonBlocking = rhs.mIsNonBlocking;
         return *this;
     }
     Socket(const Socket&) = delete;
@@ -145,6 +153,8 @@ public:
         return static_cast<std::errc>(GetSockOpt<int>(SOL_SOCKET, SO_ERROR).first);
     }
     void SetBlocking() { mIsNonBlocking = false; SetStatusFlags(GetStatusFlags() & ~(O_NONBLOCK)); }
+    void SetNonBlocking() { mIsNonBlocking = true; SetStatusFlags(GetStatusFlags() | O_NONBLOCK); }
+    // only applies to non blocking, and set from Update (poll), always return true if blocking
     bool GetAndResetIsReadable() { const bool temp = mIsReadable; mIsReadable = false; return temp || !mIsNonBlocking; }
     bool GetAndResetIsWritable() { const bool temp = mIsWritable; mIsWritable = false; return temp || !mIsNonBlocking; }
     /// @return false if socket should close
@@ -165,7 +175,6 @@ public:
     }
 
 private:
-    void SetNonBlocking() { mIsNonBlocking = true; SetStatusFlags(GetStatusFlags() | O_NONBLOCK); }
     int GetStatusFlags() const { return SysCall(::fcntl, mDescriptor, F_GETFL, 0).Unwrap(); }
     void SetStatusFlags(int flags) { SysCall(::fcntl, mDescriptor, F_SETFL, flags).Unwrap(); }
 
@@ -246,7 +255,7 @@ public:
     }
 
 protected:
-    void UnlinkAddress() { mAddress.Unlink(); }
+    void UnlinkAddress() const { mAddress.Unlink(); }
     void Bind() const { SysCall(::bind, GetDescriptor(), mAddress.GetPtr(), mAddress.GetSize()).Unwrap(); }
     void Listen(int backlog) const { SysCall(::listen, GetDescriptor(), backlog).Unwrap(); }
     void Connect() const { SysCall(::connect, GetDescriptor(), mAddress.GetPtr(), mAddress.GetSize()).Unwrap(); }
@@ -255,6 +264,7 @@ private:
     LocalAddress mAddress;
 };
 
+/// connector manages a connection, can send/recv with
 class LocalConnectorSocket : public LocalSocket {
 public:
     /// open as outbound connector to path
@@ -289,6 +299,7 @@ public:
     }
 };
 
+/// aka listener/passive socket, accepts connectors
 class LocalAcceptorSocket : public LocalSocket {
 public:
     /// open as acceptor on path, backlog is accept queue size
@@ -306,4 +317,94 @@ public:
         }
         return std::nullopt;
     }
+};
+
+/// manage an acceptor with a single inbound connector
+class BasicLocalServer {
+public:
+    void Open(std::string_view path) {
+        mAcceptor = LocalAcceptorSocket(path, 1);
+        mPoller.AddAcceptor(mAcceptor->GetDescriptor());
+        assert(mPoller.GetSize() == 1);
+    }
+    void Close() {
+        mAcceptor.reset();
+        mConnector.reset();
+        mPoller.Clear();
+    }
+    void CloseConnector() {
+        mConnector.reset();
+        if (mPoller.GetSize() == 2) mPoller.Remove(1);
+    }
+    /// default timeout returns immediately
+    void UpdateOnce(int timeoutMs = 0) {
+        assert(IsOpen());
+        mPoller.Poll(timeoutMs);
+
+        if (!mAcceptor->Update(mPoller.At(0))) {
+            Close();
+            return;
+        }
+        if (!IsConnected()) {
+            TryOpenConnector();
+            return;
+        }
+        if (!mConnector->Update(mPoller.At(1))) {
+            CloseConnector();
+            return;
+        }
+    }
+
+    /// send a byte buffer, continuously updates until entire message is sent
+    /// @tparam TBufIt iterator to contiguous memory
+    /// @return false if the send fails (connection closed)
+    template <typename TBufIt>
+    bool Send(TBufIt bufBegin, int bufSize) {
+        TBufIt msgIt = bufBegin;
+        int bytesToSend = bufSize;
+        while (bytesToSend > 0) {
+            if (!IsConnected()) return false;
+            std::optional<int> bytesSent = mConnector->TrySend(msgIt, bytesToSend);
+            if (!bytesSent) {
+                // blocking, poll and try again
+                UpdateOnce();
+            } else if (*bytesSent <= 0) {
+                // returning 0 is very unlikely given the small amount of data, something about filling up the internal buffer?
+                // handle it the same as a would block error, and hope eventually it'll resolve itself
+                UpdateOnce(20); // 20ms timeout to give the buffer time to be emptied
+            } else if (*bytesSent > bytesToSend) {
+                // probably guaranteed to not happen, but just in case
+                throw std::runtime_error("bytes sent > bytes to send");
+            } else {
+                // SOCK_SEQPACKET means partial sends will never happen
+                bytesToSend -= *bytesSent;
+                msgIt += *bytesSent;
+            }
+        }
+        return true;
+    }
+
+    /// receive a byte buffer
+    /// @tparam TBufIt iterator to contiguous memory
+    /// @return number of bytes written to buffer or nullopt if blocking
+    template <typename TBufIt>
+    std::optional<int> TryRecv(TBufIt bufBegin, int bufSize) {
+        assert(IsConnected());
+        return mConnector->TryRecv(bufBegin, bufSize);
+    }
+
+    bool IsOpen() const { return mAcceptor.has_value(); }
+    bool IsConnected() const { return IsOpen() && mConnector.has_value(); }
+
+private:
+    void TryOpenConnector() {
+        mConnector = mAcceptor->Accept();
+        if (!mConnector) return;
+        mPoller.AddConnector(mConnector->GetDescriptor());
+        assert(mPoller.GetSize() == 2);
+    }
+
+    std::optional<LocalAcceptorSocket> mAcceptor{};
+    std::optional<LocalConnectorSocket> mConnector{};
+    event::Poller mPoller; // index 0 is acceptor, 1 is connector if open
 };
