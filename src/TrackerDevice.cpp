@@ -76,6 +76,7 @@ void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status
     case messages::TrackerStatus_Status_DISCONNECTED:
         pose.deviceIsConnected = false;
         pose.poseIsValid = false;
+        break;
     default:
     case messages::TrackerStatus_Status_ERROR:
     case messages::TrackerStatus_Status_BUSY:
