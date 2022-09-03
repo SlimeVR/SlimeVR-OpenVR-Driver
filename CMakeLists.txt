@@ -97,13 +97,3 @@ add_custom_command(
     $<TARGET_FILE:${PROJECT_NAME}>
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/driver_${DRIVER_NAME}$<TARGET_FILE_SUFFIX:${PROJECT_NAME}>
 )
-
-# Copy libprotobuf dll to output folder
-# NOTE: This only works with Release/RelWithDebInfo, because Debug uses libprotobufd.dll
-add_custom_command(
-    TARGET ${PROJECT_NAME} 
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy 
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>/libprotobuf.dll
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/libprotobuf.dll
-)
