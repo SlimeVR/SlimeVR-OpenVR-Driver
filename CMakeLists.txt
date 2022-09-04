@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.0.0)
 
+if (NOT DEFINED VCPKG_TARGET_TRIPLET)
+    if(WIN32)
+        set(VCPKG_TARGET_TRIPLET "x64-windows-static-md")
+    endif()
+endif()
+
 # If the toolchain is already defined, do not attempt to find it
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     # If the VCPKG_ROOT environment variable is not defined, try to automatically define it from AppData/home
@@ -96,14 +102,4 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy 
     $<TARGET_FILE:${PROJECT_NAME}>
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/driver_${DRIVER_NAME}$<TARGET_FILE_SUFFIX:${PROJECT_NAME}>
-)
-
-# Copy libprotobuf dll to output folder
-# NOTE: This only works with Release/RelWithDebInfo, because Debug uses libprotobufd.dll
-add_custom_command(
-    TARGET ${PROJECT_NAME} 
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy 
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>/libprotobuf.dll
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>/driver/${DRIVER_NAME}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH}/libprotobuf.dll
 )
