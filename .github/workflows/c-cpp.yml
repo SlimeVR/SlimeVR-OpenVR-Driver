@@ -75,3 +75,14 @@ jobs:
         # Using wildcards so that only the driver directory gets included (if you specify it, then it won't be included)
         path: |
           ${{env.CMAKE_BUILD_DIR}}/Release/driver/*
+
+    - name: Zip
+      if: startsWith(github.ref, 'refs/tags/')
+      working-directory: ${{env.CMAKE_BUILD_DIR}}/Release/driver/
+      run: cmake -E tar "cf" "${{env.CMAKE_BUILD_DIR}}/Release/slimevr-openvr-driver-${{ matrix.triplet }}.zip" --format=zip -- ${{env.CMAKE_BUILD_DIR}}/Release/driver/slimevr
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: "${{env.CMAKE_BUILD_DIR}}/Release/slimevr-openvr-driver-${{ matrix.triplet }}.zip"
