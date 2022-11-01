@@ -3,6 +3,8 @@
 #include "bridge/bridge.hpp"
 #include "TrackerRole.hpp"
 #include <google/protobuf/arena.h>
+#include <simdjson.h>
+#include "VRPaths_openvr.hpp"
 
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
@@ -13,9 +15,22 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     }
 
     Log("Activating SlimeVR Driver...");
+
+    try {
+        auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
+        simdjson::ondemand::document doc = json_parser.iterate(json);
+        auto path = std::string { doc.get_object()["config"].at(0).get_string().value() };
+        // Log(path);
+        default_chap_path_ = GetDefaultChaperoneFromConfigPath(path);
+    } catch (simdjson::simdjson_error& e) {
+        std::stringstream ss;
+        ss << "Error getting VR Config path, continuing: " << e.error();
+        Log(ss.str());
+    }
+
     Log("SlimeVR Driver Loaded Successfully");
 
-	return vr::VRInitError_None;
+    return vr::VRInitError_None;
 }
 
 void SlimeVRDriver::VRDriver::Cleanup()
@@ -92,11 +107,51 @@ void SlimeVRDriver::VRDriver::RunFrame()
             Log("Sent HMD hello message");
         }
 
+        uint64_t universe = vr::VRProperties()->GetUint64Property(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_CurrentUniverseId_Uint64);
+        if (!current_universe.has_value() || current_universe.value().first != universe) {
+            auto res = search_universes(universe);
+            if (res.has_value()) {
+                current_universe.emplace(universe, res.value());
+            } else {
+                Log("Failed to find current universe!");
+            }
+        }
+
         vr::TrackedDevicePose_t hmd_pose[10];
         vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
 
         vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
         vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
+
+        if (current_universe.has_value()) {
+            auto trans = current_universe.value().second;
+            pos.v[0] += trans.translation.v[0];
+            pos.v[1] += trans.translation.v[1];
+            pos.v[2] += trans.translation.v[2];
+
+            // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
+            auto tmp_w = cos(-trans.yaw / 2);
+            auto tmp_y = sin(-trans.yaw / 2);
+            auto new_w = tmp_w * q.w - tmp_y * q.y;
+            auto new_x = tmp_w * q.x + tmp_y * q.z;
+            auto new_y = tmp_w * q.y + tmp_y * q.w;
+            auto new_z = tmp_w * q.z - tmp_y * q.x;
+
+            q.w = new_w;
+            q.x = new_x;
+            q.y = new_y;
+            q.z = new_z;
+
+            // rotate point on the xz plane by -trans.yaw radians
+            // this is equivilant to the quaternion multiplication, after applying the double angle formula.
+            float tmp_sin = sin(-trans.yaw);
+            float tmp_cos = cos(-trans.yaw);
+            auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
+            auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
+
+            pos.v[0] = pos_x;
+            pos.v[2] = pos_z;
+        }
 
         messages::Position* hmdPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
         message->set_allocated_position(hmdPosition);
@@ -263,4 +318,74 @@ vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t &matrix)
     vector.v[2] = matrix.m[2][3];
 
     return vector;
+}
+
+SlimeVRDriver::UniverseTranslation SlimeVRDriver::UniverseTranslation::parse(simdjson::ondemand::object &obj) {
+    SlimeVRDriver::UniverseTranslation res;
+    int iii = 0;
+    for (auto component: obj["translation"]) {
+        if (iii > 2) {
+            break; // TODO: 4 components in a translation vector? should this be an error?
+        }
+        res.translation.v[iii] = component.get_double();
+        iii += 1;
+    }
+    res.yaw = obj["yaw"].get_double();
+
+    return res;
+}
+
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::search_universe(std::string path, uint64_t target) {
+    try {
+        auto json = simdjson::padded_string::load(path); // load VR Path Registry
+        simdjson::ondemand::document doc = json_parser.iterate(json);
+
+        for (simdjson::ondemand::object uni: doc["universes"]) {
+            // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
+            auto elem = uni["universeID"];
+            uint64_t parsed_universe;
+
+            auto is_integer = elem.is_integer();
+            if (!is_integer.error() && is_integer.value_unsafe()) {
+                parsed_universe = elem.get_uint64();
+            } else {
+                parsed_universe = elem.get_uint64_in_string();
+            }
+
+            if (parsed_universe == target) {
+                return SlimeVRDriver::UniverseTranslation::parse(uni["standing"].get_object().value());
+            }
+        }
+    } catch (simdjson::simdjson_error& e) {
+        std::stringstream ss;
+        ss << "Error getting universes from \"" << path << "\": " << e.error();
+        Log(ss.str());
+        return std::nullopt;
+    }
+
+    return std::nullopt;
+}
+
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::search_universes(uint64_t target) {
+    auto driver_chap_path = vr::VRProperties()->GetStringProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DriverProvidedChaperonePath_String);
+    if (driver_chap_path != "") {
+        auto driver_res = search_universe(driver_chap_path, target);
+        if (driver_res.has_value()) {
+            return driver_res.value();
+        }
+    }
+
+    if (default_chap_path_.has_value()) {
+        return search_universe(default_chap_path_.value(), target);
+    }
+    
+    return std::nullopt;
+}
+
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::GetCurrentUniverse() {
+    if (current_universe.has_value()) {
+        return current_universe.value().second;
+    } else {
+        return std::nullopt;
+    }
 }

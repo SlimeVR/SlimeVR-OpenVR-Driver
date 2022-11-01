@@ -59,6 +59,21 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     pose.qRotation.y = position.qy();
     pose.qRotation.z = position.qz();
 
+    auto current_universe = GetDriver()->GetCurrentUniverse();
+    if (current_universe.has_value()) {
+        auto trans = current_universe.value();
+
+        // TODO: set this once, somewhere?
+        pose.vecWorldFromDriverTranslation[0] = -trans.translation.v[0];
+        pose.vecWorldFromDriverTranslation[1] = -trans.translation.v[1];
+        pose.vecWorldFromDriverTranslation[2] = -trans.translation.v[2];
+
+        pose.qWorldFromDriverRotation.w = cos(trans.yaw / 2);
+        pose.qWorldFromDriverRotation.x = 0;
+        pose.qWorldFromDriverRotation.y = sin(trans.yaw / 2);
+        pose.qWorldFromDriverRotation.z = 0;
+    }
+
     // Post pose
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
     this->last_pose_ = pose;
