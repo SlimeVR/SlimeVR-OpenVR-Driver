@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-if (NOT DEFINED VCPKG_TARGET_TRIPLET)
+#if (NOT DEFINED VCPKG_TARGET_TRIPLET)
     if(WIN32)
         set(VCPKG_TARGET_TRIPLET "x64-windows-static-md")
     endif()
-endif()
+#endif()
 
 # If the toolchain is already defined, do not attempt to find it
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
@@ -65,6 +65,8 @@ find_package(Protobuf CONFIG REQUIRED)
 protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
 SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
 
+find_package(simdjson CONFIG REQUIRED)
+
 # Project
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -72,7 +74,7 @@ add_library("${PROJECT_NAME}" SHARED "${HEADERS}" "${SOURCES}" ${PROTO_HEADER} $
 target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
-target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}" protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
+target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}" protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite simdjson::simdjson)
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
