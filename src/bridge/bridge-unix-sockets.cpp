@@ -109,7 +109,7 @@ bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRD
 }
 
 bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
-    if (!server.IsOpen()) return false;
+    if (!client.IsOpen()) return false;
     const auto bufBegin = byteBuffer.begin();
     const auto bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
     const auto msgSize = static_cast<int>(message.ByteSizeLong());
