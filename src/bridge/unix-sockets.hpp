@@ -413,3 +413,76 @@ private:
     std::optional<LocalConnectorSocket> mConnector{};
     event::Poller mPoller; // index 0 is acceptor, 1 is connector if open
 };
+
+/// manage a single outbound connector
+class BasicLocalClient {
+public:
+    void Open(std::string_view path) {
+        if (IsOpen()) throw std::runtime_error("connection already open");
+        mConnector = LocalConnectorSocket(path);
+        mPoller.AddConnector(mConnector->GetDescriptor());
+        assert(mPoller.GetSize() == 1);
+    }
+    void Close() {
+        if (!IsOpen()) throw std::runtime_error("connection not open");
+        mConnector.reset();
+        mPoller.Clear();
+    }
+
+    /// default timeout returns immediately
+    void UpdateOnce(int timeoutMs = 0) {
+        if (!IsOpen()) throw std::runtime_error("connection not open");
+        mPoller.Poll(timeoutMs);
+
+        if (!mConnector->Update(mPoller.At(0))) {
+            Close();
+        }
+    }
+
+    /// send a byte buffer, continuously updates until entire message is sent
+    /// @tparam TBufIt iterator to contiguous memory
+    /// @return false if the send fails (connection closed)
+    template <typename TBufIt>
+    bool Send(TBufIt bufBegin, int bufSize) {
+        TBufIt msgIt = bufBegin;
+        int bytesToSend = bufSize;
+        while (bytesToSend > 0) {
+            if (!IsOpen()) return false;
+            std::optional<int> bytesSent = mConnector->TrySend(msgIt, bytesToSend);
+            if (!bytesSent) {
+                // blocking, poll and try again
+                UpdateOnce();
+            } else if (*bytesSent <= 0) {
+                // returning 0 is very unlikely given the small amount of data, something about filling up the internal buffer?
+                // handle it the same as a would block error, and hope eventually it'll resolve itself
+                UpdateOnce(20); // 20ms timeout to give the buffer time to be emptied
+            } else if (*bytesSent > bytesToSend) {
+                // probably guaranteed to not happen, but just in case
+                throw std::runtime_error("bytes sent > bytes to send");
+            } else {
+                // SOCK_SEQPACKET means partial sends will never happen
+                bytesToSend -= *bytesSent;
+                msgIt += *bytesSent;
+            }
+        }
+        return true;
+    }
+
+    /// receive a byte buffer
+    /// @tparam TBufIt iterator to contiguous memory
+    /// @return number of bytes written to buffer, 0 indicating there is no message waiting
+    template <typename TBufIt>
+    int Recv(TBufIt bufBegin, int bufSize) {
+        std::optional<int> bytesRecv = mConnector->TryRecv(bufBegin, bufSize);
+        // if the user is doing while(messageReceived) {  } to empty the message queue
+        // then need to poll once before the next iteration, but only if there were bytes received
+        if (bytesRecv && *bytesRecv > 0) UpdateOnce();
+        return bytesRecv.value_or(0);
+    }
+
+    bool IsOpen() const { return mConnector.has_value(); }
+
+private:
+    std::optional<LocalConnectorSocket> mConnector{};
+    event::Poller mPoller; // index 0 is connector if open
+};

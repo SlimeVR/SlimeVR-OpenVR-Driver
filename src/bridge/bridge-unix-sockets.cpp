@@ -70,7 +70,7 @@ std::optional<TBufIt> ReadHeader(TBufIt bufBegin, int bufSize, int& outMsgSize) 
     return it;
 }
 
-BasicLocalServer server{};
+BasicLocalClient client{};
 
 inline constexpr int BUFFER_SIZE = 1024;
 using ByteBuffer = std::array<uint8_t, BUFFER_SIZE>;
@@ -79,14 +79,14 @@ ByteBuffer byteBuffer;
 }
 
 bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
-    if (!server.IsConnected()) return false;
+    if (!client.IsOpen()) return false;
     const auto bufBegin = byteBuffer.begin();
     const int bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
     int bytesRecv = 0;
     try {
-        bytesRecv = server.Recv(bufBegin, bufferSize);
+        bytesRecv = client.Recv(bufBegin, bufferSize);
     } catch (const std::exception& e) {
-        server.CloseConnector();
+        client.Close();
         driver.Log("bridge recv error: " + std::string(e.what()));
         return false;
     }
@@ -109,7 +109,7 @@ bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRD
 }
 
 bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
-    if (!server.IsConnected()) return false;
+    if (!server.IsOpen()) return false;
     const auto bufBegin = byteBuffer.begin();
     const auto bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
     const auto msgSize = static_cast<int>(message.ByteSizeLong());
@@ -132,9 +132,9 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
         return false;
     }
     try {
-        return server.Send(bufBegin, bytesToSend);
+        return client.Send(bufBegin, bytesToSend);
     } catch (const std::exception& e) {
-        server.CloseConnector();
+        client.Close();
         driver.Log("bridge send error: " + std::string(e.what()));
         return false;
     }
@@ -142,17 +142,17 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
 
 BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
-        if (!server.IsOpen()) {
-            server.Open(SOCKET_PATH);
+        if (!client.IsOpen()) {
+            client.Open(SOCKET_PATH);
         }
-        server.UpdateOnce();
+        client.UpdateOnce();
 
-        if (!server.IsConnected()) {
+        if (!client.IsOpen()) {
             return BRIDGE_DISCONNECTED;
         }
         return BRIDGE_CONNECTED;
     } catch (const std::exception& e) {
-        server.Close();
+        client.Close();
         driver.Log("bridge error: " + std::string(e.what()));
         return BRIDGE_ERROR;
     }
