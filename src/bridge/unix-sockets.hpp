@@ -67,6 +67,11 @@ template <typename Fn, typename... Args>
 
 namespace event {
 
+enum class SockMode {
+    Acceptor,
+    Connector
+};
+
 /// bitmask for which events to return
 using Mask = short;
 inline constexpr Mask Readable = POLLIN; /// enable Readable events
@@ -87,21 +92,36 @@ private:
 };
 /// poll an acceptor and its connections
 class Poller {
+    static constexpr Mask mConnectorMask = Readable | Writable;
+    static constexpr Mask mAcceptorMask = Readable; 
 public:
     void Poll(int timeoutMs) {
         SysCall(::poll, mPollList.data(), mPollList.size(), timeoutMs).Unwrap();
     }
+    /// @tparam TPred (Descriptor, event::Result, event::SockMode) -> void
+    template <typename TPred>
+    void Poll(int timeoutMs, TPred&& pred) {
+        Poll(timeoutMs);
+        for (const pollfd_t& elem : mPollList) {
+            SockMode mode = (elem.events == mAcceptorMask) ? SockMode::Acceptor : SockMode::Connector;
+            pred(elem.fd, Result(elem.revents), mode);
+        }
+    }
     void AddConnector(Descriptor descriptor) {
-        mPollList.push_back({descriptor, Readable | Writable, 0});
+        mPollList.push_back({descriptor, mConnectorMask, 0});
     }
     void AddAcceptor(Descriptor descriptor) {
-        mPollList.push_back({descriptor, Readable, 0});
+        mPollList.push_back({descriptor, mAcceptorMask, 0});
     }
     Result At(int idx) const {
         return Result(mPollList.at(idx).revents);
     }
-    void Remove(int idx) {
-        mPollList.erase(mPollList.begin() + idx);
+    bool Remove(Descriptor descriptor) {
+        auto it = std::find_if(mPollList.begin(), mPollList.end(), 
+            [&](const pollfd_t& elem){ return elem.fd == descriptor; });
+        if (it == mPollList.end()) return false;
+        mPollList.erase(it);
+        return true;
     }
     void Clear() { mPollList.clear(); }
     int GetSize() const { return static_cast<int>(mPollList.size()); }
@@ -334,8 +354,10 @@ public:
         mPoller.Clear();
     }
     void CloseConnector() {
+        if (!mConnector) return;
+        assert(mPoller.GetSize() == 2);
+        mPoller.Remove(mConnector->GetDescriptor());
         mConnector.reset();
-        if (mPoller.GetSize() == 2) mPoller.Remove(1);
     }
 
     /// default timeout returns immediately
