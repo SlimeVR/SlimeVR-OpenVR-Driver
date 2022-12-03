@@ -90,6 +90,8 @@ std::string UTF16to8(const wchar_t * in)
 
 std::string UTF16to8( const std::wstring & in ) { return UTF16to8( in.c_str() ); }
 
+std::string Path_Join( const std::string & first, const std::string & second, char slash = 0 );
+
 /** Returns the root of the directory the system wants us to store user config data in */
 static std::string GetAppSettingsPath()
 {
@@ -164,7 +166,7 @@ char Path_GetSlash()
 }
 
 /** Jams two paths together with the right kind of slash */
-std::string Path_Join( const std::string & first, const std::string & second, char slash = 0 )
+std::string Path_Join( const std::string & first, const std::string & second, char slash )
 {
 	if( slash == 0 )
 		slash = Path_GetSlash();
