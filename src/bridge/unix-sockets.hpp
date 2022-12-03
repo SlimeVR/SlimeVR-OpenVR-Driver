@@ -267,7 +267,7 @@ private:
 
 class LocalSocket : public Socket {
     static constexpr int sDomain = AF_UNIX, // unix domain socket
-                         sType = SOCK_SEQPACKET, // message boundaries and connection oriented
+                         sType = SOCK_STREAM, // connection oriented, no message boundaries
                          sProtocol = 0; // auto selected
 public:
     explicit LocalSocket(std::string_view path) : Socket(sDomain, sType, sProtocol), mAddress(path) {}
@@ -350,7 +350,6 @@ public:
         assert(mPoller.GetSize() == 1);
     }
     void Close() {
-        if (!IsOpen()) throw std::runtime_error("connection not open");
         mConnector.reset();
         mPoller.Clear();
     }
@@ -386,7 +385,7 @@ public:
                 // probably guaranteed to not happen, but just in case
                 throw std::runtime_error("bytes sent > bytes to send");
             } else {
-                // SOCK_SEQPACKET means partial sends will never happen
+                // SOCK_STREAM allows partial sends, but almost guaranteed to not happen on local sockets
                 bytesToSend -= *bytesSent;
                 msgIt += *bytesSent;
             }
@@ -410,5 +409,5 @@ public:
 
 private:
     std::optional<LocalConnectorSocket> mConnector{};
-    event::Poller mPoller; // index 0 is connector if open
+    event::Poller mPoller{}; // index 0 is connector if open
 };

@@ -34,11 +34,11 @@
 
 namespace {
 
+inline constexpr int HEADER_SIZE = 4;
 /// @return iterator after header
 template <typename TBufIt>
 std::optional<TBufIt> WriteHeader(TBufIt bufBegin, int bufSize, int msgSize) {
-    static constexpr int headerSize = 4;
-    const int totalSize = msgSize + headerSize; // include header bytes in total size
+    const int totalSize = msgSize + HEADER_SIZE; // include header bytes in total size
     if (bufSize < totalSize) return std::nullopt; // header won't fit
 
     const auto size = static_cast<uint32_t>(totalSize);
@@ -52,9 +52,8 @@ std::optional<TBufIt> WriteHeader(TBufIt bufBegin, int bufSize, int msgSize) {
 
 /// @return iterator after header
 template <typename TBufIt>
-std::optional<TBufIt> ReadHeader(TBufIt bufBegin, int bufSize, int& outMsgSize) {
-    static constexpr int headerSize = 4;
-    if (bufSize < headerSize) return std::nullopt; // header won't fit
+std::optional<TBufIt> ReadHeader(TBufIt bufBegin, int numBytesRecv, int& outMsgSize) {
+    if (numBytesRecv < HEADER_SIZE) return std::nullopt; // header won't fit
 
     uint32_t size = 0;
     TBufIt it = bufBegin;
@@ -64,9 +63,8 @@ std::optional<TBufIt> ReadHeader(TBufIt bufBegin, int bufSize, int& outMsgSize) 
     size |= static_cast<uint32_t>(*(it++)) << 24U;
 
     const auto totalSize = static_cast<int>(size);
-    // expecting the recv bytes to be exactly the message, as SOCK_SEQPACKET maintains message boundaries
-    if (totalSize < headerSize || totalSize != bufSize) return std::nullopt;
-    outMsgSize = totalSize - headerSize;
+    if (totalSize < HEADER_SIZE) return std::nullopt;
+    outMsgSize = totalSize - HEADER_SIZE;
     return it;
 }
 
@@ -80,31 +78,43 @@ ByteBuffer byteBuffer;
 
 bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
     if (!client.IsOpen()) return false;
-    const auto bufBegin = byteBuffer.begin();
-    const int bufferSize = static_cast<int>(std::distance(bufBegin, byteBuffer.end()));
-    int bytesRecv = 0;
-    try {
-        bytesRecv = client.Recv(bufBegin, bufferSize);
-    } catch (const std::exception& e) {
-        client.Close();
-        driver.Log("bridge recv error: " + std::string(e.what()));
-        return false;
-    }
-    if (bytesRecv <= 0) return false; // no message waiting
-    int outMsgSize = 0;
-    const std::optional msgBeginIt = ReadHeader(bufBegin, bytesRecv, outMsgSize);
+
+    int bytesRecv = client.Recv(byteBuffer.begin(), HEADER_SIZE);
+    if (bytesRecv == 0) return false; // no message waiting
+
+    int bytesToRead = 0;
+    const std::optional msgBeginIt = ReadHeader(byteBuffer.begin(), bytesRecv, bytesToRead);
     if (!msgBeginIt) {
         driver.Log("bridge recv error: invalid message header or size");
         return false;
     }
-    if (outMsgSize <= 0) {
+    if (bytesToRead <= 0) {
         driver.Log("bridge recv error: empty message");
         return false;
     }
-    if (!message.ParseFromArray(&(**msgBeginIt), outMsgSize)) {
+    const int msgSize = bytesToRead;
+
+    auto bufIt = *msgBeginIt;
+    while (bytesToRead > 0) {
+        bytesRecv = client.Recv(bufIt, bytesToRead);
+
+        if (bytesRecv == 0) {
+            // nothing received but expecting more...
+            client.UpdateOnce(); // poll again
+        } else if (bytesRecv < 0 || bytesRecv > bytesToRead) {
+            // should not be possible
+            throw std::length_error("bytesRecv");
+        } else {
+            // read some or all of the message
+            bytesToRead -= bytesRecv;
+            bufIt += bytesRecv;
+        }
+    }
+    if (!message.ParseFromArray(&(**msgBeginIt), msgSize)) {
         driver.Log("bridge recv error: failed to parse");
         return false;
     }
+
     return true;
 }
 
