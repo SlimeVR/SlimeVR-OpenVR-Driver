@@ -353,7 +353,8 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::searc
             }
 
             if (parsed_universe == target) {
-                return SlimeVRDriver::UniverseTranslation::parse(uni["standing"].get_object().value());
+                auto standing_uni = uni["standing"].get_object();
+                return SlimeVRDriver::UniverseTranslation::parse(standing_uni.value());
             }
         }
     } catch (simdjson::simdjson_error& e) {
