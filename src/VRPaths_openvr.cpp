@@ -36,6 +36,12 @@
  *
  */
 
+#ifdef __linux__
+// set from openvr cmake
+#define LINUX
+#define POSIX
+#endif
+
 #if defined( _WIN32 )
 #include <windows.h>
 #include <shlobj.h>
@@ -260,3 +266,9 @@ std::string GetDefaultChaperoneFromConfigPath(std::string path)
 {
 	return Path_Join(path, "chaperone_info.vrchap");
 }
+
+// prevent from leaking
+#ifdef __linux__
+#undef LINUX
+#undef POSIX
+#endif
