@@ -168,7 +168,6 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
         driver.Log("bridge send error: " + std::string(e.what()));
         return false;
     }
-    return true;
 }
 
 BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
