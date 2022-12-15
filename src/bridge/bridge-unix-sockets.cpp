@@ -174,7 +174,7 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
         if (!client.IsOpen()) {
             client.Open(SOCKET_PATH);
-            driver.Log("bridge debug: open = " + std::to_string(client.IsOpen()));
+            if (client.IsOpen()) driver.Log("bridge debug: connected");
         }
         client.UpdateOnce();
 
