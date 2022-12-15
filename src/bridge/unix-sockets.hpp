@@ -371,7 +371,8 @@ public:
     bool Send(TBufIt bufBegin, int bufSize) {
         TBufIt msgIt = bufBegin;
         int bytesToSend = bufSize;
-        while (bytesToSend > 0) {
+        int maxIter = 100;
+        while (--maxIter && bytesToSend > 0) {
             if (!IsOpen()) return false;
             std::optional<int> bytesSent = mConnector->TrySend(msgIt, bytesToSend);
             if (!bytesSent) {
@@ -389,6 +390,9 @@ public:
                 bytesToSend -= *bytesSent;
                 msgIt += *bytesSent;
             }
+        }
+        if (maxIter == 0) {
+            throw std::runtime_error("send stuck in infinite loop");
         }
         return true;
     }
