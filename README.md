@@ -22,8 +22,19 @@ Edit file `C:\Users\<Username>\AppData\Local\openvr\openvrpaths.vrpath`, add `"P
 *Don't forget to double backwards slashes!*
 
 ## Contributions
+Any contributions submitted for inclusion in this repository will be dual-licensed under
+either:
 
-By contributing to this project you are placing all your code under MIT or less restricting licenses, and you certify that the code you have used is compatible with those licenses or is authored by you. If you're doing so on your work time, you certify that your employer is okay with this.
+- MIT License ([LICENSE-MIT](/LICENSE-MIT))
+- Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE))
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for
+inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual
+licensed as above, without any additional terms or conditions.
+
+You also certify that the code you have used is compatible with those licenses or is
+authored by you. If you're doing so on your work time, you certify that your employer is
+okay with this and that you are authorized to provide the above licenses.
 
 ### Building
 
