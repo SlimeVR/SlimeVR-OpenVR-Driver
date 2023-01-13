@@ -82,9 +82,6 @@ bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRD
     int bytesRecv = client.Recv(byteBuffer.begin(), HEADER_SIZE);
     if (bytesRecv == 0) return false; // no message waiting
 
-    std::string dbg = "bridge debug: recv ";
-    dbg += std::to_string(bytesRecv) + "b: ";
-
     int bytesToRead = 0;
     const std::optional msgBeginIt = ReadHeader(byteBuffer.begin(), bytesRecv, bytesToRead);
     if (!msgBeginIt) {
@@ -102,7 +99,6 @@ bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRD
     while (--maxIter && bytesToRead > 0) {
         try {
             bytesRecv = client.Recv(bufIt, bytesToRead);
-            dbg += std::to_string(bytesRecv) + ",";
         } catch (const std::exception& e) {
             client.Close();
             driver.Log("bridge recv error: " + std::string(e.what()));
@@ -127,7 +123,6 @@ bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRD
         driver.Log("bridge recv error: infinite loop");
         return false;
     }
-    driver.Log(dbg);
 
     if (!message.ParseFromArray(&(**msgBeginIt), msgSize)) {
         driver.Log("bridge recv error: failed to parse");
@@ -161,7 +156,6 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
         return false;
     }
     try {
-        driver.Log("bridge debug: send " + std::to_string(bytesToSend) + "b");
         return client.Send(bufBegin, bytesToSend);
     } catch (const std::exception& e) {
         client.Close();
@@ -174,12 +168,10 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
         if (!client.IsOpen()) {
             client.Open(SOCKET_PATH);
-            if (client.IsOpen()) driver.Log("bridge debug: connected");
         }
         client.UpdateOnce();
 
         if (!client.IsOpen()) {
-            driver.Log("bridge debug: disconnected");
             return BRIDGE_DISCONNECTED;
         }
         return BRIDGE_CONNECTED;
