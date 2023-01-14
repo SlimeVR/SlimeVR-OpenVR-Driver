@@ -419,7 +419,7 @@ public:
         while (--maxIter && bytesToRead > 0) {
             if (!IsOpen()) return false;
             std::optional<int> bytesRecv = mConnector->TryRecv(bufIt, bytesToRead);
-            if (!bytesRecv || *bytesToRead == 0) {
+            if (!bytesRecv || *bytesRecv == 0) {
                 // try again
             } else if (*bytesRecv < 0 || *bytesRecv > bytesToRead) {
                 // should not be possible

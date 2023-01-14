@@ -79,14 +79,15 @@ ByteBuffer byteBuffer;
 bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
     if (!client.IsOpen()) return false;
 
+    int bytesRecv = 0;
     try {
-        int bytesRecv = client.RecvOnce(byteBuffer.begin(), HEADER_SIZE);
-        if (bytesRecv == 0) return false; // no message waiting
+        bytesRecv = client.RecvOnce(byteBuffer.begin(), HEADER_SIZE);
     } catch (const std::exception& e) {
         client.Close();
         driver.Log("bridge send error: " + std::string(e.what()));
         return false;
     }
+    if (bytesRecv == 0) return false; // no message waiting
 
     int msgSize = 0;
     const std::optional msgBeginIt = ReadHeader(byteBuffer.begin(), bytesRecv, msgSize);
