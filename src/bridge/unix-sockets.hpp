@@ -397,16 +397,45 @@ public:
         return true;
     }
 
-    /// receive a byte buffer
+    /// receive into byte buffer
     /// @tparam TBufIt iterator to contiguous memory
     /// @return number of bytes written to buffer, 0 indicating there is no message waiting
     template <typename TBufIt>
-    int Recv(TBufIt bufBegin, int bufSize) {
-        std::optional<int> bytesRecv = mConnector->TryRecv(bufBegin, bufSize);
+    int RecvOnce(TBufIt bufBegin, int bytesToRead) {
+        std::optional<int> bytesRecv = mConnector->TryRecv(bufBegin, bytesToRead);
         // if the user is doing while(messageReceived) {  } to empty the message queue
         // then need to poll once before the next iteration, but only if there were bytes received
         if (bytesRecv && *bytesRecv > 0) UpdateOnce();
         return bytesRecv.value_or(0);
+    }
+
+    /// receive into byte buffer, continously updates until all bytes are read
+    /// @tparam TBufIt iterator to contiguous memory
+    /// @return true if bytesToRead bytes were written to buffer
+    template <typename TBufIt>
+    bool RecvAll(const TBufIt bufBegin, int bytesToRead) {
+        int maxIter = 100;
+        auto bufIt = bufBegin;
+        while (--maxIter && bytesToRead > 0) {
+            if (!IsOpen()) return false;
+            std::optional<int> bytesRecv = mConnector->TryRecv(bufIt, bytesToRead);
+            if (!bytesRecv || *bytesToRead == 0) {
+                // try again
+            } else if (*bytesRecv < 0 || *bytesRecv > bytesToRead) {
+                // should not be possible
+                throw std::length_error("bytesRecv");
+            } else {
+                // read some or all of the message
+                bytesToRead -= *bytesRecv;
+                bufIt += *bytesRecv;
+            }
+            // set readable for next bytes, or a future call to Recv
+            UpdateOnce();
+        }
+        if (maxIter == 0) {
+            throw std::runtime_error("recv stuck in infinite loop");
+        }
+        return true;
     }
 
     bool IsOpen() const { return mConnector.has_value(); }

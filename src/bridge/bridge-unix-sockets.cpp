@@ -79,51 +79,35 @@ ByteBuffer byteBuffer;
 bool getNextBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriver& driver) {
     if (!client.IsOpen()) return false;
 
-    int bytesRecv = client.Recv(byteBuffer.begin(), HEADER_SIZE);
-    if (bytesRecv == 0) return false; // no message waiting
+    try {
+        int bytesRecv = client.RecvOnce(byteBuffer.begin(), HEADER_SIZE);
+        if (bytesRecv == 0) return false; // no message waiting
+    } catch (const std::exception& e) {
+        client.Close();
+        driver.Log("bridge send error: " + std::string(e.what()));
+        return false;
+    }
 
-    int bytesToRead = 0;
-    const std::optional msgBeginIt = ReadHeader(byteBuffer.begin(), bytesRecv, bytesToRead);
+    int msgSize = 0;
+    const std::optional msgBeginIt = ReadHeader(byteBuffer.begin(), bytesRecv, msgSize);
     if (!msgBeginIt) {
         driver.Log("bridge recv error: invalid message header or size");
         return false;
     }
-    if (bytesToRead <= 0) {
+    if (msgSize <= 0) {
         driver.Log("bridge recv error: empty message");
         return false;
     }
-    const int msgSize = bytesToRead;
-
-    int maxIter = 100;
-    auto bufIt = *msgBeginIt;
-    while (--maxIter && bytesToRead > 0) {
-        try {
-            bytesRecv = client.Recv(bufIt, bytesToRead);
-        } catch (const std::exception& e) {
-            client.Close();
-            driver.Log("bridge recv error: " + std::string(e.what()));
+    try {
+        if (!client.RecvAll(*msgBeginIt, msgSize)) {
+            driver.Log("bridge recv error: client closed");
             return false;
         }
-        if (!client.IsOpen()) return false;
-
-        if (bytesRecv == 0) {
-            // nothing received but expecting more...
-            client.UpdateOnce(); // poll again
-        } else if (bytesRecv < 0 || bytesRecv > bytesToRead) {
-            // should not be possible
-            throw std::length_error("bytesRecv");
-        } else {
-            // read some or all of the message
-            bytesToRead -= bytesRecv;
-            bufIt += bytesRecv;
-        }
-    }
-
-    if (maxIter == 0) {
-        driver.Log("bridge recv error: infinite loop");
+    } catch (const std::exception& e) {
+        client.Close();
+        driver.Log("bridge send error: " + std::string(e.what()));
         return false;
     }
-
     if (!message.ParseFromArray(&(**msgBeginIt), msgSize)) {
         driver.Log("bridge recv error: failed to parse");
         return false;
