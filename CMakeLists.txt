@@ -31,7 +31,7 @@ endif()
 
 project(SlimeVR-OpenVR-Driver VERSION 0.2.0)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set(DRIVER_NAME "SlimeVR")
+set(DRIVER_NAME "slimevr")
 
 include(CTest)
 enable_testing()
