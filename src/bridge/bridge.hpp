@@ -27,10 +27,13 @@
 #pragma once
 
 #define BRIDGE_USE_PIPES 1
+
 #include "ProtobufMessages.pb.h"
 #include <variant>
 #include <optional>
-#include "../VRDriver.hpp"
+#include <thread>
+#include <mutex>
+#include <queue>
 
 enum BridgeStatus {
     BRIDGE_DISCONNECTED = 0,
@@ -38,8 +41,65 @@ enum BridgeStatus {
     BRIDGE_ERROR = 2
 };
 
-BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver &driver);
+namespace SlimeVRDriver {
+    class VRDriver;
 
-bool getNextBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);
+    class Bridge {
+    public:
+        enum class EState {
+            BRIDGE_DISCONNECTED = 0,
+            BRIDGE_CONNECTED = 1,
+            BRIDGE_ERROR = 2
+        };
 
-bool sendBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);
+        explicit Bridge(VRDriver *i_pDriver);
+
+        ~Bridge();
+
+    private:
+        VRDriver *m_pDriver;
+        void *m_pPipe;
+        char *m_pBuffer;
+        EState m_eState;
+        std::recursive_mutex m_oMutex;
+        std::thread m_oThread;
+        std::queue<messages::ProtobufMessage> m_aSendQueue;
+        std::queue<messages::ProtobufMessage> m_aRecvQueue;
+        bool m_bStop;
+    private:
+        void setBridgeError();
+        void resetPipe();
+        void attemptPipeConnect();
+        void run();
+        bool fetchNextBridgeMessage(messages::ProtobufMessage &i_oMessage);
+        void sendBridgeMessageFromQueue(messages::ProtobufMessage &i_oMessage);
+
+    public:
+        __inline EState state() {
+            return this->m_eState;
+        }
+
+    public:
+        void start();
+
+        void stop();
+
+    public:
+        bool getNextBridgeMessage(messages::ProtobufMessage &i_oMessage) {
+            std::lock_guard<std::recursive_mutex> lk(this->m_oMutex);
+
+            if (m_aRecvQueue.empty()) {
+                return false;
+            }
+
+            i_oMessage = std::move(this->m_aRecvQueue.front());
+            this->m_aRecvQueue.pop();
+            return true;
+        }
+
+        void sendBridgeMessage(messages::ProtobufMessage &i_oMessage) {
+            std::lock_guard<std::recursive_mutex> lk(this->m_oMutex);
+            this->m_aSendQueue.push(std::move(i_oMessage));
+        }
+    };
+}
