@@ -6,6 +6,14 @@
 #include <simdjson.h>
 #include "VRPaths_openvr.hpp"
 
+SlimeVRDriver::VRDriver::VRDriver(): m_pBridge(new Bridge(this))
+{
+}
+
+SlimeVRDriver::VRDriver::~VRDriver()
+{
+    delete this->m_pBridge;
+}
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
 {
@@ -30,11 +38,15 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
 
     Log("SlimeVR Driver Loaded Successfully");
 
+    // Start bridge thread
+    this->m_pBridge->start();
+
     return vr::VRInitError_None;
 }
 
 void SlimeVRDriver::VRDriver::Cleanup()
 {
+    this->m_pBridge->stop();
 }
 
 void SlimeVRDriver::VRDriver::RunFrame()
@@ -58,12 +70,11 @@ void SlimeVRDriver::VRDriver::RunFrame()
     // Update devices
     for(auto& device : this->devices_)
         device->Update();
-    
-    BridgeStatus status = runBridgeFrame(*this);
-    if(status == BRIDGE_CONNECTED) {
+
+    if(this->m_pBridge->state() == Bridge::EState::BRIDGE_CONNECTED) {
         messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
         // Read all messages from the bridge
-        while(getNextBridgeMessage(*message, *this)) {
+        while(this->m_pBridge->getNextBridgeMessage(*message)) {
             if(message->has_tracker_added()) {
                 messages::TrackerAdded ta = message->tracker_added();
                 switch(getDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
@@ -95,13 +106,13 @@ void SlimeVRDriver::VRDriver::RunFrame()
             trackerAdded->set_tracker_role(TrackerRole::HMD);
             trackerAdded->set_tracker_serial("HMD");
             trackerAdded->set_tracker_name("HMD");
-            sendBridgeMessage(*message, *this);
+            this->m_pBridge->sendBridgeMessage(*message);
 
             messages::TrackerStatus* trackerStatus = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
             message->set_allocated_tracker_status(trackerStatus);
             trackerStatus->set_tracker_id(0);
             trackerStatus->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-            sendBridgeMessage(*message, *this);
+            this->m_pBridge->sendBridgeMessage(*message);
 
             sentHmdAddMessage = true;
             Log("Sent HMD hello message");
@@ -166,7 +177,7 @@ void SlimeVRDriver::VRDriver::RunFrame()
         hmdPosition->set_qz((float) q.z);
         hmdPosition->set_qw((float) q.w);
 
-        sendBridgeMessage(*message, *this);
+        this->m_pBridge->sendBridgeMessage(*message);
     } else {
         // If bridge not connected, assume we need to resend hmd tracker add message
         sentHmdAddMessage = false;

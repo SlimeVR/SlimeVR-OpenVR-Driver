@@ -13,8 +13,11 @@
 #include <simdjson.h>
 
 namespace SlimeVRDriver {
+    class Bridge;
     class VRDriver : public IVRDriver {
     public:
+        VRDriver();
+        ~VRDriver() override;
 
         // Inherited via IVRDriver
         virtual std::vector<std::shared_ptr<IVRDevice>> GetDevices() override;
@@ -35,7 +38,6 @@ namespace SlimeVRDriver {
         virtual bool ShouldBlockStandbyMode() override;
         virtual void EnterStandby() override;
         virtual void LeaveStandby() override;
-        virtual ~VRDriver() = default;
 
         virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
 
@@ -52,6 +54,7 @@ namespace SlimeVRDriver {
         vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);
 
         bool sentHmdAddMessage = false;
+        Bridge *m_pBridge;
 
         simdjson::ondemand::parser json_parser;
         std::optional<std::string> default_chap_path_ = std::nullopt;
