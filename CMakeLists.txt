@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 3.0.0)
     endif()
 #endif()
 
+set (CMAKE_CXX_STANDARD 20)
+
 # If the toolchain is already defined, do not attempt to find it
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     # If the VCPKG_ROOT environment variable is not defined, try to automatically define it from AppData/home
