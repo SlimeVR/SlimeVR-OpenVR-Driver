@@ -29,6 +29,7 @@
 #include "unix-sockets.hpp"
 #include <string_view>
 #include <memory>
+#include <cstdlib>
 
 #define SOCKET_PATH "/tmp/SlimeVRDriver"
 
@@ -152,7 +153,11 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
 BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
         if (!client.IsOpen()) {
-            client.Open(SOCKET_PATH);
+            if(const char* env_p = std::getenv("XDG_RUNTIME_DIR")) {
+                client.Open(env_p);
+            } else {
+                client.Open(SOCKET_PATH);
+            }
         }
         client.UpdateOnce();
 
