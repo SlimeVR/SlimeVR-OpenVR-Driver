@@ -158,9 +158,9 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
         if (!client.IsOpen()) {
             if(const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
                 const fs::path xdg_runtime = ptr;
-                client.Open(xdg_runtime / SOCKET_NAME);
+                client.Open((xdg_runtime / SOCKET_NAME).native());
             } else {
-                client.Open(fs::path(TMP_DIR) / SOCKET_NAME);
+                client.Open((fs::path(TMP_DIR) / SOCKET_NAME).native());
             }
         }
         client.UpdateOnce();
