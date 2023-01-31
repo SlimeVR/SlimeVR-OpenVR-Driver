@@ -156,6 +156,7 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
 BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
         if (!client.IsOpen()) {
+            // TODO: do this once in the constructor or something
             if(const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
                 const fs::path xdg_runtime = ptr;
                 client.Open((xdg_runtime / SOCKET_NAME).native());
