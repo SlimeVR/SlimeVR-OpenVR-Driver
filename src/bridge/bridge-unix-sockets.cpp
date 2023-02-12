@@ -29,9 +29,13 @@
 #include "unix-sockets.hpp"
 #include <string_view>
 #include <memory>
+#include <cstdlib>
+#include <filesystem>
 
-#define SOCKET_PATH "/tmp/SlimeVRDriver"
+#define TMP_DIR "/tmp"
+#define SOCKET_NAME "SlimeVRDriver"
 
+namespace fs = std::filesystem;
 namespace {
 
 inline constexpr int HEADER_SIZE = 4;
@@ -152,7 +156,13 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
 BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
         if (!client.IsOpen()) {
-            client.Open(SOCKET_PATH);
+            // TODO: do this once in the constructor or something
+            if(const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
+                const fs::path xdg_runtime = ptr;
+                client.Open((xdg_runtime / SOCKET_NAME).native());
+            } else {
+                client.Open((fs::path(TMP_DIR) / SOCKET_NAME).native());
+            }
         }
         client.UpdateOnce();
 
