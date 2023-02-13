@@ -85,11 +85,11 @@ jobs:
     - name: Zip
       if: startsWith(github.ref, 'refs/tags/')
       working-directory: ${{env.CMAKE_BUILD_DIR}}/${{ matrix.release_dir }}
-      run: cmake -E tar "cf" "${{env.CMAKE_BUILD_DIR}}/Release/slimevr-openvr-driver-${{ matrix.triplet }}.zip" --format=zip -- ${{env.CMAKE_BUILD_DIR}}/${{ matrix.release_dir }}/slimevr
+      run: cmake -E tar "cf" "${{env.CMAKE_BUILD_DIR}}/slimevr-openvr-driver-${{ matrix.triplet }}.zip" --format=zip -- ${{env.CMAKE_BUILD_DIR}}/${{ matrix.release_dir }}/slimevr
 
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: "${{env.CMAKE_BUILD_DIR}}/Release/slimevr-openvr-driver-${{ matrix.triplet }}.zip"
+        files: "${{env.CMAKE_BUILD_DIR}}/slimevr-openvr-driver-${{ matrix.triplet }}.zip"
           
