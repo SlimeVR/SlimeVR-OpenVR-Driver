@@ -12,31 +12,30 @@
 #include <sstream>
 #include <iostream>
 #include <string>
-#include "bridge/bridge.hpp"
 #include "TrackerRole.hpp"
 
 namespace SlimeVRDriver {
     class TrackerDevice : public IVRDevice {
-        public:
+    public:
 
-            TrackerDevice(std::string serial, int deviceId, TrackerRole trackerRole);
-            ~TrackerDevice() = default;
+        TrackerDevice(std::string serial, int deviceId, TrackerRole trackerRole);
+        ~TrackerDevice() = default;
 
-            // Inherited via IVRDevice
-            virtual std::string GetSerial() override;
-            virtual void Update() override;
-            virtual vr::TrackedDeviceIndex_t GetDeviceIndex() override;
-            virtual DeviceType GetDeviceType() override;
+        // Inherited via IVRDevice
+        virtual std::string GetSerial() override;
+        virtual void Update() override;
+        virtual vr::TrackedDeviceIndex_t GetDeviceIndex() override;
+        virtual DeviceType GetDeviceType() override;
 
-            virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
-            virtual void Deactivate() override;
-            virtual void EnterStandby() override;
-            virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
-            virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
-            virtual vr::DriverPose_t GetPose() override;
-            virtual int getDeviceId() override;
-            virtual void PositionMessage(messages::Position &position) override;
-            virtual void StatusMessage(messages::TrackerStatus &status) override;
+        virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
+        virtual void Deactivate() override;
+        virtual void EnterStandby() override;
+        virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
+        virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
+        virtual vr::DriverPose_t GetPose() override;
+        virtual int getDeviceId() override;
+        virtual void PositionMessage(messages::Position &position) override;
+        virtual void StatusMessage(messages::TrackerStatus &status) override;
     private:
         vr::TrackedDeviceIndex_t device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;

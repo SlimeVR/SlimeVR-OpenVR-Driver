@@ -48,7 +48,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     // Setup pose for this frame
     auto pose = this->last_pose_;
     //send the new position and rotation from the pipe to the tracker object
-    if(position.has_x()) {
+    if (position.has_x()) {
         pose.vecPosition[0] = position.x();
         pose.vecPosition[1] = position.y();
         pose.vecPosition[2] = position.z();
@@ -153,11 +153,11 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
 
     // Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
     auto roleHint = getViveRoleHint(trackerRole);
-    if(roleHint != "")
+    if (roleHint != "")
 	    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, roleHint.c_str());
 
     auto role = getViveRole(trackerRole);
-    if(role != "")
+    if (role != "")
         vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + this->serial_).c_str(), role.c_str());
 
     return vr::EVRInitError::VRInitError_None;

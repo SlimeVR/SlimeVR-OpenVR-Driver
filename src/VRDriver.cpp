@@ -1,14 +1,11 @@
 #include "VRDriver.hpp"
 #include <TrackerDevice.hpp>
-#include "bridge/bridge.hpp"
 #include "TrackerRole.hpp"
 #include <google/protobuf/arena.h>
 #include <simdjson.h>
 #include "VRPaths_openvr.hpp"
 
-
-vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext)
-{
+vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext) {
     // Perform driver context initialisation
     if (vr::EVRInitError init_error = vr::InitServerDriverContext(pDriverContext); init_error != vr::EVRInitError::VRInitError_None) {
         return init_error;
@@ -20,25 +17,26 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
         simdjson::ondemand::document doc = json_parser.iterate(json);
         auto path = std::string { doc.get_object()["config"].at(0).get_string().value() };
-        // Log(path);
         default_chap_path_ = GetDefaultChaperoneFromConfigPath(path);
     } catch (simdjson::simdjson_error& e) {
-        std::stringstream ss;
-        ss << "Error getting VR Config path, continuing: " << e.error();
-        Log(ss.str());
+        Log("Error getting VR Config path, continuing: %s", e.error());
     }
 
     Log("SlimeVR Driver Loaded Successfully");
 
+    bridge = std::make_shared<BridgeClient>(
+        std::bind(&SlimeVRDriver::VRDriver::OnBridgeMessage, this, std::placeholders::_1)
+    );
+    bridge->start();
+
     return vr::VRInitError_None;
 }
 
-void SlimeVRDriver::VRDriver::Cleanup()
-{
+void SlimeVRDriver::VRDriver::Cleanup() {
+    bridge->stop();
 }
 
-void SlimeVRDriver::VRDriver::RunFrame()
-{
+void SlimeVRDriver::VRDriver::RunFrame() {
     google::protobuf::Arena arena;
 
     // Collect events
@@ -56,154 +54,156 @@ void SlimeVRDriver::VRDriver::RunFrame()
     this->last_frame_time_ = now;
 
     // Update devices
-    for(auto& device : this->devices_)
-        device->Update();
-    
-    BridgeStatus status = runBridgeFrame(*this);
-    if(status == BRIDGE_CONNECTED) {
-        messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
-        // Read all messages from the bridge
-        while(getNextBridgeMessage(*message, *this)) {
-            if(message->has_tracker_added()) {
-                messages::TrackerAdded ta = message->tracker_added();
-                switch(getDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
-                    case DeviceType::TRACKER:
-                        this->AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(),  ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
-                        Log("New tracker device added " + ta.tracker_serial() + " (id " + std::to_string(ta.tracker_id()) + ")");
-                    break;
-                }
-            } else if(message->has_position()) {
-                messages::Position pos = message->position();
-                auto device = this->devices_by_id.find(pos.tracker_id());
-                if(device != this->devices_by_id.end()) {
-                    device->second->PositionMessage(pos);
-                }
-            } else if(message->has_tracker_status()) {
-                messages::TrackerStatus status = message->tracker_status();
-                auto device = this->devices_by_id.find(status.tracker_id());
-                if (device != this->devices_by_id.end()) {
-                    device->second->StatusMessage(status);
-                }
-            }
-        }
+    {
+        std::lock_guard<std::mutex> lock(devices_mutex_);
+        for (auto& device : this->devices_)
+            device->Update();
+    }
 
-        if(!sentHmdAddMessage) {
-            // Send add message for HMD
-            messages::TrackerAdded* trackerAdded = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
-            message->set_allocated_tracker_added(trackerAdded);
-            trackerAdded->set_tracker_id(0);
-            trackerAdded->set_tracker_role(TrackerRole::HMD);
-            trackerAdded->set_tracker_serial("HMD");
-            trackerAdded->set_tracker_name("HMD");
-            sendBridgeMessage(*message, *this);
-
-            messages::TrackerStatus* trackerStatus = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
-            message->set_allocated_tracker_status(trackerStatus);
-            trackerStatus->set_tracker_id(0);
-            trackerStatus->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-            sendBridgeMessage(*message, *this);
-
-            sentHmdAddMessage = true;
-            Log("Sent HMD hello message");
-        }
-
-        uint64_t universe = vr::VRProperties()->GetUint64Property(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_CurrentUniverseId_Uint64);
-        if (!current_universe.has_value() || current_universe.value().first != universe) {
-            auto res = search_universes(universe);
-            if (res.has_value()) {
-                current_universe.emplace(universe, res.value());
-            } else {
-                Log("Failed to find current universe!");
-            }
-        }
-
-        vr::TrackedDevicePose_t hmd_pose[10];
-        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
-
-        vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
-        vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
-
-        if (current_universe.has_value()) {
-            auto trans = current_universe.value().second;
-            pos.v[0] += trans.translation.v[0];
-            pos.v[1] += trans.translation.v[1];
-            pos.v[2] += trans.translation.v[2];
-
-            // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
-            auto tmp_w = cos(-trans.yaw / 2);
-            auto tmp_y = sin(-trans.yaw / 2);
-            auto new_w = tmp_w * q.w - tmp_y * q.y;
-            auto new_x = tmp_w * q.x + tmp_y * q.z;
-            auto new_y = tmp_w * q.y + tmp_y * q.w;
-            auto new_z = tmp_w * q.z - tmp_y * q.x;
-
-            q.w = new_w;
-            q.x = new_x;
-            q.y = new_y;
-            q.z = new_z;
-
-            // rotate point on the xz plane by -trans.yaw radians
-            // this is equivilant to the quaternion multiplication, after applying the double angle formula.
-            float tmp_sin = sin(-trans.yaw);
-            float tmp_cos = cos(-trans.yaw);
-            auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
-            auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
-
-            pos.v[0] = pos_x;
-            pos.v[2] = pos_z;
-        }
-
-        messages::Position* hmdPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
-        message->set_allocated_position(hmdPosition);
-
-        hmdPosition->set_tracker_id(0);
-        hmdPosition->set_data_source(messages::Position_DataSource_FULL);
-        hmdPosition->set_x(pos.v[0]);
-        hmdPosition->set_y(pos.v[1]);
-        hmdPosition->set_z(pos.v[2]);
-        hmdPosition->set_qx((float) q.x);
-        hmdPosition->set_qy((float) q.y);
-        hmdPosition->set_qz((float) q.z);
-        hmdPosition->set_qw((float) q.w);
-
-        sendBridgeMessage(*message, *this);
-    } else {
+    if (!bridge->isConnected()) {
         // If bridge not connected, assume we need to resend hmd tracker add message
         sentHmdAddMessage = false;
+        return;
+    }
 
+    messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
+
+    if (!sentHmdAddMessage) {
+        // Send add message for HMD
+        messages::TrackerAdded* trackerAdded = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
+        message->set_allocated_tracker_added(trackerAdded);
+        trackerAdded->set_tracker_id(0);
+        trackerAdded->set_tracker_role(TrackerRole::HMD);
+        trackerAdded->set_tracker_serial("HMD");
+        trackerAdded->set_tracker_name("HMD");
+        bridge->sendBridgeMessage(*message);
+
+        messages::TrackerStatus* trackerStatus = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
+        message->set_allocated_tracker_status(trackerStatus);
+        trackerStatus->set_tracker_id(0);
+        trackerStatus->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
+        bridge->sendBridgeMessage(*message);
+
+        sentHmdAddMessage = true;
+        Log("Sent HMD hello message");
+    }
+
+    vr::PropertyContainerHandle_t hmdPropContainer =
+        vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
+
+    uint64_t universe = vr::VRProperties()->GetUint64Property(hmdPropContainer, vr::Prop_CurrentUniverseId_Uint64);
+    if (!current_universe.has_value() || current_universe.value().first != universe) {
+        auto res = search_universes(universe);
+        if (res.has_value()) {
+            current_universe.emplace(universe, res.value());
+        } else {
+            Log("Failed to find current universe!");
+        }
+    }
+
+    vr::TrackedDevicePose_t hmd_pose[10];
+    vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
+
+    vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
+    vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
+
+    if (current_universe.has_value()) {
+        auto trans = current_universe.value().second;
+        pos.v[0] += trans.translation.v[0];
+        pos.v[1] += trans.translation.v[1];
+        pos.v[2] += trans.translation.v[2];
+
+        // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
+        auto tmp_w = cos(-trans.yaw / 2);
+        auto tmp_y = sin(-trans.yaw / 2);
+        auto new_w = tmp_w * q.w - tmp_y * q.y;
+        auto new_x = tmp_w * q.x + tmp_y * q.z;
+        auto new_y = tmp_w * q.y + tmp_y * q.w;
+        auto new_z = tmp_w * q.z - tmp_y * q.x;
+
+        q.w = new_w;
+        q.x = new_x;
+        q.y = new_y;
+        q.z = new_z;
+
+        // rotate point on the xz plane by -trans.yaw radians
+        // this is equivilant to the quaternion multiplication, after applying the double angle formula.
+        float tmp_sin = sin(-trans.yaw);
+        float tmp_cos = cos(-trans.yaw);
+        auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
+        auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
+
+        pos.v[0] = pos_x;
+        pos.v[2] = pos_z;
+    }
+
+    messages::Position* hmdPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
+    message->set_allocated_position(hmdPosition);
+    hmdPosition->set_tracker_id(0);
+    hmdPosition->set_data_source(messages::Position_DataSource_FULL);
+    hmdPosition->set_x(pos.v[0]);
+    hmdPosition->set_y(pos.v[1]);
+    hmdPosition->set_z(pos.v[2]);
+    hmdPosition->set_qx((float) q.x);
+    hmdPosition->set_qy((float) q.y);
+    hmdPosition->set_qz((float) q.z);
+    hmdPosition->set_qw((float) q.w);
+
+    bridge->sendBridgeMessage(*message);
+}
+
+void SlimeVRDriver::VRDriver::OnBridgeMessage(messages::ProtobufMessage& message) {
+    // note: called from bridge thread;
+    // driver sample says that TrackedDevicePoseUpdated should happen from "some pose tracking thread",
+    // thus we assume the functions that "notify" (as described in docs)
+    // like TrackedDevicePoseUpdated and TrackedDeviceAdded are safe to call here
+
+    std::lock_guard<std::mutex> lock(devices_mutex_);
+    if (message.has_tracker_added()) {
+        messages::TrackerAdded ta = message.tracker_added();
+        switch(getDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
+            case DeviceType::TRACKER:
+                this->AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
+                Log("New tracker device added " + ta.tracker_serial() + " (id " + std::to_string(ta.tracker_id()) + ")");
+            break;
+        }
+    } else if (message.has_position()) {
+        messages::Position pos = message.position();
+        auto device = this->devices_by_id.find(pos.tracker_id());
+        if (device != this->devices_by_id.end()) {
+            device->second->PositionMessage(pos);
+        }
+    } else if (message.has_tracker_status()) {
+        messages::TrackerStatus status = message.tracker_status();
+        auto device = this->devices_by_id.find(status.tracker_id());
+        if (device != this->devices_by_id.end()) {
+            device->second->StatusMessage(status);
+        }
     }
 }
 
-bool SlimeVRDriver::VRDriver::ShouldBlockStandbyMode()
-{
+bool SlimeVRDriver::VRDriver::ShouldBlockStandbyMode() {
     return false;
 }
 
-void SlimeVRDriver::VRDriver::EnterStandby()
-{
-}
+void SlimeVRDriver::VRDriver::EnterStandby() { }
 
-void SlimeVRDriver::VRDriver::LeaveStandby()
-{
-}
+void SlimeVRDriver::VRDriver::LeaveStandby() { }
 
-std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> SlimeVRDriver::VRDriver::GetDevices()
-{
+std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> SlimeVRDriver::VRDriver::GetDevices() {
+    std::lock_guard<std::mutex> lock(devices_mutex_);
     return this->devices_;
 }
 
-std::vector<vr::VREvent_t> SlimeVRDriver::VRDriver::GetOpenVREvents()
-{
+std::vector<vr::VREvent_t> SlimeVRDriver::VRDriver::GetOpenVREvents() {
     return this->openvr_events_;
 }
 
-std::chrono::milliseconds SlimeVRDriver::VRDriver::GetLastFrameTime()
-{
+std::chrono::milliseconds SlimeVRDriver::VRDriver::GetLastFrameTime() {
     return this->frame_timing_;
 }
 
-bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device)
-{
+bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
     vr::ETrackedDeviceClass openvr_device_class;
     // Remember to update this switch when new device types are added
     switch (device->GetDeviceType()) {
@@ -223,13 +223,13 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device)
             return false;
     }
     bool result = vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get());
-    if(result) {
+    if (result) {
         this->devices_.push_back(device);
         this->devices_by_id[device->getDeviceId()] = device;
         this->devices_by_serial[device->GetSerial()] = device;
     } else {
         std::shared_ptr<IVRDevice> oldDevice = this->devices_by_serial[device->GetSerial()];
-        if(oldDevice->getDeviceId() != device->getDeviceId()) {
+        if (oldDevice->getDeviceId() != device->getDeviceId()) {
             this->devices_by_id[device->getDeviceId()] = oldDevice;
             Log("Device overridden from id " + std::to_string(oldDevice->getDeviceId()) + " to " + std::to_string(device->getDeviceId()) + " for serial " + device->GetSerial());
         } else {
@@ -239,8 +239,7 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device)
     return result;
 }
 
-SlimeVRDriver::SettingsValue SlimeVRDriver::VRDriver::GetSettingsValue(std::string key)
-{
+SlimeVRDriver::SettingsValue SlimeVRDriver::VRDriver::GetSettingsValue(std::string key) {
     vr::EVRSettingsError err = vr::EVRSettingsError::VRSettingsError_None;
     int int_value = vr::VRSettings()->GetInt32(settings_key_.c_str(), key.c_str(), &err);
     if (err == vr::EVRSettingsError::VRSettingsError_None) {
@@ -267,24 +266,15 @@ SlimeVRDriver::SettingsValue SlimeVRDriver::VRDriver::GetSettingsValue(std::stri
     return SettingsValue();
 }
 
-void SlimeVRDriver::VRDriver::Log(std::string message)
-{
-    std::string message_endl = message + "\n";
-    vr::VRDriverLog()->Log(message_endl.c_str());
-}
-
-vr::IVRDriverInput* SlimeVRDriver::VRDriver::GetInput()
-{
+vr::IVRDriverInput* SlimeVRDriver::VRDriver::GetInput() {
     return vr::VRDriverInput();
 }
 
-vr::CVRPropertyHelpers* SlimeVRDriver::VRDriver::GetProperties()
-{
+vr::CVRPropertyHelpers* SlimeVRDriver::VRDriver::GetProperties() {
     return vr::VRProperties();
 }
 
-vr::IVRServerDriverHost* SlimeVRDriver::VRDriver::GetDriverHost()
-{
+vr::IVRServerDriverHost* SlimeVRDriver::VRDriver::GetDriverHost() {
     return vr::VRServerDriverHost();
 }
 
@@ -358,9 +348,7 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::searc
             }
         }
     } catch (simdjson::simdjson_error& e) {
-        std::stringstream ss;
-        ss << "Error getting universes from \"" << path << "\": " << e.error();
-        Log(ss.str());
+        Log("Error getting universes from %s: %s", path, e.error());
         return std::nullopt;
     }
 

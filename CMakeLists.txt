@@ -69,6 +69,10 @@ SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE
 
 find_package(simdjson CONFIG REQUIRED)
 
+# libuv
+find_package(libuv REQUIRED)
+find_package(uvw REQUIRED)
+
 # Project
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -77,6 +81,7 @@ target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
 target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}" protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite simdjson::simdjson)
+target_link_libraries("${PROJECT_NAME}" PUBLIC $<IF:$<TARGET_EXISTS:uv_a>,uv_a,uv>) # libuv
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

@@ -12,6 +12,9 @@
 
 #include <simdjson.h>
 
+#include "bridge/BridgeClient.hpp"
+#include "Logger.hpp"
+
 namespace SlimeVRDriver {
     class VRDriver : public IVRDriver {
     public:
@@ -22,7 +25,15 @@ namespace SlimeVRDriver {
         virtual std::chrono::milliseconds GetLastFrameTime() override;
         virtual bool AddDevice(std::shared_ptr<IVRDevice> device) override;
         virtual SettingsValue GetSettingsValue(std::string key) override;
-        virtual void Log(std::string message) override;
+        virtual void Log(std::string message) override {
+            ::Log("%s", message.c_str());
+        };
+        void Log(const char* format, ...) {
+            va_list args;
+            va_start(args, format);
+            ::Log(format, args);
+            va_end(args);
+        };
 
         virtual vr::IVRDriverInput* GetInput() override;
         virtual vr::CVRPropertyHelpers* GetProperties() override;
@@ -37,9 +48,12 @@ namespace SlimeVRDriver {
         virtual void LeaveStandby() override;
         virtual ~VRDriver() = default;
 
+        void OnBridgeMessage(messages::ProtobufMessage& message);
+
         virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
 
     private:
+        std::mutex devices_mutex_;
         std::vector<std::shared_ptr<IVRDevice>> devices_;
         std::vector<vr::VREvent_t> openvr_events_;
         std::map<int, std::shared_ptr<IVRDevice>> devices_by_id;
@@ -61,5 +75,7 @@ namespace SlimeVRDriver {
 
         std::optional<UniverseTranslation> search_universe(std::string path, uint64_t target);
         std::optional<UniverseTranslation> search_universes(uint64_t target);
+
+        std::shared_ptr<BridgeClient> bridge;
     };
 };
