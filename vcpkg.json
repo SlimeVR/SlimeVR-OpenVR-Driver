@@ -1,10 +1,10 @@
 {
-    "name": "slimevr-openvr-driver",
-    "version": "0.2.0",
-    "dependencies": [
-        "protobuf",
-        "simdjson",
-        "libuv",
-        "uvw"
-    ]
+  "name": "slimevr-openvr-driver",
+  "version": "0.2.0",
+  "dependencies": [
+    "protobuf",
+    "simdjson",
+    "uvw",
+    "catch2"
+  ]
 }
