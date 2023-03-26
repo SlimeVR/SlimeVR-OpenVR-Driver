@@ -26,13 +26,7 @@ namespace SlimeVRDriver {
         virtual bool AddDevice(std::shared_ptr<IVRDevice> device) override;
         virtual SettingsValue GetSettingsValue(std::string key) override;
         virtual void Log(std::string message) override {
-            ::Log("%s", message.c_str());
-        };
-        void Log(const char* format, ...) {
-            va_list args;
-            va_start(args, format);
-            ::Log(format, args);
-            va_end(args);
+            logger->Log("%s", message.c_str());
         };
 
         virtual vr::IVRDriverInput* GetInput() override;
@@ -48,18 +42,19 @@ namespace SlimeVRDriver {
         virtual void LeaveStandby() override;
         virtual ~VRDriver() = default;
 
-        void OnBridgeMessage(messages::ProtobufMessage& message);
+        void OnBridgeMessage(const messages::ProtobufMessage& message);
 
         virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
 
     private:
+        std::shared_ptr<VRLogger> logger = std::make_shared<VRLogger>();
         std::mutex devices_mutex_;
         std::vector<std::shared_ptr<IVRDevice>> devices_;
         std::vector<vr::VREvent_t> openvr_events_;
         std::map<int, std::shared_ptr<IVRDevice>> devices_by_id;
         std::map<std::string, std::shared_ptr<IVRDevice>> devices_by_serial;
         std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
-        std::chrono::system_clock::time_point last_frame_time_ = std::chrono::system_clock::now();
+        std::chrono::steady_clock::time_point last_frame_time_ = std::chrono::steady_clock::now();
         std::string settings_key_ = "driver_slimevr";
 
         vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);

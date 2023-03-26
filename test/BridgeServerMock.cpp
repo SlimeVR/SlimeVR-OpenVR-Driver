@@ -20,53 +20,53 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 */
-#include "BridgeClient.hpp"
+#include "BridgeServerMock.hpp"
 
 using namespace std::literals::chrono_literals;
 
-void BridgeClient::createConnection() {
-    logger->Log("connecting");
-    resetBuffers();
+void BridgeServerMock::createConnection() {
+    logger->Log("listening");
 
-    /* ipc = false -> pipe will be used for handle passing between processes? no */
-    connectionHandle = getLoop()->resource<uvw::PipeHandle>(false);
+    serverHandle = getLoop()->resource<uvw::PipeHandle>(false);
+    serverHandle->once<uvw::ListenEvent>([this](const uvw::ListenEvent &event, uvw::PipeHandle &) {
+        logger->Log("new client");
+        resetBuffers();
 
-    connectionHandle->on<uvw::ConnectEvent>([this](const uvw::ConnectEvent&, uvw::PipeHandle&) {
+        /* ipc = false -> pipe will be used for handle passing between processes? no */
+        connectionHandle = getLoop()->resource<uvw::PipeHandle>(false);
+
+        connectionHandle->on<uvw::EndEvent>([this](const uvw::EndEvent &, uvw::PipeHandle &) {
+            logger->Log("disconnected");
+            stopAsync();
+        });
+        connectionHandle->on<uvw::DataEvent>([this](const uvw::DataEvent &event, uvw::PipeHandle &) {
+            onRecv(event);
+        });
+        connectionHandle->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
+            logger->Log("Pipe error: %s", event.what());
+            stopAsync();
+        });
+        
+        serverHandle->accept(*connectionHandle);
         connectionHandle->read();
         logger->Log("connected");
         connected = true;
     });
-    connectionHandle->on<uvw::EndEvent>([this](const uvw::EndEvent&, uvw::PipeHandle&) {
-        logger->Log("disconnected");
-        reconnect();
-    });
-    connectionHandle->on<uvw::DataEvent>([this](const uvw::DataEvent& event, uvw::PipeHandle&) {
-        onRecv(event);
-    });
-    connectionHandle->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent& event, uvw::PipeHandle&) {
-        logger->Log("Pipe error: %s", event.what());
-        reconnect();
+    serverHandle->once<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
+        logger->Log("Bind '%s' error: %s", path, event.what());
+        stopAsync();
     });
 
-    connectionHandle->connect(path);
+    serverHandle->bind(path);
+    serverHandle->listen();
 }
 
-void BridgeClient::resetConnection() {
-    reconnect();
-}
-
-void BridgeClient::reconnect() {
+void BridgeServerMock::resetConnection() {
     closeConnectionHandles();
-    reconnectTimeout = getLoop()->resource<uvw::TimerHandle>();
-    reconnectTimeout->start(1000ms, 0ms);
-    reconnectTimeout->once<uvw::TimerEvent>([this](const uvw::TimerEvent&, uvw::TimerHandle& handle) {
-        createConnection();
-        handle.close();
-    });
 }
 
-void BridgeClient::closeConnectionHandles() {
+void BridgeServerMock::closeConnectionHandles() {
+    if (serverHandle) serverHandle->close();
     if (connectionHandle) connectionHandle->close();
-    if (reconnectTimeout) reconnectTimeout->close();
     connected = false;
 }

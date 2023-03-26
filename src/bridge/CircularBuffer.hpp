@@ -1,6 +1,6 @@
 /*
     SlimeVR Code is placed under the MIT license
-    Copyright (c) 2022 Eiren Rain and SlimeVR Contributors
+    Copyright (c) 2022 SlimeVR Contributors
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@ public:
     }
 
     bool pop(char* data, size_t size) {
-        if (size > bytes_available()) return false;
+            if (size > bytes_available()) return false;
         size_t size1 = std::min<size_t>(size, size_ - (tail_ % size_));
         size_t size2 = size - size1;
         std::memcpy(data, buffer_.get() + (tail_ % size_ ), size1);
@@ -59,6 +59,7 @@ public:
     }
 
     size_t peek(char* data, size_t size) {
+        if (size > bytes_available()) return false;
         size_t available = bytes_available();
         size_t size1 = std::min<size_t>(size, size_ - (tail_ % size_));
         size_t size2 = std::min<size_t>(size - size1, available - size1);

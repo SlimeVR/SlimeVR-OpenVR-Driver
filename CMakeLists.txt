@@ -56,6 +56,11 @@ elseif(APPLE)
     set(PLATFORM_NAME "osx")
 endif()
 
+if(UNIX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+endif()
+
 find_library(OPENVR_LIB openvr_api HINTS "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr/lib/${PLATFORM_NAME}${PROCESSOR_ARCH}/" NO_DEFAULT_PATH )
 
 # Protobuf
@@ -73,18 +78,49 @@ find_package(simdjson CONFIG REQUIRED)
 find_package(libuv REQUIRED)
 find_package(uvw REQUIRED)
 
+# Catch2
+find_package(Catch2 3 REQUIRED)
+
 # Project
-file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
+set(DEPS_INCLUDES
+    "${OPENVR_INCLUDE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+)
+set(DEPS_LIBS
+    "${OPENVR_LIB}"
+    protobuf::libprotoc
+    protobuf::libprotobuf
+    protobuf::libprotobuf-lite
+    simdjson::simdjson
+    $<IF:$<TARGET_EXISTS:uv_a>,uv_a,uv> # libuv
+)
+
+# compile into a static lib
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-add_library("${PROJECT_NAME}" SHARED "${HEADERS}" "${SOURCES}" ${PROTO_HEADER} ${PROTO_SRC})
-target_include_directories("${PROJECT_NAME}" PUBLIC "${OPENVR_INCLUDE_DIR}")
-target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg")
-target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/")
-target_link_libraries("${PROJECT_NAME}" PUBLIC "${OPENVR_LIB}" protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite simdjson::simdjson)
-target_link_libraries("${PROJECT_NAME}" PUBLIC $<IF:$<TARGET_EXISTS:uv_a>,uv_a,uv>) # libuv
+file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
+add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} ${PROTO_HEADER} ${PROTO_SRC})
+target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
+set_property(TARGET "${PROJECT_NAME}_static" PROPERTY CXX_STANDARD 17)
+include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+
+# compile driver
+file(GLOB_RECURSE DRIVER_MAIN "${CMAKE_CURRENT_SOURCE_DIR}/src/DriverFactory.cpp")
+add_library("${PROJECT_NAME}" SHARED ${DRIVER_MAIN} ${HEADERS} ${PROTO_HEADER})
+target_link_libraries("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_static")
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
-include_directories(${Protobuf_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+# compile tests
+function(build_tests target_name test_dir)
+    file(GLOB TESTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_dir}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/${test_dir}/*.hpp")
+    file(GLOB TESTS_COMMON "${CMAKE_CURRENT_SOURCE_DIR}/test/common/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/test/common/*.hpp")
+    add_executable(${target_name} ${TESTS} ${TESTS_COMMON} ${HEADERS} ${PROTO_HEADER})
+    target_link_libraries(${target_name} PUBLIC "${PROJECT_NAME}_static" Catch2::Catch2WithMain)
+    set_property(TARGET ${target_name} PROPERTY CXX_STANDARD 17)
+endfunction()
+build_tests(tests "test")
+build_tests(tests_integration "test/integration")
+add_test(NAME tests COMMAND "tests")
 
 # IDE Config
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Header Files" FILES ${HEADERS})

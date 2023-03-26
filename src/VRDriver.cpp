@@ -11,7 +11,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         return init_error;
     }
 
-    Log("Activating SlimeVR Driver...");
+    logger->Log("Activating SlimeVR Driver...");
 
     try {
         auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
@@ -19,12 +19,13 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         auto path = std::string { doc.get_object()["config"].at(0).get_string().value() };
         default_chap_path_ = GetDefaultChaperoneFromConfigPath(path);
     } catch (simdjson::simdjson_error& e) {
-        Log("Error getting VR Config path, continuing: %s", e.error());
+        logger->Log("Error getting VR Config path, continuing: %s", e.error());
     }
 
-    Log("SlimeVR Driver Loaded Successfully");
+    logger->Log("SlimeVR Driver Loaded Successfully");
 
     bridge = std::make_shared<BridgeClient>(
+        std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
         std::bind(&SlimeVRDriver::VRDriver::OnBridgeMessage, this, std::placeholders::_1)
     );
     bridge->start();
@@ -49,7 +50,7 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     this->openvr_events_ = std::move(events);
 
     // Update frame timing
-    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     this->frame_timing_ = std::chrono::duration_cast<std::chrono::milliseconds>(now - this->last_frame_time_);
     this->last_frame_time_ = now;
 
@@ -85,7 +86,7 @@ void SlimeVRDriver::VRDriver::RunFrame() {
         bridge->sendBridgeMessage(*message);
 
         sentHmdAddMessage = true;
-        Log("Sent HMD hello message");
+        logger->Log("Sent HMD hello message");
     }
 
     vr::PropertyContainerHandle_t hmdPropContainer =
@@ -97,7 +98,7 @@ void SlimeVRDriver::VRDriver::RunFrame() {
         if (res.has_value()) {
             current_universe.emplace(universe, res.value());
         } else {
-            Log("Failed to find current universe!");
+            logger->Log("Failed to find current universe!");
         }
     }
 
@@ -152,7 +153,7 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     bridge->sendBridgeMessage(*message);
 }
 
-void SlimeVRDriver::VRDriver::OnBridgeMessage(messages::ProtobufMessage& message) {
+void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& message) {
     // note: called from bridge thread;
     // driver sample says that TrackedDevicePoseUpdated should happen from "some pose tracking thread",
     // thus we assume the functions that "notify" (as described in docs)
@@ -164,7 +165,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(messages::ProtobufMessage& message
         switch(getDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
             case DeviceType::TRACKER:
                 this->AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
-                Log("New tracker device added " + ta.tracker_serial() + " (id " + std::to_string(ta.tracker_id()) + ")");
+                logger->Log("New tracker device added %s (id %i)", ta.tracker_serial().c_str(), ta.tracker_id());
             break;
         }
     } else if (message.has_position()) {
@@ -231,9 +232,9 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
         std::shared_ptr<IVRDevice> oldDevice = this->devices_by_serial[device->GetSerial()];
         if (oldDevice->getDeviceId() != device->getDeviceId()) {
             this->devices_by_id[device->getDeviceId()] = oldDevice;
-            Log("Device overridden from id " + std::to_string(oldDevice->getDeviceId()) + " to " + std::to_string(device->getDeviceId()) + " for serial " + device->GetSerial());
+            logger->Log("Device overridden from id %i to %i for serial %s", oldDevice->getDeviceId(), device->getDeviceId(), device->GetSerial());
         } else {
-            Log("Device readded id " + std::to_string(device->getDeviceId()) + ", serial " + device->GetSerial());
+            logger->Log("Device readded id %i, serial %s", device->getDeviceId(), device->GetSerial().c_str());
         }
     }
     return result;
@@ -348,7 +349,7 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::searc
             }
         }
     } catch (simdjson::simdjson_error& e) {
-        Log("Error getting universes from %s: %s", path, e.error());
+        logger->Log("Error getting universes from %s: %s", path.c_str(), e.what());
         return std::nullopt;
     }
 
