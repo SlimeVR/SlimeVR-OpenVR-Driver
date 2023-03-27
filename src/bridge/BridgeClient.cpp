@@ -25,16 +25,19 @@
 using namespace std::literals::chrono_literals;
 
 void BridgeClient::CreateConnection() {
-    logger_->Log("connecting");
     ResetBuffers();
+
+    if (!last_error_.has_value()) {
+        logger_->Log("connecting");
+    }
 
     /* ipc = false -> pipe will be used for handle passing between processes? no */
     connection_handle_ = GetLoop()->resource<uvw::PipeHandle>(false);
-
     connection_handle_->on<uvw::ConnectEvent>([this](const uvw::ConnectEvent&, uvw::PipeHandle&) {
         connection_handle_->read();
         logger_->Log("connected");
         connected_ = true;
+        last_error_ = std::nullopt;
     });
     connection_handle_->on<uvw::EndEvent>([this](const uvw::EndEvent&, uvw::PipeHandle&) {
         logger_->Log("disconnected");
@@ -44,7 +47,10 @@ void BridgeClient::CreateConnection() {
         OnRecv(event);
     });
     connection_handle_->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent& event, uvw::PipeHandle&) {
-        logger_->Log("Pipe error: %s", event.what());
+        if (!last_error_.has_value() || last_error_ != event.what()) {
+            logger_->Log("Pipe error: %s", event.what());
+            last_error_ = event.what();
+        }
         Reconnect();
     });
 

@@ -22,6 +22,7 @@
 */
 #pragma once
 
+#include <optional>
 #include <uvw.hpp>
 #include <stdint.h>
 
@@ -49,5 +50,6 @@ private:
     void CloseConnectionHandles() override;
     void Reconnect();
 
+    std::optional<std::string> last_error_;
     std::shared_ptr<uvw::TimerHandle> reconnect_timeout_;
 };
