@@ -22,66 +22,74 @@ namespace SlimeVRDriver {
 
     class IVRDriver : protected vr::IServerTrackedDeviceProvider {
     public:
-
-        /// <summary>
-        /// Returns all devices being managed by this driver
-        /// </summary>
-        /// <returns>All managed devices</returns>
+        /**
+         * Returns all devices being managed by this driver.
+         * 
+         * @return A vector of shared pointers to all managed devices.
+         */
         virtual std::vector<std::shared_ptr<IVRDevice>> GetDevices() = 0;
 
-        /// <summary>
-        /// Returns all OpenVR events that happened on the current frame
-        /// </summary>
-        /// <returns>Current frame's OpenVR events</returns>
+        /**
+         * Returns all OpenVR events that happened on the current frame.
+         * 
+         * @return A vector of current frame's OpenVR events.
+         */
         virtual std::vector<vr::VREvent_t> GetOpenVREvents() = 0;
 
-        /// <summary>
-        /// Returns the milliseconds between last frame and this frame
-        /// </summary>
-        /// <returns>MS between last frame and this frame</returns>
+        /**
+         * Returns the milliseconds between last frame and this frame.
+         * 
+         * @return Milliseconds between last frame and this frame.
+         */
         virtual std::chrono::milliseconds GetLastFrameTime() = 0;
 
-        /// <summary>
-        /// Adds a device to the driver
-        /// </summary>
-        /// <param name="device">Device instance</param>
-        /// <returns>True on success, false on failure</returns>
+        /**
+         * Adds a device to the driver.
+         * 
+         * @param device A shared pointer to the device to be added.
+         * @return True on success, false on failure.
+         */
         virtual bool AddDevice(std::shared_ptr<IVRDevice> device) = 0;
 
-        /// <summary>
-        /// Returns the value of a settings key
-        /// </summary>
-        /// <param name="key">The settings key</param>
-        /// <returns>Value of the key, std::monostate if the value is malformed or missing</returns>
+        /**
+         * Returns the value of a settings key.
+         * 
+         * @param key The settings key
+         * @return Value of the key, std::monostate if the value is malformed or missing.
+         */
         virtual SettingsValue GetSettingsValue(std::string key) = 0;
 
-        /// <summary>
-        /// Gets the OpenVR VRDriverInput pointer
-        /// </summary>
-        /// <returns>OpenVR VRDriverInput pointer</returns>
+        /**
+         * Gets the OpenVR VRDriverInput pointer.
+         * 
+         * @return OpenVR VRDriverInput pointer.
+         */
         virtual vr::IVRDriverInput* GetInput() = 0;
 
-        /// <summary>
-        /// Gets the OpenVR VRDriverProperties pointer
-        /// </summary>
-        /// <returns>OpenVR VRDriverProperties pointer</returns>
+        /**
+         * Gets the OpenVR VRDriverProperties pointer.
+         * 
+         * @return OpenVR VRDriverProperties pointer.
+         */
         virtual vr::CVRPropertyHelpers* GetProperties() = 0;
 
-        /// <summary>
-        /// Gets the OpenVR VRServerDriverHost pointer
-        /// </summary>
-        /// <returns>OpenVR VRServerDriverHost pointer</returns>
+        /**
+         * Gets the OpenVR VRServerDriverHost pointer.
+         * 
+         * @return OpenVR VRServerDriverHost pointer.
+         */
         virtual vr::IVRServerDriverHost* GetDriverHost() = 0;
 
-        /// <summary>
-        /// Gets the current UniverseTranslation
-        /// </summary>
+        /**
+         * Gets the current UniverseTranslation.
+         */
         virtual std::optional<UniverseTranslation> GetCurrentUniverse() = 0;
 
-        /// <summary>
-        /// Writes a log message
-        /// </summary>
-        /// <param name="message">Message to log</param>
+        /**
+         * Writes a log message.
+         * 
+         * @param message Message string to log.
+         */
         virtual void Log(std::string message) = 0;
 
         virtual inline const char* const* GetInterfaceVersions() override {
@@ -89,6 +97,5 @@ namespace SlimeVRDriver {
         };
 
         virtual ~IVRDriver() {}
-
     };
 }

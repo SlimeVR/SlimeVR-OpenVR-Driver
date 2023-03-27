@@ -32,9 +32,9 @@ public:
     using BridgeTransport::BridgeTransport;
 
 private:
-    void createConnection() override;
-    void resetConnection() override;
-    void closeConnectionHandles() override;
+    void CreateConnection() override;
+    void ResetConnection() override;
+    void CloseConnectionHandles() override;
 
-    std::shared_ptr<uvw::PipeHandle> serverHandle = nullptr;
+    std::shared_ptr<uvw::PipeHandle> server_handle_ = nullptr;
 };

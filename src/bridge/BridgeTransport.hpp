@@ -52,7 +52,7 @@ namespace fs = std::filesystem;
 #define UNIX_TMP_DIR "/tmp"
 #define UNIX_SOCKET_NAME "SlimeVRDriver"
 
-static std::string getBridgePath() {
+static std::string GetBridgePath() {
 #ifdef __linux__
     if (const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
         const fs::path xdg_runtime = ptr;
@@ -77,20 +77,20 @@ static std::string getBridgePath() {
  * from the event loop thread with the message as a parameter.
  * 
  * @param logger A shared pointer to an Logger object to log messages from the transport.
- * @param onMessageReceived A function to be called from event loop thread when a message is received and parsed from the pipe.
+ * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
  */
 class BridgeTransport {
 public:
-    BridgeTransport(std::shared_ptr<Logger> _logger, std::function<void(const messages::ProtobufMessage&)> onMessageReceived) :
-        logger(_logger),
-        messageCallback(onMessageReceived),
-        path(getBridgePath()),
-        sendBuf(VRBRIDGE_BUFFERS_SIZE),
-        recvBuf(VRBRIDGE_BUFFERS_SIZE)
+    BridgeTransport(std::shared_ptr<Logger> logger, std::function<void(const messages::ProtobufMessage&)> on_message_received) :
+        logger_(logger),
+        message_callback_(on_message_received),
+        path_(GetBridgePath()),
+        send_buf_(VRBRIDGE_BUFFERS_SIZE),
+        recv_buf_(VRBRIDGE_BUFFERS_SIZE)
         { }
 
     ~BridgeTransport() {
-        stop();
+        Stop();
     }
 
     /**
@@ -98,21 +98,21 @@ public:
      * 
      * Connects and automatic reconnects with a timeout are implemented internally.
      */
-    void start();
+    void Start();
     
     /**
      * @brief Stops the channel by stopping the libuv event loop and closing the connection handles.
      * 
      * Blocks until the event loop is stopped and the connection handles are closed.
      */
-    void stop();
+    void Stop();
 
     /**
      * @brief Stops the channel asynchronously by sending a signal to the libuv event loop to stop and returning immediately.
      * 
-     * The `stop()` function calls this method.
+     * The `Stop()` function calls this method.
      */
-    void stopAsync();
+    void StopAsync();
 
     /**
      * @brief Sends a message over the channel.
@@ -121,41 +121,41 @@ public:
      * 
      * @param message The message to send.
      */
-    void sendBridgeMessage(const messages::ProtobufMessage& message);
+    void SendBridgeMessage(const messages::ProtobufMessage& message);
 
     /**
      * @brief Checks if the channel is connected.
      * 
      * @return true if the channel is connected, false otherwise.
      */
-    bool isConnected() {
-        return connected;
+    bool IsConnected() {
+        return connected_;
     };
 
 protected:
-    virtual void createConnection() = 0;
-    virtual void resetConnection() = 0;
-    virtual void closeConnectionHandles() = 0;
-    void resetBuffers();
-    void onRecv(const uvw::DataEvent& event);
-    auto getLoop() {
-        return loop;
+    virtual void CreateConnection() = 0;
+    virtual void ResetConnection() = 0;
+    virtual void CloseConnectionHandles() = 0;
+    void ResetBuffers();
+    void OnRecv(const uvw::DataEvent& event);
+    auto GetLoop() {
+        return loop_;
     }
 
-    std::shared_ptr<uvw::PipeHandle> connectionHandle = nullptr;
-    std::shared_ptr<Logger> logger;
-    const std::string path;
-    std::atomic<bool> connected = false;
+    std::shared_ptr<Logger> logger_;
+    const std::string path_;
+    std::atomic<bool> connected_ = false;
+    std::shared_ptr<uvw::PipeHandle> connection_handle_ = nullptr;
     
 private:
-    void runThread();
-    void sendWrites();
+    void RunThread();
+    void SendWrites();
 
-    CircularBuffer sendBuf;
-    CircularBuffer recvBuf;
-    std::shared_ptr<uvw::AsyncHandle> stopSignalHandle = nullptr;
-    std::shared_ptr<uvw::AsyncHandle> writeSignalHandle = nullptr;
-    std::unique_ptr<std::thread> thread = nullptr;
-    std::shared_ptr<uvw::Loop> loop = nullptr;
-    const std::function<void(const messages::ProtobufMessage&)> messageCallback;
+    CircularBuffer send_buf_;
+    CircularBuffer recv_buf_;
+    std::shared_ptr<uvw::AsyncHandle> stop_signal_handle_ = nullptr;
+    std::shared_ptr<uvw::AsyncHandle> write_signal_handle_ = nullptr;
+    std::unique_ptr<std::thread> thread_ = nullptr;
+    std::shared_ptr<uvw::Loop> loop_ = nullptr;
+    const std::function<void(const messages::ProtobufMessage&)> message_callback_;
 };

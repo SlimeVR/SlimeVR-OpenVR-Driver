@@ -37,17 +37,17 @@
  * from the event loop thread with the message as a parameter.
  * 
  * @param logger A shared pointer to an Logger object to log messages from the transport.
- * @param onMessageReceived A function to be called from event loop thread when a message is received and parsed from the pipe.
+ * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
  */
 class BridgeClient: public BridgeTransport {
 public:
     using BridgeTransport::BridgeTransport;
 
 private:
-    void createConnection() override;
-    void resetConnection() override;
-    void closeConnectionHandles() override;
-    void reconnect();
+    void CreateConnection() override;
+    void ResetConnection() override;
+    void CloseConnectionHandles() override;
+    void Reconnect();
 
-    std::shared_ptr<uvw::TimerHandle> reconnectTimeout;
+    std::shared_ptr<uvw::TimerHandle> reconnect_timeout_;
 };

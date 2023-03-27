@@ -9,7 +9,7 @@
 class Logger {
 public:
     Logger() : name_("") { }
-    Logger(const char* name) : name_(name) { }
+    Logger(const std::string& name) : name_(name) { }
     void Log(const char* format, ...);
 protected:
     virtual void LogImpl(const char* string) = 0;

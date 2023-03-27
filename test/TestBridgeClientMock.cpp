@@ -6,6 +6,14 @@
 TEST_CASE("IO with a mock server", "[Bridge]") {
     using namespace std::chrono;
 
+    std::map<int, std::pair<TrackerRole, const char*>> serials = {
+        { 3, { TrackerRole::WAIST, "human://WAIST" } },
+        { 4, { TrackerRole::LEFT_FOOT, "human://LEFT_FOOT" } },
+        { 5, { TrackerRole::RIGHT_FOOT, "human://RIGHT_FOOT" } },
+        { 6, { TrackerRole::LEFT_KNEE, "human://LEFT_KNEE" } },
+        { 7, { TrackerRole::RIGHT_KNEE, "human://RIGHT_KNEE" } },
+    };
+
     int positions = 0;
     int invalidMessages = 0;
 
@@ -21,40 +29,32 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
         logger,
         [&](const messages::ProtobufMessage& message) {
             if (message.has_tracker_added()) {
-                testLogTrackerAdded(logger, message);
+                TestLogTrackerAdded(logger, message);
             } else if (message.has_tracker_status()) {
-                testLogTrackerStatus(logger, message);
+                TestLogTrackerStatus(logger, message);
             } else if (message.has_position()) {
                 messages::Position pos = message.position();
                 if (!lastLoggedPosition) logger->Log("... tracker positions response");
                 lastLoggedPosition = true;
                 positions++;
 
-                messages::ProtobufMessage* serverMessage = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
+                messages::ProtobufMessage* server_message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
 
                 if (!trackersSent) {
-                    std::map<int, std::pair<TrackerRole, const char*>> serials = {
-                        { 3, {TrackerRole::WAIST, "human://WAIST"} },
-                        { 4, {TrackerRole::LEFT_KNEE, "human://LEFT_KNEE"} },
-                        { 5, {TrackerRole::RIGHT_KNEE, "human://RIGHT_KNEE"} },
-                        { 6, {TrackerRole::LEFT_FOOT, "human://LEFT_FOOT"} },
-                        { 7, {TrackerRole::RIGHT_FOOT, "human://RIGHT_FOOT"} },
-                    };
-
                     for (int32_t id = 3; id <= 7; id++) {
-                        messages::TrackerAdded* trackerAdded = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
-                        serverMessage->set_allocated_tracker_added(trackerAdded);
-                        trackerAdded->set_tracker_id(id);
-                        trackerAdded->set_tracker_role(serials[id].first);
-                        trackerAdded->set_tracker_serial(serials[id].second);
-                        trackerAdded->set_tracker_name(serials[id].second);
-                        serverMock->sendBridgeMessage(*serverMessage);
+                        messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
+                        server_message->set_allocated_tracker_added(tracker_added);
+                        tracker_added->set_tracker_id(id);
+                        tracker_added->set_tracker_role(serials[id].first);
+                        tracker_added->set_tracker_serial(serials[id].second);
+                        tracker_added->set_tracker_name(serials[id].second);
+                        serverMock->SendBridgeMessage(*server_message);
 
-                        messages::TrackerStatus* trackerStatus = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
-                        serverMessage->set_allocated_tracker_status(trackerStatus);
-                        trackerStatus->set_tracker_id(id);
-                        trackerStatus->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-                        serverMock->sendBridgeMessage(*serverMessage);
+                        messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
+                        server_message->set_allocated_tracker_status(tracker_status);
+                        tracker_status->set_tracker_id(id);
+                        tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
+                        serverMock->SendBridgeMessage(*server_message);
                     }
 
                     trackersSent = true;
@@ -62,7 +62,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                 
                 for (int32_t id = 3; id <= 7; id++) {
                     messages::Position* trackerPosition = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
-                    serverMessage->set_allocated_position(trackerPosition);
+                    server_message->set_allocated_position(trackerPosition);
                     trackerPosition->set_tracker_id(id);
                     trackerPosition->set_data_source(messages::Position_DataSource_FULL);
                     trackerPosition->set_x(0);
@@ -72,7 +72,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                     trackerPosition->set_qy(0);
                     trackerPosition->set_qz(0);
                     trackerPosition->set_qw(0);
-                    serverMock->sendBridgeMessage(*serverMessage);
+                    serverMock->SendBridgeMessage(*server_message);
                 }
             } else {
                 invalidMessages++;
@@ -84,10 +84,10 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
         }
     );
 
-    serverMock->start();
+    serverMock->Start();
     std::this_thread::sleep_for(10ms);
-    testBridgeClient();
-    serverMock->stop();
+    TestBridgeClient();
+    serverMock->Stop();
 
     if (invalidMessages) FAIL("Invalid messages received");
 }

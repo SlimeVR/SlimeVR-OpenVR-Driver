@@ -22,117 +22,117 @@
 */
 #include "BridgeTransport.hpp"
 
-void BridgeTransport::start() {
-    thread = std::make_unique<std::thread>(&BridgeTransport::runThread, this);
+void BridgeTransport::Start() {
+    thread_ = std::make_unique<std::thread>(&BridgeTransport::RunThread, this);
 }
 
-void BridgeTransport::stop() {
-    if (!thread || !thread->joinable()) return;
-    stopAsync();
-    logger->Log("stopping");
-    thread->join();
-    thread.reset();
+void BridgeTransport::Stop() {
+    if (!thread_ || !thread_->joinable()) return;
+    StopAsync();
+    logger_->Log("stopping");
+    thread_->join();
+    thread_.reset();
 }
 
-void BridgeTransport::stopAsync() {
-    if (!stopSignalHandle || stopSignalHandle->closing()) return;
-    stopSignalHandle->send();
+void BridgeTransport::StopAsync() {
+    if (!stop_signal_handle_ || stop_signal_handle_->closing()) return;
+    stop_signal_handle_->send();
 }
 
-void BridgeTransport::runThread() {
-    logger->Log("thread started");
-    loop = uvw::Loop::create();
-    stopSignalHandle = getLoop()->resource<uvw::AsyncHandle>();
-    writeSignalHandle = getLoop()->resource<uvw::AsyncHandle>();
+void BridgeTransport::RunThread() {
+    logger_->Log("thread started");
+    loop_ = uvw::Loop::create();
+    stop_signal_handle_ = GetLoop()->resource<uvw::AsyncHandle>();
+    write_signal_handle_ = GetLoop()->resource<uvw::AsyncHandle>();
 
-    stopSignalHandle->on<uvw::AsyncEvent>([this](const uvw::AsyncEvent&, uvw::AsyncHandle& handle) {
-        logger->Log("closing handles");
-        closeConnectionHandles();
-        writeSignalHandle->close();
-        stopSignalHandle->close();
+    stop_signal_handle_->on<uvw::AsyncEvent>([this](const uvw::AsyncEvent&, uvw::AsyncHandle& handle) {
+        logger_->Log("closing handles");
+        CloseConnectionHandles();
+        write_signal_handle_->close();
+        stop_signal_handle_->close();
     });
     
-    writeSignalHandle->on<uvw::AsyncEvent>([this](const uvw::AsyncEvent&, uvw::AsyncHandle& handle) {
-        sendWrites();
+    write_signal_handle_->on<uvw::AsyncEvent>([this](const uvw::AsyncEvent&, uvw::AsyncHandle& handle) {
+        SendWrites();
     });
     
-    createConnection();
-    getLoop()->run();
-    getLoop()->close();
-    logger->Log("thread exited");
+    CreateConnection();
+    GetLoop()->run();
+    GetLoop()->close();
+    logger_->Log("thread exited");
 }
 
-void BridgeTransport::resetBuffers() {
-    recvBuf.clear();
-    sendBuf.clear();
+void BridgeTransport::ResetBuffers() {
+    recv_buf_.Clear();
+    send_buf_.Clear();
 }
 
-void BridgeTransport::onRecv(const uvw::DataEvent& event) {
-    if (!recvBuf.push(event.data.get(), event.length)) {
-        logger->Log("recvBuf.push %i failed", event.length);
-        resetConnection();
+void BridgeTransport::OnRecv(const uvw::DataEvent& event) {
+    if (!recv_buf_.Push(event.data.get(), event.length)) {
+        logger_->Log("recv_buf_.Push %i failed", event.length);
+        ResetConnection();
         return;
     }
 
     size_t available;
-    while (available = recvBuf.bytes_available()) {
+    while (available = recv_buf_.BytesAvailable()) {
         if (available < 4) return;
 
-        char lenBuf[4];
-        recvBuf.peek(lenBuf, 4);
-        uint32_t size = LE32_TO_NATIVE(*reinterpret_cast<uint32_t*>(lenBuf));
+        char len_buf[4];
+        recv_buf_.Peek(len_buf, 4);
+        uint32_t size = LE32_TO_NATIVE(*reinterpret_cast<uint32_t*>(len_buf));
 
         if (size > VRBRIDGE_MAX_MESSAGE_SIZE) {
-            logger->Log("message size overflow");
-            resetConnection();
+            logger_->Log("message size overflow");
+            ResetConnection();
             return;
         }
 
-        auto unwrappedSize = size - 4;
-        if (available < unwrappedSize) return;
+        auto unwrapped_size = size - 4;
+        if (available < unwrapped_size) return;
 
-        auto messageBuf = std::make_unique<char[]>(size);
-        if (!recvBuf.skip(4) || !recvBuf.pop(messageBuf.get(), unwrappedSize)) {
-            logger->Log("recvBuf.pop %i failed", size);
-            resetConnection();
+        auto message_buf = std::make_unique<char[]>(size);
+        if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf.get(), unwrapped_size)) {
+            logger_->Log("recv_buf_.Pop %i failed", size);
+            ResetConnection();
             return;
         }
 
-        messages::ProtobufMessage receivedMessage;
-        if (receivedMessage.ParseFromArray(messageBuf.get(), unwrappedSize)) {
-            messageCallback(receivedMessage);
+        messages::ProtobufMessage message;
+        if (message.ParseFromArray(message_buf.get(), unwrapped_size)) {
+            message_callback_(message);
         } else {
-            logger->Log("receivedMessage.ParseFromArray failed");
-            resetConnection();
+            logger_->Log("receivedMessage.ParseFromArray failed");
+            ResetConnection();
             return;
         }
     }
 }
 
-void BridgeTransport::sendBridgeMessage(const messages::ProtobufMessage& message) {
-    if (!isConnected()) return;
+void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message) {
+    if (!IsConnected()) return;
 
     uint32_t size = static_cast<uint32_t>(message.ByteSizeLong());
-    uint32_t wrappedSize = size + 4;
+    uint32_t wrapped_size = size + 4;
     
-    auto messageBuf = std::make_unique<char[]>(wrappedSize);
-    *reinterpret_cast<uint32_t*>(messageBuf.get()) = NATIVE_TO_LE32(wrappedSize);
-    message.SerializeToArray(messageBuf.get() + 4, size);
-    if (!sendBuf.push(messageBuf.get(), wrappedSize)) {
-        resetConnection();
+    auto message_buf = std::make_unique<char[]>(wrapped_size);
+    *reinterpret_cast<uint32_t*>(message_buf.get()) = NATIVE_TO_LE32(wrapped_size);
+    message.SerializeToArray(message_buf.get() + 4, size);
+    if (!send_buf_.Push(message_buf.get(), wrapped_size)) {
+        ResetConnection();
         return;
     }
 
-    writeSignalHandle->send();
+    write_signal_handle_->send();
 }
 
-void BridgeTransport::sendWrites() {
-    if (!isConnected()) return;
+void BridgeTransport::SendWrites() {
+    if (!IsConnected()) return;
     
-    auto available = sendBuf.bytes_available();
+    auto available = send_buf_.BytesAvailable();
     if (!available) return;
     
-    auto writeBuf = std::make_unique<char[]>(available);
-    sendBuf.pop(writeBuf.get(), available);
-    connectionHandle->write(writeBuf.get(), static_cast<unsigned int>(available));
+    auto write_buf = std::make_unique<char[]>(available);
+    send_buf_.Pop(write_buf.get(), available);
+    connection_handle_->write(write_buf.get(), static_cast<unsigned int>(available));
 }

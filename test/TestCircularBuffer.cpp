@@ -2,33 +2,45 @@
 
 #include "bridge/CircularBuffer.hpp"
 
-TEST_CASE("push/pop", "[CircularBuffer]") {
+TEST_CASE("Push/Pop", "[CircularBuffer]") {
     CircularBuffer buffer(4);
     char data[4];
 
-    REQUIRE(buffer.push("1234", 4)); // [1234]
-    REQUIRE(buffer.pop(data, 2)); // [34]
+    REQUIRE(buffer.Push("1234", 4)); // [1234]
+    REQUIRE(buffer.BytesAvailable() == 4);
+    REQUIRE(buffer.Pop(data, 2)); // [34]
+    REQUIRE(buffer.BytesAvailable() == 2);
     REQUIRE(std::string(data, 2) == "12");
     
     // test wraparound
-    REQUIRE(buffer.push("56", 2)); // [3456]
-    REQUIRE_FALSE(buffer.push("78", 2)); // [3456] buffer full
-    REQUIRE(buffer.pop(data, 4)); // []
+    REQUIRE(buffer.Push("56", 2)); // [3456]
+    REQUIRE(buffer.BytesAvailable() == 4);
+    REQUIRE_FALSE(buffer.Push("78", 2)); // [3456] buffer full
+    REQUIRE(buffer.BytesAvailable() == 4);
+    REQUIRE(buffer.Pop(data, 4)); // []
+    REQUIRE(buffer.BytesAvailable() == 0);
     REQUIRE(std::string(data, 4) == "3456");
-    REQUIRE_FALSE(buffer.pop(data, 4)); // [] buffer empty
+    REQUIRE_FALSE(buffer.Pop(data, 4)); // [] buffer empty
+    REQUIRE(buffer.BytesAvailable() == 0);
 }
 
-TEST_CASE("peek/skip", "[CircularBuffer]") {
+TEST_CASE("Peek/Skip", "[CircularBuffer]") {
     CircularBuffer buffer(4);
     char data[4];
 
-    REQUIRE_FALSE(buffer.peek(data, 2)); // [] nothing to peek
-    REQUIRE_FALSE(buffer.skip(2)); // [] nothing to skip
+    REQUIRE_FALSE(buffer.Peek(data, 2)); // [] nothing to peek
+    REQUIRE(buffer.BytesAvailable() == 0);
+    REQUIRE_FALSE(buffer.Skip(2)); // [] nothing to skip
+    REQUIRE(buffer.BytesAvailable() == 0);
 
-    REQUIRE(buffer.push("1234", 4)); // [1234]
-    REQUIRE(buffer.peek(data, 2) == 2); // [1234]
+    REQUIRE(buffer.Push("1234", 4)); // [1234]
+    REQUIRE(buffer.BytesAvailable() == 4);
+    REQUIRE(buffer.Peek(data, 2) == 2); // [1234]
+    REQUIRE(buffer.BytesAvailable() == 4);
     REQUIRE(std::string(data, 2) == "12");
-    REQUIRE(buffer.skip(2)); // [34]
-    REQUIRE(buffer.peek(data, 1) == 1); // [34]
+    REQUIRE(buffer.Skip(2)); // [34]
+    REQUIRE(buffer.BytesAvailable() == 2);
+    REQUIRE(buffer.Peek(data, 1) == 1); // [34]
+    REQUIRE(buffer.BytesAvailable() == 2);
     REQUIRE(std::string(data, 1) == "3");
 }

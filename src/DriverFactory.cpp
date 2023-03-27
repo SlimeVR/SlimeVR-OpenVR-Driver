@@ -15,8 +15,9 @@ void* HmdDriverFactory(const char* interface_name, int* return_code) {
 		return driver.get();
 	}
 
-	if (return_code)
+	if (return_code) {
 		*return_code = vr::VRInitError_Init_InterfaceNotFound;
+	}
 
 	return nullptr;
 }

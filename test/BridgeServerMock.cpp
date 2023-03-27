@@ -24,49 +24,49 @@
 
 using namespace std::literals::chrono_literals;
 
-void BridgeServerMock::createConnection() {
-    logger->Log("listening");
+void BridgeServerMock::CreateConnection() {
+    logger_->Log("listening");
 
-    serverHandle = getLoop()->resource<uvw::PipeHandle>(false);
-    serverHandle->once<uvw::ListenEvent>([this](const uvw::ListenEvent &event, uvw::PipeHandle &) {
-        logger->Log("new client");
-        resetBuffers();
+    server_handle_ = GetLoop()->resource<uvw::PipeHandle>(false);
+    server_handle_->once<uvw::ListenEvent>([this](const uvw::ListenEvent &event, uvw::PipeHandle &) {
+        logger_->Log("new client");
+        ResetBuffers();
 
         /* ipc = false -> pipe will be used for handle passing between processes? no */
-        connectionHandle = getLoop()->resource<uvw::PipeHandle>(false);
+        connection_handle_ = GetLoop()->resource<uvw::PipeHandle>(false);
 
-        connectionHandle->on<uvw::EndEvent>([this](const uvw::EndEvent &, uvw::PipeHandle &) {
-            logger->Log("disconnected");
-            stopAsync();
+        connection_handle_->on<uvw::EndEvent>([this](const uvw::EndEvent &, uvw::PipeHandle &) {
+            logger_->Log("disconnected");
+            StopAsync();
         });
-        connectionHandle->on<uvw::DataEvent>([this](const uvw::DataEvent &event, uvw::PipeHandle &) {
-            onRecv(event);
+        connection_handle_->on<uvw::DataEvent>([this](const uvw::DataEvent &event, uvw::PipeHandle &) {
+            OnRecv(event);
         });
-        connectionHandle->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
-            logger->Log("Pipe error: %s", event.what());
-            stopAsync();
+        connection_handle_->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
+            logger_->Log("Pipe error: %s", event.what());
+            StopAsync();
         });
         
-        serverHandle->accept(*connectionHandle);
-        connectionHandle->read();
-        logger->Log("connected");
-        connected = true;
+        server_handle_->accept(*connection_handle_);
+        connection_handle_->read();
+        logger_->Log("connected");
+        connected_ = true;
     });
-    serverHandle->once<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
-        logger->Log("Bind '%s' error: %s", path, event.what());
-        stopAsync();
+    server_handle_->once<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
+        logger_->Log("Bind '%s' error: %s", path_, event.what());
+        StopAsync();
     });
 
-    serverHandle->bind(path);
-    serverHandle->listen();
+    server_handle_->bind(path_);
+    server_handle_->listen();
 }
 
-void BridgeServerMock::resetConnection() {
-    closeConnectionHandles();
+void BridgeServerMock::ResetConnection() {
+    CloseConnectionHandles();
 }
 
-void BridgeServerMock::closeConnectionHandles() {
-    if (serverHandle) serverHandle->close();
-    if (connectionHandle) connectionHandle->close();
-    connected = false;
+void BridgeServerMock::CloseConnectionHandles() {
+    if (server_handle_) server_handle_->close();
+    if (connection_handle_) connection_handle_->close();
+    connected_ = false;
 }

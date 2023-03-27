@@ -24,49 +24,49 @@
 
 using namespace std::literals::chrono_literals;
 
-void BridgeClient::createConnection() {
-    logger->Log("connecting");
-    resetBuffers();
+void BridgeClient::CreateConnection() {
+    logger_->Log("connecting");
+    ResetBuffers();
 
     /* ipc = false -> pipe will be used for handle passing between processes? no */
-    connectionHandle = getLoop()->resource<uvw::PipeHandle>(false);
+    connection_handle_ = GetLoop()->resource<uvw::PipeHandle>(false);
 
-    connectionHandle->on<uvw::ConnectEvent>([this](const uvw::ConnectEvent&, uvw::PipeHandle&) {
-        connectionHandle->read();
-        logger->Log("connected");
-        connected = true;
+    connection_handle_->on<uvw::ConnectEvent>([this](const uvw::ConnectEvent&, uvw::PipeHandle&) {
+        connection_handle_->read();
+        logger_->Log("connected");
+        connected_ = true;
     });
-    connectionHandle->on<uvw::EndEvent>([this](const uvw::EndEvent&, uvw::PipeHandle&) {
-        logger->Log("disconnected");
-        reconnect();
+    connection_handle_->on<uvw::EndEvent>([this](const uvw::EndEvent&, uvw::PipeHandle&) {
+        logger_->Log("disconnected");
+        Reconnect();
     });
-    connectionHandle->on<uvw::DataEvent>([this](const uvw::DataEvent& event, uvw::PipeHandle&) {
-        onRecv(event);
+    connection_handle_->on<uvw::DataEvent>([this](const uvw::DataEvent& event, uvw::PipeHandle&) {
+        OnRecv(event);
     });
-    connectionHandle->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent& event, uvw::PipeHandle&) {
-        logger->Log("Pipe error: %s", event.what());
-        reconnect();
+    connection_handle_->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent& event, uvw::PipeHandle&) {
+        logger_->Log("Pipe error: %s", event.what());
+        Reconnect();
     });
 
-    connectionHandle->connect(path);
+    connection_handle_->connect(path_);
 }
 
-void BridgeClient::resetConnection() {
-    reconnect();
+void BridgeClient::ResetConnection() {
+    Reconnect();
 }
 
-void BridgeClient::reconnect() {
-    closeConnectionHandles();
-    reconnectTimeout = getLoop()->resource<uvw::TimerHandle>();
-    reconnectTimeout->start(1000ms, 0ms);
-    reconnectTimeout->once<uvw::TimerEvent>([this](const uvw::TimerEvent&, uvw::TimerHandle& handle) {
-        createConnection();
+void BridgeClient::Reconnect() {
+    CloseConnectionHandles();
+    reconnect_timeout_ = GetLoop()->resource<uvw::TimerHandle>();
+    reconnect_timeout_->start(1000ms, 0ms);
+    reconnect_timeout_->once<uvw::TimerEvent>([this](const uvw::TimerEvent&, uvw::TimerHandle& handle) {
+        CreateConnection();
         handle.close();
     });
 }
 
-void BridgeClient::closeConnectionHandles() {
-    if (connectionHandle) connectionHandle->close();
-    if (reconnectTimeout) reconnectTimeout->close();
-    connected = false;
+void BridgeClient::CloseConnectionHandles() {
+    if (connection_handle_) connection_handle_->close();
+    if (reconnect_timeout_) reconnect_timeout_->close();
+    connected_ = false;
 }

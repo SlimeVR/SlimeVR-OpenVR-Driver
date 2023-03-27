@@ -6,38 +6,41 @@
 #include "ProtobufMessages.pb.h"
 
 namespace SlimeVRDriver {
-
     class IVRDevice : public vr::ITrackedDeviceServerDriver {
     public:
-        /// <summary>
-        /// Returns the serial string for this device
-        /// </summary>
-        /// <returns>Device serial</returns>
+        /**
+         * Returns the serial string for this device.
+         * 
+         * @return Device serial.
+         */
         virtual std::string GetSerial() = 0;
 
-        /// <summary>
-        /// Runs any update logic for this device.
-        /// Called once per frame
-        /// </summary>
+        /**
+         * Runs any update logic for this device.
+         * Called once per frame.
+         */
         virtual void Update() = 0;
 
-        /// <summary>
-        /// Returns the OpenVR device index
-        /// This should be 0 for HMDs
-        /// </summary>
-        /// <returns>OpenVR device index</returns>
+        /**
+         * Returns the OpenVR device index.
+         * This should be 0 for HMDs.
+         * 
+         * @returns OpenVR device index.
+         */
         virtual vr::TrackedDeviceIndex_t GetDeviceIndex() = 0;
         
-        /// <summary>
-        /// Returns which type of device this device is
-        /// </summary>
-        /// <returns>The type of device</returns>
+        /**
+         * Returns which type of device this device is.
+         * 
+         * @returns The type of device.
+         */
         virtual DeviceType GetDeviceType() = 0;
         
-        /// <summary>
-        /// Makes a default device pose 
-        /// </summary>
-        /// <returns>Default initialised pose</returns>
+        /**
+         * Makes a default device pose.
+         * 
+         * @returns Default initialised pose.
+         */
         static inline vr::DriverPose_t MakeDefaultPose(bool connected = true, bool tracking = true) {
             vr::DriverPose_t out_pose = { 0 };
 
@@ -51,6 +54,21 @@ namespace SlimeVRDriver {
             return out_pose;
         }
 
+        /**
+         * Returns the device id.
+        */
+        virtual int GetDeviceId() = 0;
+
+        /**
+         * Updates device position from a received message.
+        */
+        virtual void PositionMessage(messages::Position& position) = 0;
+        
+        /**
+         * Updates device status from a received message.
+        */
+        virtual void StatusMessage(messages::TrackerStatus& status) = 0;
+
         // Inherited via ITrackedDeviceServerDriver
         virtual vr::EVRInitError Activate(uint32_t unObjectId) = 0;
         virtual void Deactivate() = 0;
@@ -58,10 +76,6 @@ namespace SlimeVRDriver {
         virtual void* GetComponent(const char* pchComponentNameAndVersion) = 0;
         virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) = 0;
         virtual vr::DriverPose_t GetPose() = 0;
-
-        virtual int getDeviceId() = 0;
-        virtual void PositionMessage(messages::Position& position) = 0;
-        virtual void StatusMessage(messages::TrackerStatus& status) = 0;
 
         ~IVRDevice() = default;
     };

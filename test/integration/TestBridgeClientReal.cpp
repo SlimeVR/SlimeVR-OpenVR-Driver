@@ -5,5 +5,5 @@
 #include "../common/TestBridgeClient.hpp"
 
 TEST_CASE("IO with a real server", "[Bridge]") {
-    testBridgeClient();
+    TestBridgeClient();
 }

@@ -1,21 +1,18 @@
 #include "TrackerDevice.hpp"
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int deviceId, TrackerRole trackerRole_):
-    serial_(serial), trackerRole(trackerRole_), deviceId_(deviceId)
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role):
+    serial_(serial), tracker_role_(tracker_role), device_id_(device_id)
 {
     this->last_pose_ = MakeDefaultPose();
-    this->isSetup = false;
+    this->is_setup_ = false;
 }
 
-std::string SlimeVRDriver::TrackerDevice::GetSerial()
-{
+std::string SlimeVRDriver::TrackerDevice::GetSerial() {
     return this->serial_;
 }
 
-void SlimeVRDriver::TrackerDevice::Update()
-{
-    if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
-        return;
+void SlimeVRDriver::TrackerDevice::Update() {
+    if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
 
     // Check if this device was asked to be identified
     auto events = GetDriver()->GetOpenVREvents();
@@ -32,7 +29,7 @@ void SlimeVRDriver::TrackerDevice::Update()
 
     // Check if we need to keep vibrating
     if (this->did_vibrate_) {
-        this->vibrate_anim_state_ += (GetDriver()->GetLastFrameTime().count()/1000.f);
+        this->vibrate_anim_state_ += GetDriver()->GetLastFrameTime().count() / 1000.f;
         if (this->vibrate_anim_state_ > 1.0f) {
             this->did_vibrate_ = false;
             this->vibrate_anim_state_ = 0.0f;
@@ -40,10 +37,8 @@ void SlimeVRDriver::TrackerDevice::Update()
     }
 }
 
-void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
-{
-    if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
-        return;
+void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position) {
+    if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
 
     // Setup pose for this frame
     auto pose = this->last_pose_;
@@ -79,25 +74,23 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     this->last_pose_ = pose;
 }
 
-void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status)
-{
+void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status) {
     auto pose = this->last_pose_;
-    switch (status.status())
-    {
-    case messages::TrackerStatus_Status_OK:
-        pose.deviceIsConnected = true;
-        pose.poseIsValid = true;
-        break;
-    case messages::TrackerStatus_Status_DISCONNECTED:
-        pose.deviceIsConnected = false;
-        pose.poseIsValid = false;
-        break;
-    default:
-    case messages::TrackerStatus_Status_ERROR:
-    case messages::TrackerStatus_Status_BUSY:
-        pose.deviceIsConnected = true;
-        pose.poseIsValid = false;
-        break;
+    switch (status.status()) {
+        case messages::TrackerStatus_Status_OK:
+            pose.deviceIsConnected = true;
+            pose.poseIsValid = true;
+            break;
+        case messages::TrackerStatus_Status_DISCONNECTED:
+            pose.deviceIsConnected = false;
+            pose.poseIsValid = false;
+            break;
+        case messages::TrackerStatus_Status_ERROR:
+        case messages::TrackerStatus_Status_BUSY:
+        default:
+            pose.deviceIsConnected = true;
+            pose.poseIsValid = false;
+            break;
     }
 
     // TODO: send position/rotation of 0 instead of last pose?
@@ -107,18 +100,15 @@ void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status
     // TODO: update this->last_pose_?
 }
 
-DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType()
-{
+DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType() {
     return DeviceType::TRACKER;
 }
 
-vr::TrackedDeviceIndex_t SlimeVRDriver::TrackerDevice::GetDeviceIndex()
-{
+vr::TrackedDeviceIndex_t SlimeVRDriver::TrackerDevice::GetDeviceIndex() {
     return this->device_index_;
 }
 
-vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
-{
+vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     this->device_index_ = unObjectId;
 
     GetDriver()->Log("Activating tracker " + this->serial_);
@@ -152,43 +142,40 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.b4bfb144.png");
 
     // Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
-    auto roleHint = getViveRoleHint(trackerRole);
-    if (roleHint != "")
-	    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, roleHint.c_str());
+    auto role_hint = GetViveRoleHint(tracker_role_);
+    if (role_hint != "") {
+	    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, role_hint.c_str());
+    }
 
-    auto role = getViveRole(trackerRole);
-    if (role != "")
+    auto role = GetViveRole(tracker_role_);
+    if (role != "") {
         vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + this->serial_).c_str(), role.c_str());
+    }
 
     return vr::EVRInitError::VRInitError_None;
 }
 
-void SlimeVRDriver::TrackerDevice::Deactivate()
-{
+void SlimeVRDriver::TrackerDevice::Deactivate() {
     this->device_index_ = vr::k_unTrackedDeviceIndexInvalid;
 }
 
-void SlimeVRDriver::TrackerDevice::EnterStandby()
-{
+void SlimeVRDriver::TrackerDevice::EnterStandby() {
 }
 
-void* SlimeVRDriver::TrackerDevice::GetComponent(const char* pchComponentNameAndVersion)
-{
+void* SlimeVRDriver::TrackerDevice::GetComponent(const char* pchComponentNameAndVersion) {
     return nullptr;
 }
 
-void SlimeVRDriver::TrackerDevice::DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize)
-{
-    if (unResponseBufferSize >= 1)
+void SlimeVRDriver::TrackerDevice::DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) {
+    if (unResponseBufferSize >= 1) {
         pchResponseBuffer[0] = 0;
+    }
 }
 
-vr::DriverPose_t SlimeVRDriver::TrackerDevice::GetPose()
-{
+vr::DriverPose_t SlimeVRDriver::TrackerDevice::GetPose() {
     return last_pose_;
 }
 
-int SlimeVRDriver::TrackerDevice::getDeviceId()
-{
-    return deviceId_;
+int SlimeVRDriver::TrackerDevice::GetDeviceId() {
+    return device_id_;
 }

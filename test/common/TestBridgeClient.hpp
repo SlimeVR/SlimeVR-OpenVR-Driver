@@ -6,6 +6,6 @@
 #include "bridge/BridgeClient.hpp"
 #include "TrackerRole.hpp"
 
-void testLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
-void testLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
-void testBridgeClient();
+void TestLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
+void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
+void TestBridgeClient();
