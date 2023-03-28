@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <atomic>
 
 #include <linalg.h>
 
@@ -45,7 +46,7 @@ namespace SlimeVRDriver {
         int device_id_;
         TrackerRole tracker_role_;
 
-        vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
+        std::atomic<vr::DriverPose_t> last_pose_ = IVRDevice::MakeDefaultPose();
 
         bool did_vibrate_ = false;
         float vibrate_anim_state_ = 0.f;

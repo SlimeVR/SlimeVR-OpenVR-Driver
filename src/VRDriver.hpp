@@ -41,12 +41,16 @@ namespace SlimeVRDriver {
         virtual void LeaveStandby() override;
         virtual ~VRDriver() = default;
 
-        void OnBridgeMessage(const messages::ProtobufMessage& message);
-
         virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
 
+        void OnBridgeMessage(const messages::ProtobufMessage& message);
+        void RunPoseRequestThread();
+
     private:
+        std::unique_ptr<std::thread> pose_request_thread_ = nullptr;
+        
         std::shared_ptr<BridgeClient> bridge_ = nullptr;
+        google::protobuf::Arena arena_;
         std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
         std::mutex devices_mutex_;
         std::vector<std::shared_ptr<IVRDevice>> devices_;

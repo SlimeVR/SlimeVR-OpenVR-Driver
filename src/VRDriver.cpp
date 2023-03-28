@@ -30,6 +30,9 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     );
     bridge_->Start();
 
+    pose_request_thread_ =
+        std::make_unique<std::thread>(&SlimeVRDriver::VRDriver::RunPoseRequestThread, this);
+
     return vr::VRInitError_None;
 }
 
@@ -37,9 +40,116 @@ void SlimeVRDriver::VRDriver::Cleanup() {
     bridge_->Stop();
 }
 
-void SlimeVRDriver::VRDriver::RunFrame() {
-    google::protobuf::Arena arena;
+void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
+    logger_->Log("pose request thread started");
+    while (!vr::VRServerDriverHost()->IsExiting()) {
+        if (!bridge_->IsConnected()) {
+            // If bridge not connected, assume we need to resend hmd tracker add message
+            send_hmd_add_message_ = false;
+            continue;
+        }
 
+        messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
+
+        if (!send_hmd_add_message_) {
+            // Send add message for HMD
+            messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
+            message->set_allocated_tracker_added(tracker_added);
+            tracker_added->set_tracker_id(0);
+            tracker_added->set_tracker_role(TrackerRole::HMD);
+            tracker_added->set_tracker_serial("HMD");
+            tracker_added->set_tracker_name("HMD");
+            bridge_->SendBridgeMessage(*message);
+
+            messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
+            message->set_allocated_tracker_status(tracker_status);
+            tracker_status->set_tracker_id(0);
+            tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
+            bridge_->SendBridgeMessage(*message);
+
+            send_hmd_add_message_ = true;
+            logger_->Log("Sent HMD hello message");
+        }
+
+        vr::PropertyContainerHandle_t hmd_prop_container =
+            vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
+
+        vr::ETrackedPropertyError universe_error;
+        uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
+        if (universe_error == vr::ETrackedPropertyError::TrackedProp_Success) {
+            if (!current_universe_.has_value() || current_universe_.value().first != universe) {
+                auto result = SearchUniverses(universe);
+                if (result.has_value()) {
+                    current_universe_.emplace(universe, result.value());
+                    logger_->Log("Found current universe");
+                } else {
+                    logger_->Log("Failed to find current universe!");
+                }
+            }
+        } else if (universe_error != last_universe_error_) {
+            logger_->Log("Failed to find current universe: Prop_CurrentUniverseId_Uint64 error = %s",
+                vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(universe_error)
+            );
+        }
+        last_universe_error_ = universe_error;
+
+        vr::TrackedDevicePose_t hmd_pose[10];
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
+
+        vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
+        vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
+
+        if (current_universe_.has_value()) {
+            auto trans = current_universe_.value().second;
+            pos.v[0] += trans.translation.v[0];
+            pos.v[1] += trans.translation.v[1];
+            pos.v[2] += trans.translation.v[2];
+
+            // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
+            auto tmp_w = cos(-trans.yaw / 2);
+            auto tmp_y = sin(-trans.yaw / 2);
+            auto new_w = tmp_w * q.w - tmp_y * q.y;
+            auto new_x = tmp_w * q.x + tmp_y * q.z;
+            auto new_y = tmp_w * q.y + tmp_y * q.w;
+            auto new_z = tmp_w * q.z - tmp_y * q.x;
+
+            q.w = new_w;
+            q.x = new_x;
+            q.y = new_y;
+            q.z = new_z;
+
+            // rotate point on the xz plane by -trans.yaw radians
+            // this is equivilant to the quaternion multiplication, after applying the double angle formula.
+            float tmp_sin = sin(-trans.yaw);
+            float tmp_cos = cos(-trans.yaw);
+            auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
+            auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
+
+            pos.v[0] = pos_x;
+            pos.v[2] = pos_z;
+        }
+
+        messages::Position* hmd_position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena_);
+        message->set_allocated_position(hmd_position);
+        hmd_position->set_tracker_id(0);
+        hmd_position->set_data_source(messages::Position_DataSource_FULL);
+        hmd_position->set_x(pos.v[0]);
+        hmd_position->set_y(pos.v[1]);
+        hmd_position->set_z(pos.v[2]);
+        hmd_position->set_qx((float) q.x);
+        hmd_position->set_qy((float) q.y);
+        hmd_position->set_qz((float) q.z);
+        hmd_position->set_qw((float) q.w);
+        bridge_->SendBridgeMessage(*message);
+
+        arena_.Reset();
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    logger_->Log("pose request thread exited");
+}
+
+void SlimeVRDriver::VRDriver::RunFrame() {
     // Collect events
     vr::VREvent_t event;
     std::vector<vr::VREvent_t> events;
@@ -60,106 +170,6 @@ void SlimeVRDriver::VRDriver::RunFrame() {
             device->Update();
         }
     }
-
-    if (!bridge_->IsConnected()) {
-        // If bridge not connected, assume we need to resend hmd tracker add message
-        send_hmd_add_message_ = false;
-        return;
-    }
-
-    messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
-
-    if (!send_hmd_add_message_) {
-        // Send add message for HMD
-        messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
-        message->set_allocated_tracker_added(tracker_added);
-        tracker_added->set_tracker_id(0);
-        tracker_added->set_tracker_role(TrackerRole::HMD);
-        tracker_added->set_tracker_serial("HMD");
-        tracker_added->set_tracker_name("HMD");
-        bridge_->SendBridgeMessage(*message);
-
-        messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
-        message->set_allocated_tracker_status(tracker_status);
-        tracker_status->set_tracker_id(0);
-        tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-        bridge_->SendBridgeMessage(*message);
-
-        send_hmd_add_message_ = true;
-        logger_->Log("Sent HMD hello message");
-    }
-
-    vr::PropertyContainerHandle_t hmd_prop_container =
-        vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
-
-    vr::ETrackedPropertyError universe_error;
-    uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
-    if (universe_error == vr::ETrackedPropertyError::TrackedProp_Success) {
-        if (!current_universe_.has_value() || current_universe_.value().first != universe) {
-            auto result = SearchUniverses(universe);
-            if (result.has_value()) {
-                current_universe_.emplace(universe, result.value());
-                logger_->Log("Found current universe");
-            } else {
-                logger_->Log("Failed to find current universe!");
-            }
-        }
-    } else if (universe_error != last_universe_error_) {
-        logger_->Log("Failed to find current universe: Prop_CurrentUniverseId_Uint64 error = %s",
-            vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(universe_error)
-        );
-    }
-    last_universe_error_ = universe_error;
-
-    vr::TrackedDevicePose_t hmd_pose[10];
-    vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);
-
-    vr::HmdQuaternion_t q = GetRotation(hmd_pose[0].mDeviceToAbsoluteTracking);
-    vr::HmdVector3_t pos = GetPosition(hmd_pose[0].mDeviceToAbsoluteTracking);
-
-    if (current_universe_.has_value()) {
-        auto trans = current_universe_.value().second;
-        pos.v[0] += trans.translation.v[0];
-        pos.v[1] += trans.translation.v[1];
-        pos.v[2] += trans.translation.v[2];
-
-        // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
-        auto tmp_w = cos(-trans.yaw / 2);
-        auto tmp_y = sin(-trans.yaw / 2);
-        auto new_w = tmp_w * q.w - tmp_y * q.y;
-        auto new_x = tmp_w * q.x + tmp_y * q.z;
-        auto new_y = tmp_w * q.y + tmp_y * q.w;
-        auto new_z = tmp_w * q.z - tmp_y * q.x;
-
-        q.w = new_w;
-        q.x = new_x;
-        q.y = new_y;
-        q.z = new_z;
-
-        // rotate point on the xz plane by -trans.yaw radians
-        // this is equivilant to the quaternion multiplication, after applying the double angle formula.
-        float tmp_sin = sin(-trans.yaw);
-        float tmp_cos = cos(-trans.yaw);
-        auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
-        auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
-
-        pos.v[0] = pos_x;
-        pos.v[2] = pos_z;
-    }
-
-    messages::Position* hmd_position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
-    message->set_allocated_position(hmd_position);
-    hmd_position->set_tracker_id(0);
-    hmd_position->set_data_source(messages::Position_DataSource_FULL);
-    hmd_position->set_x(pos.v[0]);
-    hmd_position->set_y(pos.v[1]);
-    hmd_position->set_z(pos.v[2]);
-    hmd_position->set_qx((float) q.x);
-    hmd_position->set_qy((float) q.y);
-    hmd_position->set_qz((float) q.z);
-    hmd_position->set_qw((float) q.w);
-
-    bridge_->SendBridgeMessage(*message);
 }
 
 void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& message) {
