@@ -15,19 +15,20 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         if(WIN32)
             file(READ "$ENV{LOCALAPPDATA}/vcpkg/vcpkg.path.txt" VCPKG_ROOT)
         elseif(UNIX)
-            file(READ "$ENV{HOME}/.vcpkg/vcpkg.path.txt" VCPKG_ROOT)
+            #file(READ "$ENV{HOME}/.vcpkg/vcpkg.path.txt" VCPKG_ROOT)
+            message("Linux found, skipping vcpkg.")
         endif()
 
         set(VCPKG_PATH "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
-    else()
+    elseif(WIN32)
         set(VCPKG_PATH "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
     endif()
     
     if(EXISTS "${VCPKG_PATH}")
         message("vcpkg CMake toolchain was found at \"${VCPKG_PATH}\"")
         set(CMAKE_TOOLCHAIN_FILE "${VCPKG_PATH}")
-    else()
-        message(FATAL_ERROR "vcpkg could not be found")
+    #else()
+        #message(FATAL_ERROR "vcpkg could not be found")
     endif()
 endif()
 
@@ -62,10 +63,15 @@ find_library(OPENVR_LIB openvr_api HINTS "${CMAKE_CURRENT_SOURCE_DIR}/libraries/
 # Installation:
 # Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
 # WARNING: CLang has an arror building protobuf messages, use MSVC 2019
-set(protobuf_MODULE_COMPATIBLE ON CACHE BOOL "")
-find_package(Protobuf CONFIG REQUIRED)
+if(WIN32)
+    set(protobuf_MODULE_COMPATIBLE ON CACHE BOOL "")
+    find_package(Protobuf CONFIG REQUIRED)
+else()
+    find_package(Protobuf REQUIRED)
+endif()
 protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
 SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
+
 
 find_package(simdjson CONFIG REQUIRED)
 
