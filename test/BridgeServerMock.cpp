@@ -53,7 +53,7 @@ void BridgeServerMock::CreateConnection() {
         connected_ = true;
     });
     server_handle_->once<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
-        logger_->Log("Bind '%s' error: %s", path_, event.what());
+        logger_->Log("Bind %s error: %s", path_.c_str(), event.what());
         StopAsync();
     });
 

@@ -14,14 +14,14 @@ void TestLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::Protobu
 void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
     if (!message.has_tracker_status()) return;
     messages::TrackerStatus status = message.tracker_status();
-    if (status.status() == messages::TrackerStatus_Status_OK) {
-        logger->Log("tracker status id %i status %s", status.tracker_id(), "OK");
-    } else if (status.status() == messages::TrackerStatus_Status_DISCONNECTED) {
-        logger->Log("tracker status id %i status %s", status.tracker_id(), "DISCONNECTED");
-    } else if (status.status() == messages::TrackerStatus_Status_ERROR) {
-        logger->Log("tracker status id %i status %s", status.tracker_id(), "ERROR");
-    } else if (status.status() == messages::TrackerStatus_Status_BUSY) {
-        logger->Log("tracker status id %i status %s", status.tracker_id(), "BUSY");
+    static const std::unordered_map<messages::TrackerStatus_Status, std::string> status_map = {
+        { messages::TrackerStatus_Status_OK, "OK" },
+        { messages::TrackerStatus_Status_DISCONNECTED, "DISCONNECTED" },
+        { messages::TrackerStatus_Status_ERROR, "ERROR" },
+        { messages::TrackerStatus_Status_BUSY, "BUSY" },
+    };
+    if (status_map.count(status.status())) {
+        logger->Log("tracker status id %i status %s", status.tracker_id(), status_map.at(status.status()).c_str());
     }
 }
 
