@@ -188,6 +188,15 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
         auto device = this->devices_by_id_.find(status.tracker_id());
         if (device != this->devices_by_id_.end()) {
             device->second->StatusMessage(status);
+            static const std::unordered_map<messages::TrackerStatus_Status, std::string> status_map = {
+                { messages::TrackerStatus_Status_OK, "OK" },
+                { messages::TrackerStatus_Status_DISCONNECTED, "DISCONNECTED" },
+                { messages::TrackerStatus_Status_ERROR, "ERROR" },
+                { messages::TrackerStatus_Status_BUSY, "BUSY" },
+            };
+            if (status_map.count(status.status())) {
+                logger_->Log("Tracker status id %i status %s", status.tracker_id(), status_map.at(status.status()).c_str());
+            }
         }
     }
 }
