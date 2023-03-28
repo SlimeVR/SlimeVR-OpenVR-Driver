@@ -92,15 +92,24 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     vr::PropertyContainerHandle_t hmd_prop_container =
         vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
 
-    uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64);
-    if (!current_universe_.has_value() || current_universe_.value().first != universe) {
-        auto result = SearchUniverses(universe);
-        if (result.has_value()) {
-            current_universe_.emplace(universe, result.value());
-        } else {
-            logger_->Log("Failed to find current universe!");
+    vr::ETrackedPropertyError universe_error;
+    uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
+    if (universe_error == vr::ETrackedPropertyError::TrackedProp_Success) {
+        if (!current_universe_.has_value() || current_universe_.value().first != universe) {
+            auto result = SearchUniverses(universe);
+            if (result.has_value()) {
+                current_universe_.emplace(universe, result.value());
+                logger_->Log("Found current universe");
+            } else {
+                logger_->Log("Failed to find current universe!");
+            }
         }
+    } else if (universe_error != last_universe_error_) {
+        logger_->Log("Failed to find current universe: Prop_CurrentUniverseId_Uint64 error = %s",
+            vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(universe_error)
+        );
     }
+    last_universe_error_ = universe_error;
 
     vr::TrackedDevicePose_t hmd_pose[10];
     vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0, hmd_pose, 10);

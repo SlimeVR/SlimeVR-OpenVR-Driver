@@ -66,6 +66,7 @@ namespace SlimeVRDriver {
         std::optional<std::string> default_chap_path_ = std::nullopt;
         //std::map<int, UniverseTranslation> universes;
 
+        vr::ETrackedPropertyError last_universe_error_;
         std::optional<std::pair<uint64_t, UniverseTranslation>> current_universe_ = std::nullopt;
         std::optional<UniverseTranslation> SearchUniverse(std::string path, uint64_t target);
         std::optional<UniverseTranslation> SearchUniverses(uint64_t target);
