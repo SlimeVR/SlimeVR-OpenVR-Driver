@@ -42,7 +42,7 @@ namespace SlimeVRDriver {
         std::string serial_;
         bool is_setup_;
 
-		int device_id_;
+        int device_id_;
         TrackerRole tracker_role_;
 
         vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
