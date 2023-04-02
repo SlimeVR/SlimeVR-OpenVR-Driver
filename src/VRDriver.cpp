@@ -169,17 +169,17 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     while (vr::VRServerDriverHost()->PollNextEvent(&event, sizeof(event))) {
         events.push_back(event);
     }
-    this->openvr_events_ = std::move(events);
+    openvr_events_ = std::move(events);
 
     // Update frame timing
     std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-    this->frame_timing_ = std::chrono::duration_cast<std::chrono::milliseconds>(now - this->last_frame_time_);
-    this->last_frame_time_ = now;
+    frame_timing_ = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_frame_time_);
+    last_frame_time_ = now;
 
     // Update devices
     {
         std::lock_guard<std::mutex> lock(devices_mutex_);
-        for (auto& device : this->devices_) {
+        for (auto& device : devices_) {
             device->Update();
         }
     }
@@ -196,19 +196,19 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
         messages::TrackerAdded ta = message.tracker_added();
         switch(GetDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
             case DeviceType::TRACKER:
-                this->AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
+                AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
                 break;
         }
     } else if (message.has_position()) {
         messages::Position pos = message.position();
-        auto device = this->devices_by_id_.find(pos.tracker_id());
-        if (device != this->devices_by_id_.end()) {
+        auto device = devices_by_id_.find(pos.tracker_id());
+        if (device != devices_by_id_.end()) {
             device->second->PositionMessage(pos);
         }
     } else if (message.has_tracker_status()) {
         messages::TrackerStatus status = message.tracker_status();
-        auto device = this->devices_by_id_.find(status.tracker_id());
-        if (device != this->devices_by_id_.end()) {
+        auto device = devices_by_id_.find(status.tracker_id());
+        if (device != devices_by_id_.end()) {
             device->second->StatusMessage(status);
             static const std::unordered_map<messages::TrackerStatus_Status, std::string> status_map = {
                 { messages::TrackerStatus_Status_OK, "OK" },
@@ -235,15 +235,15 @@ void SlimeVRDriver::VRDriver::LeaveStandby() {
 
 std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> SlimeVRDriver::VRDriver::GetDevices() {
     std::lock_guard<std::mutex> lock(devices_mutex_);
-    return this->devices_;
+    return devices_;
 }
 
 std::vector<vr::VREvent_t> SlimeVRDriver::VRDriver::GetOpenVREvents() {
-    return this->openvr_events_;
+    return openvr_events_;
 }
 
 std::chrono::milliseconds SlimeVRDriver::VRDriver::GetLastFrameTime() {
-    return this->frame_timing_;
+    return frame_timing_;
 }
 
 bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
@@ -268,18 +268,18 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
     if (!devices_by_serial_.count(device->GetSerial())) {
         bool result = vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get());
         if (result) {
-            this->devices_.push_back(device);
-            this->devices_by_id_[device->GetDeviceId()] = device;
-            this->devices_by_serial_[device->GetSerial()] = device;
+            devices_.push_back(device);
+            devices_by_id_[device->GetDeviceId()] = device;
+            devices_by_serial_[device->GetSerial()] = device;
             logger_->Log("New tracker device added %s (id %i)", device->GetSerial().c_str(), device->GetDeviceId());
         } else {
             logger_->Log("Failed to add tracker device %s (id %i)", device->GetSerial().c_str(), device->GetDeviceId());
             return false;
         }
     } else {
-        std::shared_ptr<IVRDevice> oldDevice = this->devices_by_serial_[device->GetSerial()];
+        std::shared_ptr<IVRDevice> oldDevice = devices_by_serial_[device->GetSerial()];
         if (oldDevice->GetDeviceId() != device->GetDeviceId()) {
-            this->devices_by_id_[device->GetDeviceId()] = oldDevice;
+            devices_by_id_[device->GetDeviceId()] = oldDevice;
             oldDevice->SetDeviceId(device->GetDeviceId());
             logger_->Log("Device overridden from id %i to %i for serial %s", oldDevice->GetDeviceId(), device->GetDeviceId(), device->GetSerial());
         } else {
