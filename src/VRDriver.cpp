@@ -144,6 +144,14 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
 
         arena_.Reset();
         
+        // Windows:
+        // p1:  2.191 ms 456.413 tps
+        // avg: 2.492 ms 401.225 tps
+        // p99: 2.526 ms 395.883 tps
+        // Linux:
+        // p1:  2.063 ms 484.731 tps
+        // avg: 2.079 ms 480.992 tps
+        // p99: 2.115 ms 472.813 tps
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     logger_->Log("pose request thread exited");
