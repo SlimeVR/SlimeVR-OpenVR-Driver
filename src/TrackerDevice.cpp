@@ -1,11 +1,12 @@
 #include "TrackerDevice.hpp"
 
 SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role):
-    serial_(serial), tracker_role_(tracker_role), device_id_(device_id)
-{
-    this->last_pose_ = MakeDefaultPose();
-    this->is_setup_ = false;
-}
+    serial_(serial),
+    tracker_role_(tracker_role),
+    device_id_(device_id),
+    last_pose_(MakeDefaultPose()),
+    is_setup_(false)
+{ }
 
 std::string SlimeVRDriver::TrackerDevice::GetSerial() {
     return this->serial_;
@@ -75,6 +76,8 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
 }
 
 void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status) {
+    if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
+    
     vr::DriverPose_t pose = this->last_pose_;
     switch (status.status()) {
         case messages::TrackerStatus_Status_OK:
@@ -177,4 +180,8 @@ vr::DriverPose_t SlimeVRDriver::TrackerDevice::GetPose() {
 
 int SlimeVRDriver::TrackerDevice::GetDeviceId() {
     return device_id_;
+}
+
+void SlimeVRDriver::TrackerDevice::SetDeviceId(int device_id) {
+    device_id_ = device_id;
 }

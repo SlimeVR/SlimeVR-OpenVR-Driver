@@ -30,6 +30,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     );
     bridge_->Start();
 
+    exiting_pose_request_thread_ = false;
     pose_request_thread_ =
         std::make_unique<std::thread>(&SlimeVRDriver::VRDriver::RunPoseRequestThread, this);
 
@@ -37,15 +38,19 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
 }
 
 void SlimeVRDriver::VRDriver::Cleanup() {
+    exiting_pose_request_thread_ = true;
+    pose_request_thread_->join();
+    pose_request_thread_.reset();
     bridge_->Stop();
 }
 
 void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
     logger_->Log("pose request thread started");
-    while (!vr::VRServerDriverHost()->IsExiting()) {
+    while (!exiting_pose_request_thread_) {
         if (!bridge_->IsConnected()) {
             // If bridge not connected, assume we need to resend hmd tracker add message
             send_hmd_add_message_ = false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
@@ -192,8 +197,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
         switch(GetDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
             case DeviceType::TRACKER:
                 this->AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
-                logger_->Log("New tracker device added %s (id %i)", ta.tracker_serial().c_str(), ta.tracker_id());
-            break;
+                break;
         }
     } else if (message.has_position()) {
         messages::Position pos = message.position();
@@ -261,21 +265,28 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
         default:
             return false;
     }
-    bool result = vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get());
-    if (result) {
-        this->devices_.push_back(device);
-        this->devices_by_id_[device->GetDeviceId()] = device;
-        this->devices_by_serial_[device->GetSerial()] = device;
+    if (!devices_by_serial_.count(device->GetSerial())) {
+        bool result = vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get());
+        if (result) {
+            this->devices_.push_back(device);
+            this->devices_by_id_[device->GetDeviceId()] = device;
+            this->devices_by_serial_[device->GetSerial()] = device;
+            logger_->Log("New tracker device added %s (id %i)", device->GetSerial().c_str(), device->GetDeviceId());
+        } else {
+            logger_->Log("Failed to add tracker device %s (id %i)", device->GetSerial().c_str(), device->GetDeviceId());
+            return false;
+        }
     } else {
         std::shared_ptr<IVRDevice> oldDevice = this->devices_by_serial_[device->GetSerial()];
         if (oldDevice->GetDeviceId() != device->GetDeviceId()) {
             this->devices_by_id_[device->GetDeviceId()] = oldDevice;
+            oldDevice->SetDeviceId(device->GetDeviceId());
             logger_->Log("Device overridden from id %i to %i for serial %s", oldDevice->GetDeviceId(), device->GetDeviceId(), device->GetSerial());
         } else {
             logger_->Log("Device readded id %i, serial %s", device->GetDeviceId(), device->GetSerial().c_str());
         }
     }
-    return result;
+    return true;
 }
 
 SlimeVRDriver::SettingsValue SlimeVRDriver::VRDriver::GetSettingsValue(std::string key) {

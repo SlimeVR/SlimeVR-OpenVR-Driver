@@ -48,6 +48,7 @@ namespace SlimeVRDriver {
 
     private:
         std::unique_ptr<std::thread> pose_request_thread_ = nullptr;
+        std::atomic<bool> exiting_pose_request_thread_ = false;
         
         std::shared_ptr<BridgeClient> bridge_ = nullptr;
         google::protobuf::Arena arena_;

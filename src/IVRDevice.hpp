@@ -60,6 +60,11 @@ namespace SlimeVRDriver {
         virtual int GetDeviceId() = 0;
 
         /**
+         * Sets the device id.
+        */
+        virtual void SetDeviceId(int device_id) = 0;
+
+        /**
          * Updates device position from a received message.
         */
         virtual void PositionMessage(messages::Position& position) = 0;
