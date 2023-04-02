@@ -45,7 +45,7 @@ void SlimeVRDriver::VRDriver::Cleanup() {
 }
 
 void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
-    logger_->Log("pose request thread started");
+    logger_->Log("Pose request thread started");
     while (!exiting_pose_request_thread_) {
         if (!bridge_->IsConnected()) {
             // If bridge not connected, assume we need to resend hmd tracker add message
@@ -159,7 +159,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         // p99: 2.115 ms 472.813 tps
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-    logger_->Log("pose request thread exited");
+    logger_->Log("Pose request thread exited");
 }
 
 void SlimeVRDriver::VRDriver::RunFrame() {
