@@ -56,11 +56,6 @@ elseif(APPLE)
     set(PLATFORM_NAME "osx")
 endif()
 
-if(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-endif()
-
 find_library(OPENVR_LIB openvr_api HINTS "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr/lib/${PLATFORM_NAME}${PROCESSOR_ARCH}/" NO_DEFAULT_PATH )
 
 # Protobuf
@@ -103,11 +98,15 @@ add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} ${PROTO_HEADER} ${PROTO_S
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
 set_property(TARGET "${PROJECT_NAME}_static" PROPERTY CXX_STANDARD 17)
 include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+if(UNIX)
+    target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
+    target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)
+endif()
 
 # compile driver
 file(GLOB_RECURSE DRIVER_MAIN "${CMAKE_CURRENT_SOURCE_DIR}/src/DriverFactory.cpp")
 add_library("${PROJECT_NAME}" SHARED ${DRIVER_MAIN} ${HEADERS} ${PROTO_HEADER})
-target_link_libraries("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_static")
+target_link_libraries("${PROJECT_NAME}" PUBLIC "${PROJECT_NAME}_static")
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 
 # compile tests
