@@ -69,6 +69,8 @@ message Position {
         FULL = 3;
     }
     optional DataSource data_source = 9;
+    float battery_level = 10;
+    float battery_voltage = 11;
 }
 
 message UserAction {
