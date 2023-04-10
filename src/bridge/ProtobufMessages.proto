@@ -69,8 +69,6 @@ message Position {
         FULL = 3;
     }
     optional DataSource data_source = 9;
-    float battery_level = 10;
-    float battery_voltage = 11;
 }
 
 message UserAction {
@@ -105,11 +103,18 @@ message TrackerStatus {
     optional Confidence confidence = 4;
 }
 
+message Battery {
+    int32 tracker_id = 1;
+    float battery_level = 2;
+    float battery_voltage = 3;
+}
+
 message ProtobufMessage {
     oneof message {
         Position position = 1;
         UserAction user_action = 2;
         TrackerAdded tracker_added = 3;
         TrackerStatus tracker_status = 4;
+        Battery battery = 5;
     }
 }

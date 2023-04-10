@@ -74,21 +74,29 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
         pose.qWorldFromDriverRotation.z = 0;
     }
 
-    // Get the properties handle
-    auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
-
-    
-    // GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
-    if (position.battery_level() > 0) {
-        GetDriver()->GetProperties()->SetFloatProperty(props, vr::Prop_DeviceBatteryPercentage_Float, position.battery_level());
-    }
-    else {
-        GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, false);
-    }
-
     // Post pose
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
     this->last_pose_ = pose;
+}
+
+void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery &battery)
+{
+    if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
+        return;
+
+    // Get the properties handle
+    auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
+    
+    GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
+
+    if (battery.battery_voltage() > 4.2) {
+        GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, true);
+    } else {
+        GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, false);
+    } 
+    
+    // Set the battery Level
+    GetDriver()->GetProperties()->SetFloatProperty(props, vr::Prop_DeviceBatteryPercentage_Float, battery.battery_level());
 }
 
 void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status)
@@ -162,9 +170,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId)
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceNotReady_String, "{slimevr}/icons/tracker_status_off.png");
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.b4bfb144.png");
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.b4bfb144.png");
-
-    // Set that the tracker supports battery life
-    GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
 
     // Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
     auto roleHint = getViveRoleHint(trackerRole);

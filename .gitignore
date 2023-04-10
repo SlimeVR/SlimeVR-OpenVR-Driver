@@ -11,6 +11,7 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
+vcpkg_installed/
 
 ### CMake Patch ###
 # External projects
@@ -27,3 +28,4 @@ CMakeUserPresets.json
 
 # Project-specific
 build/*
+out/
