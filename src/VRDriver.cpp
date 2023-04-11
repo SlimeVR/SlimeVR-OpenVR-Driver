@@ -84,6 +84,12 @@ void SlimeVRDriver::VRDriver::RunFrame()
                 if (device != this->devices_by_id.end()) {
                     device->second->StatusMessage(status);
                 }
+            } else if (message->has_battery()) {
+                messages::Battery bat = message->battery();
+                auto device = this->devices_by_id.find(bat.tracker_id());
+                if (device != this->devices_by_id.end()) {
+                    device->second->BatteryMessage(bat);
+                }
             }
         }
 

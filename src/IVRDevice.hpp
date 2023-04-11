@@ -63,6 +63,8 @@ namespace SlimeVRDriver {
         virtual void PositionMessage(messages::Position& position) = 0;
         virtual void StatusMessage(messages::TrackerStatus& status) = 0;
 
+        virtual void BatteryMessage(messages::Battery& battery) = 0;
+
         ~IVRDevice() = default;
     };
 };
