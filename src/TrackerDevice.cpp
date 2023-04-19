@@ -95,8 +95,8 @@ void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery &battery)
         vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
     }
 
-    // If the battery voltage is >=4.2V, set that the tracker is charging.
-    if (battery.battery_voltage() >= 4.2) {
+    // If the battery voltage is >=4.3V, set that the tracker is charging.
+    if (battery.battery_voltage() >= 4.3) {
         GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, true);
     } else {
         GetDriver()->GetProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, false);
