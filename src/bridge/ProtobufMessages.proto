@@ -106,7 +106,7 @@ message TrackerStatus {
 message Battery {
     int32 tracker_id = 1;
     float battery_level = 2;
-    float battery_voltage = 3;
+    bool is_charging = 3;
 }
 
 message ProtobufMessage {
