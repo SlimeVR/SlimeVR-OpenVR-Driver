@@ -84,6 +84,12 @@ void SlimeVRDriver::VRDriver::RunFrame()
                 if (device != this->devices_by_id.end()) {
                     device->second->StatusMessage(status);
                 }
+            } else if (message->has_battery()) {
+                messages::Battery bat = message->battery();
+                auto device = this->devices_by_id.find(bat.tracker_id());
+                if (device != this->devices_by_id.end()) {
+                    device->second->BatteryMessage(bat);
+                }
             }
         }
 
@@ -167,6 +173,16 @@ void SlimeVRDriver::VRDriver::RunFrame()
         hmdPosition->set_qw((float) q.w);
 
         sendBridgeMessage(*message, *this);
+
+        vr::ETrackedPropertyError err;
+        if (vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceProvidesBatteryStatus_Bool, &err) == true) {
+            messages::Battery* hmdBattery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena);
+            message->set_allocated_battery(hmdBattery);
+            hmdBattery->set_tracker_id(0);
+            hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
+            hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceIsCharging_Bool, &err));
+            sendBridgeMessage(*message, *this);
+        }
     } else {
         // If bridge not connected, assume we need to resend hmd tracker add message
         sentHmdAddMessage = false;
