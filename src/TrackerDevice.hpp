@@ -30,6 +30,7 @@ namespace SlimeVRDriver {
         virtual void SetDeviceId(int device_id) override;
         virtual void PositionMessage(messages::Position &position) override;
         virtual void StatusMessage(messages::TrackerStatus &status) override;
+        virtual void BatteryMessage(messages::Battery &battery) override;
 
         // Inherited via ITrackedDeviceServerDriver
         virtual vr::EVRInitError Activate(uint32_t unObjectId) override;

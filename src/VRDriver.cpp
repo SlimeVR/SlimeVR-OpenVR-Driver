@@ -147,6 +147,16 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         hmd_position->set_qw((float) q.w);
         bridge_->SendBridgeMessage(*message);
 
+        vr::ETrackedPropertyError err;
+        if (vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceProvidesBatteryStatus_Bool, &err) == true) {
+            messages::Battery* hmdBattery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
+            message->set_allocated_battery(hmdBattery);
+            hmdBattery->set_tracker_id(0);
+            hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
+            hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceIsCharging_Bool, &err));
+            bridge_->SendBridgeMessage(*message);
+        }
+
         arena_.Reset();
         
         // Windows:
@@ -219,6 +229,12 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
             if (status_map.count(status.status())) {
                 logger_->Log("Tracker status id %i status %s", status.tracker_id(), status_map.at(status.status()).c_str());
             }
+        }
+    } else if (message.has_battery()) {
+        messages::Battery bat = message.battery();
+        auto device = this->devices_by_id_.find(bat.tracker_id());
+        if (device != this->devices_by_id_.end()) {
+            device->second->BatteryMessage(bat);
         }
     }
 }

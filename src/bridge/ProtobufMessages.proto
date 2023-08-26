@@ -103,11 +103,18 @@ message TrackerStatus {
     optional Confidence confidence = 4;
 }
 
+message Battery {
+    int32 tracker_id = 1;
+    float battery_level = 2;
+    bool is_charging = 3;
+}
+
 message ProtobufMessage {
     oneof message {
         Position position = 1;
         UserAction user_action = 2;
         TrackerAdded tracker_added = 3;
         TrackerStatus tracker_status = 4;
+        Battery battery = 5;
     }
 }
