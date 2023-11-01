@@ -1,6 +1,6 @@
 /*
     SlimeVR Code is placed under the MIT license
-    Copyright (c) 2021 Eiren Rain
+    Copyright (c) 2022 SlimeVR Contributors
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -20,26 +20,36 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 */
-/**
- * Header file for cross-platform handling of IPC between SteamVR driver/app
- * and SlimeVR server
- */
 #pragma once
 
-#define BRIDGE_USE_PIPES 1
-#include "ProtobufMessages.pb.h"
-#include <variant>
 #include <optional>
-#include "../VRDriver.hpp"
+#include <uvw.hpp>
+#include <stdint.h>
 
-enum BridgeStatus {
-    BRIDGE_DISCONNECTED = 0,
-    BRIDGE_CONNECTED = 1,
-    BRIDGE_ERROR = 2
+#include "BridgeTransport.hpp"
+
+/**
+ * @brief Client implementation for communication with SlimeVR Server using pipes.
+ * 
+ * This class provides a set of methods to start, stop an IO thread, send messages over a named pipe or unix socket
+ * and is abstracted through `libuv`.
+ * 
+ * When a message is received and parsed from the pipe, the messageCallback function passed in the constructor is called
+ * from the event loop thread with the message as a parameter.
+ * 
+ * @param logger A shared pointer to an Logger object to log messages from the transport.
+ * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
+ */
+class BridgeClient: public BridgeTransport {
+public:
+    using BridgeTransport::BridgeTransport;
+
+private:
+    void CreateConnection() override;
+    void ResetConnection() override;
+    void CloseConnectionHandles() override;
+    void Reconnect();
+
+    std::optional<std::string> last_error_;
+    std::shared_ptr<uvw::timer_handle> reconnect_timeout_;
 };
-
-BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver &driver);
-
-bool getNextBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);
-
-bool sendBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);

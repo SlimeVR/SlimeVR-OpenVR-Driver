@@ -4,3 +4,6 @@
 [submodule "libraries/linalg"]
 	path = libraries/linalg
 	url = https://github.com/sgorsten/linalg.git
+[submodule "vcpkg"]
+	path = vcpkg
+	url = https://github.com/Microsoft/vcpkg.git
