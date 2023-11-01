@@ -197,11 +197,6 @@ void SlimeVRDriver::VRDriver::RunFrame() {
 }
 
 void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& message) {
-    // note: called from bridge thread;
-    // driver sample says that TrackedDevicePoseUpdated should happen from "some pose tracking thread",
-    // thus we assume the functions that "notify" (as described in docs)
-    // like TrackedDevicePoseUpdated and TrackedDeviceAdded are safe to call here
-
     std::lock_guard<std::mutex> lock(devices_mutex_);
     if (message.has_tracker_added()) {
         messages::TrackerAdded ta = message.tracker_added();
@@ -252,7 +247,9 @@ void SlimeVRDriver::VRDriver::LeaveStandby() {
 
 std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> SlimeVRDriver::VRDriver::GetDevices() {
     std::lock_guard<std::mutex> lock(devices_mutex_);
-    return devices_;
+    std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> devices;
+    devices.assign(devices.begin(), devices.end());
+    return devices;
 }
 
 std::vector<vr::VREvent_t> SlimeVRDriver::VRDriver::GetOpenVREvents() {
