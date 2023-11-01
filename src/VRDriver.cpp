@@ -151,12 +151,12 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - battery_sent_at_).count() > 100) {
             vr::ETrackedPropertyError err;
-            if (vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceProvidesBatteryStatus_Bool, &err)) {
+            if (vr::VRProperties()->GetBoolProperty(hmd_prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool, &err)) {
                 messages::Battery* hmdBattery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
                 message->set_allocated_battery(hmdBattery);
                 hmdBattery->set_tracker_id(0);
-                hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
-                hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceIsCharging_Bool, &err));
+                hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(hmd_prop_container, vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
+                hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(hmd_prop_container, vr::Prop_DeviceIsCharging_Bool, &err));
                 bridge_->SendBridgeMessage(*message);
             }
             battery_sent_at_ = now;
