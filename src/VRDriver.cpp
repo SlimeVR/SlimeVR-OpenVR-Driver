@@ -148,26 +148,22 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         hmd_position->set_qw((float) q.w);
         bridge_->SendBridgeMessage(*message);
 
-        vr::ETrackedPropertyError err;
-        if (vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceProvidesBatteryStatus_Bool, &err) == true) {
-            messages::Battery* hmdBattery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
-            message->set_allocated_battery(hmdBattery);
-            hmdBattery->set_tracker_id(0);
-            hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
-            hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceIsCharging_Bool, &err));
-            bridge_->SendBridgeMessage(*message);
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - battery_sent_at_).count() > 100) {
+            vr::ETrackedPropertyError err;
+            if (vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceProvidesBatteryStatus_Bool, &err)) {
+                messages::Battery* hmdBattery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
+                message->set_allocated_battery(hmdBattery);
+                hmdBattery->set_tracker_id(0);
+                hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
+                hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DeviceIsCharging_Bool, &err));
+                bridge_->SendBridgeMessage(*message);
+            }
+            battery_sent_at_ = now;
         }
 
         arena_.Reset();
         
-        // Windows:
-        // p1:  2.191 ms 456.413 tps
-        // avg: 2.492 ms 401.225 tps
-        // p99: 2.526 ms 395.883 tps
-        // Linux:
-        // p1:  2.063 ms 484.731 tps
-        // avg: 2.079 ms 480.992 tps
-        // p99: 2.115 ms 472.813 tps
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     logger_->Log("Pose request thread exited");

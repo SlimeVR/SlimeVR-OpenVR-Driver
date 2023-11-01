@@ -69,7 +69,7 @@ void BridgeTransport::ResetBuffers() {
 
 void BridgeTransport::OnRecv(const uvw::data_event& event) {
     if (!recv_buf_.Push(event.data.get(), event.length)) {
-        logger_->Log("recv_buf_.Push %i failed", event.length);
+        logger_->Log("recv_buf_.Push(%i) failed", event.length);
         ResetConnection();
         return;
     }
@@ -93,7 +93,7 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 
         auto message_buf = std::make_unique<char[]>(size);
         if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf.get(), unwrapped_size)) {
-            logger_->Log("recv_buf_.Pop %i failed", size);
+            logger_->Log("recv_buf_.Pop(%i) failed", size);
             ResetConnection();
             return;
         }

@@ -43,7 +43,7 @@ void BridgeServerMock::CreateConnection() {
             OnRecv(event);
         });
         connection_handle_->on<uvw::error_event>([this](const uvw::error_event &event, uvw::pipe_handle &) {
-            logger_->Log("Pipe error: %s", event.what());
+            logger_->Log("pipe error: %s", event.what());
             StopAsync();
         });
         
@@ -53,7 +53,7 @@ void BridgeServerMock::CreateConnection() {
         connected_ = true;
     });
     server_handle_->on<uvw::error_event>([this](const uvw::error_event &event, uvw::pipe_handle &) {
-        logger_->Log("Bind %s error: %s", path_.c_str(), event.what());
+        logger_->Log("bind %s error: %s", path_.c_str(), event.what());
         StopAsync();
     });
 

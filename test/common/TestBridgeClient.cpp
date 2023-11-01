@@ -39,7 +39,7 @@ void TestBridgeClient() {
 
     bool last_logged_position = false;
 
-    auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>("Bridge"));
+    auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>("Test"));
     auto bridge = std::make_shared<BridgeClient>(
         logger,
         [&](const messages::ProtobufMessage& message) {
@@ -125,7 +125,7 @@ void TestBridgeClient() {
     for (const auto& [id, sum] : latency_nanos_sum) {
         auto avg_latency_nanos = static_cast<int>(latency_nanos_count[id] ? sum / latency_nanos_count[id] : -1);
         auto avg_latency_ms = duration_cast<duration<double, std::milli>>(nanoseconds(avg_latency_nanos));
-        logger->Log("Avg latency for tracker %i: %.3fms", id, avg_latency_ms.count());
+        logger->Log("avg latency for tracker %i: %.3fms", id, avg_latency_ms.count());
     }
 
     if (invalid_messages) FAIL("Invalid messages received");

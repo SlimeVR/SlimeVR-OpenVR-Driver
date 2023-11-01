@@ -48,7 +48,7 @@ void BridgeClient::CreateConnection() {
     });
     connection_handle_->on<uvw::error_event>([this](const uvw::error_event& event, uvw::pipe_handle&) {
         if (!last_error_.has_value() || last_error_ != event.what()) {
-            logger_->Log("Pipe error: %s", event.what());
+            logger_->Log("pipe error: %s", event.what());
             last_error_ = event.what();
         }
         Reconnect();

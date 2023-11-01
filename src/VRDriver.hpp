@@ -60,6 +60,7 @@ namespace SlimeVRDriver {
         std::map<std::string, std::shared_ptr<IVRDevice>> devices_by_serial_;
         std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
         std::chrono::steady_clock::time_point last_frame_time_ = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point battery_sent_at_ = std::chrono::steady_clock::now();
         std::string settings_key_ = "driver_slimevr";
 
         vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);
