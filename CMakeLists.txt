@@ -70,8 +70,7 @@ SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE
 find_package(simdjson CONFIG REQUIRED)
 
 # libuv
-find_package(libuv REQUIRED)
-find_package(uvw REQUIRED)
+find_package(uvw CONFIG REQUIRED)
 
 # Catch2
 find_package(Catch2 3 REQUIRED)
@@ -88,7 +87,7 @@ set(DEPS_LIBS
     protobuf::libprotobuf
     protobuf::libprotobuf-lite
     simdjson::simdjson
-    $<IF:$<TARGET_EXISTS:uv_a>,uv_a,uv> # libuv
+    uvw::uvw
 )
 
 # compile into a static lib

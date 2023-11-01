@@ -27,22 +27,22 @@ using namespace std::literals::chrono_literals;
 void BridgeServerMock::CreateConnection() {
     logger_->Log("listening");
 
-    server_handle_ = GetLoop()->resource<uvw::PipeHandle>(false);
-    server_handle_->once<uvw::ListenEvent>([this](const uvw::ListenEvent &event, uvw::PipeHandle &) {
+    server_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
+    server_handle_->on<uvw::listen_event>([this](const uvw::listen_event &event, uvw::pipe_handle &) {
         logger_->Log("new client");
         ResetBuffers();
 
         /* ipc = false -> pipe will be used for handle passing between processes? no */
-        connection_handle_ = GetLoop()->resource<uvw::PipeHandle>(false);
+        connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
 
-        connection_handle_->on<uvw::EndEvent>([this](const uvw::EndEvent &, uvw::PipeHandle &) {
+        connection_handle_->on<uvw::end_event>([this](const uvw::end_event &, uvw::pipe_handle &) {
             logger_->Log("disconnected");
             StopAsync();
         });
-        connection_handle_->on<uvw::DataEvent>([this](const uvw::DataEvent &event, uvw::PipeHandle &) {
+        connection_handle_->on<uvw::data_event>([this](const uvw::data_event &event, uvw::pipe_handle &) {
             OnRecv(event);
         });
-        connection_handle_->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
+        connection_handle_->on<uvw::error_event>([this](const uvw::error_event &event, uvw::pipe_handle &) {
             logger_->Log("Pipe error: %s", event.what());
             StopAsync();
         });
@@ -52,7 +52,7 @@ void BridgeServerMock::CreateConnection() {
         logger_->Log("connected");
         connected_ = true;
     });
-    server_handle_->once<uvw::ErrorEvent>([this](const uvw::ErrorEvent &event, uvw::PipeHandle &) {
+    server_handle_->on<uvw::error_event>([this](const uvw::error_event &event, uvw::pipe_handle &) {
         logger_->Log("Bind %s error: %s", path_.c_str(), event.what());
         StopAsync();
     });

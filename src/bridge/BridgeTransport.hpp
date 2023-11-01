@@ -66,7 +66,7 @@ static std::string GetBridgePath() {
 }
 
 /**
- * @brief Abstract implementation for passing messages between SlimeVR Server and SteamVR Driver using pipes.
+ * @brief Passes messages between SlimeVR Server and SteamVR Driver using pipes.
  * 
  * Client or Server connection handling is implemented by extending this class.
  * 
@@ -74,7 +74,7 @@ static std::string GetBridgePath() {
  * and is abstracted through `libuv`.
  * 
  * When a message is received and parsed from the pipe, the messageCallback function passed in the constructor is called
- * from the event loop thread with the message as a parameter.
+ * from the libuv event loop thread with the message as a parameter.
  * 
  * @param logger A shared pointer to an Logger object to log messages from the transport.
  * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
@@ -117,7 +117,7 @@ public:
     /**
      * @brief Sends a message over the channel.
      * 
-     * This method queues the message in the send buffer to be sent over the pipe.
+     * Queues the message to the send buffer to be sent over the pipe.
      * 
      * @param message The message to send.
      */
@@ -137,7 +137,7 @@ protected:
     virtual void ResetConnection() = 0;
     virtual void CloseConnectionHandles() = 0;
     void ResetBuffers();
-    void OnRecv(const uvw::DataEvent& event);
+    void OnRecv(const uvw::data_event& event);
     auto GetLoop() {
         return loop_;
     }
@@ -145,7 +145,7 @@ protected:
     std::shared_ptr<Logger> logger_;
     const std::string path_;
     std::atomic<bool> connected_ = false;
-    std::shared_ptr<uvw::PipeHandle> connection_handle_ = nullptr;
+    std::shared_ptr<uvw::pipe_handle> connection_handle_ = nullptr;
     
 private:
     void RunThread();
@@ -153,9 +153,9 @@ private:
 
     CircularBuffer send_buf_;
     CircularBuffer recv_buf_;
-    std::shared_ptr<uvw::AsyncHandle> stop_signal_handle_ = nullptr;
-    std::shared_ptr<uvw::AsyncHandle> write_signal_handle_ = nullptr;
+    std::shared_ptr<uvw::async_handle> stop_signal_handle_ = nullptr;
+    std::shared_ptr<uvw::async_handle> write_signal_handle_ = nullptr;
     std::unique_ptr<std::thread> thread_ = nullptr;
-    std::shared_ptr<uvw::Loop> loop_ = nullptr;
+    std::shared_ptr<uvw::loop> loop_ = nullptr;
     const std::function<void(const messages::ProtobufMessage&)> message_callback_;
 };

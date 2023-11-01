@@ -36,5 +36,5 @@ private:
     void ResetConnection() override;
     void CloseConnectionHandles() override;
 
-    std::shared_ptr<uvw::PipeHandle> server_handle_ = nullptr;
+    std::shared_ptr<uvw::pipe_handle> server_handle_ = nullptr;
 };

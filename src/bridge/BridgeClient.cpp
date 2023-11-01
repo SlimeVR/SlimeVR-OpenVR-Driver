@@ -32,21 +32,21 @@ void BridgeClient::CreateConnection() {
     }
 
     /* ipc = false -> pipe will be used for handle passing between processes? no */
-    connection_handle_ = GetLoop()->resource<uvw::PipeHandle>(false);
-    connection_handle_->on<uvw::ConnectEvent>([this](const uvw::ConnectEvent&, uvw::PipeHandle&) {
+    connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
+    connection_handle_->on<uvw::connect_event>([this](const uvw::connect_event&, uvw::pipe_handle&) {
         connection_handle_->read();
         logger_->Log("connected");
         connected_ = true;
         last_error_ = std::nullopt;
     });
-    connection_handle_->on<uvw::EndEvent>([this](const uvw::EndEvent&, uvw::PipeHandle&) {
+    connection_handle_->on<uvw::end_event>([this](const uvw::end_event&, uvw::pipe_handle&) {
         logger_->Log("disconnected");
         Reconnect();
     });
-    connection_handle_->on<uvw::DataEvent>([this](const uvw::DataEvent& event, uvw::PipeHandle&) {
+    connection_handle_->on<uvw::data_event>([this](const uvw::data_event& event, uvw::pipe_handle&) {
         OnRecv(event);
     });
-    connection_handle_->on<uvw::ErrorEvent>([this](const uvw::ErrorEvent& event, uvw::PipeHandle&) {
+    connection_handle_->on<uvw::error_event>([this](const uvw::error_event& event, uvw::pipe_handle&) {
         if (!last_error_.has_value() || last_error_ != event.what()) {
             logger_->Log("Pipe error: %s", event.what());
             last_error_ = event.what();
@@ -63,9 +63,9 @@ void BridgeClient::ResetConnection() {
 
 void BridgeClient::Reconnect() {
     CloseConnectionHandles();
-    reconnect_timeout_ = GetLoop()->resource<uvw::TimerHandle>();
+    reconnect_timeout_ = GetLoop()->resource<uvw::timer_handle>();
     reconnect_timeout_->start(1000ms, 0ms);
-    reconnect_timeout_->once<uvw::TimerEvent>([this](const uvw::TimerEvent&, uvw::TimerHandle& handle) {
+    reconnect_timeout_->on<uvw::timer_event>([this](const uvw::timer_event&, uvw::timer_handle& handle) {
         CreateConnection();
         handle.close();
     });

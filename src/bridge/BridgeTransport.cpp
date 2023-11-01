@@ -41,18 +41,18 @@ void BridgeTransport::StopAsync() {
 
 void BridgeTransport::RunThread() {
     logger_->Log("thread started");
-    loop_ = uvw::Loop::create();
-    stop_signal_handle_ = GetLoop()->resource<uvw::AsyncHandle>();
-    write_signal_handle_ = GetLoop()->resource<uvw::AsyncHandle>();
+    loop_ = uvw::loop::create();
+    stop_signal_handle_ = GetLoop()->resource<uvw::async_handle>();
+    write_signal_handle_ = GetLoop()->resource<uvw::async_handle>();
 
-    stop_signal_handle_->on<uvw::AsyncEvent>([this](const uvw::AsyncEvent&, uvw::AsyncHandle& handle) {
+    stop_signal_handle_->on<uvw::async_event>([this](const uvw::async_event&, uvw::async_handle& handle) {
         logger_->Log("closing handles");
         CloseConnectionHandles();
         write_signal_handle_->close();
         stop_signal_handle_->close();
     });
     
-    write_signal_handle_->on<uvw::AsyncEvent>([this](const uvw::AsyncEvent&, uvw::AsyncHandle& handle) {
+    write_signal_handle_->on<uvw::async_event>([this](const uvw::async_event&, uvw::async_handle& handle) {
         SendWrites();
     });
     
@@ -67,7 +67,7 @@ void BridgeTransport::ResetBuffers() {
     send_buf_.Clear();
 }
 
-void BridgeTransport::OnRecv(const uvw::DataEvent& event) {
+void BridgeTransport::OnRecv(const uvw::data_event& event) {
     if (!recv_buf_.Push(event.data.get(), event.length)) {
         logger_->Log("recv_buf_.Push %i failed", event.length);
         ResetConnection();
