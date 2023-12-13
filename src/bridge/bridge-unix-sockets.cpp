@@ -33,6 +33,7 @@
 #include <filesystem>
 
 #define TMP_DIR "/tmp"
+#define SLIMEVR_HOME_LOCAL_DIR ".local/share/slimevr"
 #define SOCKET_NAME "SlimeVRDriver"
 
 namespace fs = std::filesystem;
@@ -156,13 +157,27 @@ bool sendBridgeMessage(messages::ProtobufMessage& message, SlimeVRDriver::VRDriv
 BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
     try {
         if (!client.IsOpen()) {
+            fs::path socket;
             // TODO: do this once in the constructor or something
             if(const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
                 const fs::path xdg_runtime = ptr;
-                client.Open((xdg_runtime / SOCKET_NAME).native());
-            } else {
-                client.Open((fs::path(TMP_DIR) / SOCKET_NAME).native());
+                socket = (xdg_runtime / SOCKET_NAME);
             }
+            if(!fs::exists(socket)) {
+                socket = (fs::path(TMP_DIR) / SOCKET_NAME);
+            }
+            // try using home dir if the vrserver is run in a chroot like
+            if(!fs::exists(socket)) {
+                if(const char* ptr = std::getenv("HOME")) {
+                    const fs::path home = ptr;
+                    socket = (home / SLIMEVR_HOME_LOCAL_DIR / SOCKET_NAME);
+                }
+            }
+            if(!fs::exists(socket)) {
+                throw std::runtime_error("socket " SOCKET_NAME " not found");
+            }
+            driver.Log("bridge socket: " + std::string(socket));
+            client.Open(socket.native());
         }
         client.UpdateOnce();
 
