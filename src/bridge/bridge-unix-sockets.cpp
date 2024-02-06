@@ -169,9 +169,12 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
             }
             // try using home dir if the vrserver is run in a chroot like
             if(!fs::exists(socket)) {
-                if(const char* ptr = std::getenv("HOME")) {
+                if (const char* ptr = std::getenv("XDG_DATA_DIR")) {
+                    const fs::path data_dir = ptr;
+                    socket = (ptr / SLIMEVR_DATA_DIR / SOCKET_NAME);
+                } else if (const char* ptr = std::getenv("HOME")) {
                     const fs::path home = ptr;
-                    socket = (home / SLIMEVR_HOME_LOCAL_DIR / SOCKET_NAME);
+                    socket = (home / XDG_DATA_DIR_DEFAULT / SLIMEVR_DATA_DIR / SOCKET_NAME);
                 }
             }
             if(fs::exists(socket)) {
