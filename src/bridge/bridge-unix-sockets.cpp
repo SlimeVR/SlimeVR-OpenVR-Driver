@@ -173,11 +173,10 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
                     socket = (home / SLIMEVR_HOME_LOCAL_DIR / SOCKET_NAME);
                 }
             }
-            if(!fs::exists(socket)) {
-                throw std::runtime_error("socket " SOCKET_NAME " not found");
+            if(fs::exists(socket)) {
+                driver.Log("bridge socket: " + std::string(socket));
+                client.Open(socket.native());
             }
-            driver.Log("bridge socket: " + std::string(socket));
-            client.Open(socket.native());
         }
         client.UpdateOnce();
 
