@@ -171,7 +171,7 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
             if(!fs::exists(socket)) {
                 if (const char* ptr = std::getenv("XDG_DATA_DIR")) {
                     const fs::path data_dir = ptr;
-                    socket = (ptr / SLIMEVR_DATA_DIR / SOCKET_NAME);
+                    socket = (data_dir / SLIMEVR_DATA_DIR / SOCKET_NAME);
                 } else if (const char* ptr = std::getenv("HOME")) {
                     const fs::path home = ptr;
                     socket = (home / XDG_DATA_DIR_DEFAULT / SLIMEVR_DATA_DIR / SOCKET_NAME);
