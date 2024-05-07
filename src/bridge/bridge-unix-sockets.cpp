@@ -34,7 +34,7 @@
 
 #define TMP_DIR "/tmp"
 #define XDG_DATA_DIR_DEFAULT ".local/share"
-#define SLIMEVR_DATA_DIR "slimevr"
+#define SLIMEVR_DATA_DIR "dev.slimevr.SlimeVR"
 #define SOCKET_NAME "SlimeVRDriver"
 
 namespace fs = std::filesystem;
