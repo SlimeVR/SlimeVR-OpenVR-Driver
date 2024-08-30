@@ -49,24 +49,13 @@
 namespace fs = std::filesystem;
 
 #define WINDOWS_PIPE_NAME "\\\\.\\pipe\\SlimeVRDriver"
+#define UNIX_XDG_DATA_DIR_DEFAULT ".local/share/"
+#define UNIX_SLIMEVR_DIR "slimevr"
 #define UNIX_TMP_DIR "/tmp"
 #define UNIX_SOCKET_NAME "SlimeVRDriver"
 
-static std::string GetBridgePath() {
-#ifdef __linux__
-    if (const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
-        const fs::path xdg_runtime = ptr;
-        return (xdg_runtime / UNIX_SOCKET_NAME).string();
-    } else {
-        return (fs::path(UNIX_TMP_DIR) / UNIX_SOCKET_NAME).string();
-    }
-#else 
-    return WINDOWS_PIPE_NAME;
-#endif
-}
-
 /**
- * @brief Passes messages between SlimeVR Server and SteamVR Driver using pipes.
+ * @brief Passes messages between SlimeVR Server and SteamVR Driver using pipes or unix sockets.
  * 
  * Client or Server connection handling is implemented by extending this class.
  * 
@@ -84,7 +73,6 @@ public:
     BridgeTransport(std::shared_ptr<Logger> logger, std::function<void(const messages::ProtobufMessage&)> on_message_received) :
         logger_(logger),
         message_callback_(on_message_received),
-        path_(GetBridgePath()),
         send_buf_(VRBRIDGE_BUFFERS_SIZE),
         recv_buf_(VRBRIDGE_BUFFERS_SIZE)
         { }
@@ -142,8 +130,37 @@ protected:
         return loop_;
     }
 
+    static std::string GetBridgePath() {
+#ifdef __linux__
+        std::vector<std::string> paths = { };
+        if (const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
+            const fs::path xdg_runtime = ptr;
+            paths.push_back((xdg_runtime / UNIX_SOCKET_NAME).string());
+        }
+
+        if (const char* ptr = std::getenv("XDG_DATA_DIR")) {
+            const fs::path xdg_data = ptr;
+            paths.push_back((xdg_data / UNIX_SLIMEVR_DIR / UNIX_SOCKET_NAME).string());
+        }
+
+        if (const char* ptr = std::getenv("HOME")) {
+            const fs::path home = ptr;
+            paths.push_back((home / UNIX_XDG_DATA_DIR_DEFAULT / UNIX_SLIMEVR_DIR / UNIX_SOCKET_NAME).string());
+        }
+
+        for (auto path : paths) {
+            if (fs::exists(path)) {
+                return path;
+            }
+        }
+
+        return (fs::path(UNIX_TMP_DIR) / UNIX_SOCKET_NAME).string();
+#else
+        return WINDOWS_PIPE_NAME;
+#endif
+    }
+
     std::shared_ptr<Logger> logger_;
-    const std::string path_;
     std::atomic<bool> connected_ = false;
     std::shared_ptr<uvw::pipe_handle> connection_handle_ = nullptr;
     

@@ -31,6 +31,8 @@ void BridgeClient::CreateConnection() {
         logger_->Log("connecting");
     }
 
+    std::string path = GetBridgePath();
+
     /* ipc = false -> pipe will be used for handle passing between processes? no */
     connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
     connection_handle_->on<uvw::connect_event>([this](const uvw::connect_event&, uvw::pipe_handle&) {
@@ -46,15 +48,15 @@ void BridgeClient::CreateConnection() {
     connection_handle_->on<uvw::data_event>([this](const uvw::data_event& event, uvw::pipe_handle&) {
         OnRecv(event);
     });
-    connection_handle_->on<uvw::error_event>([this](const uvw::error_event& event, uvw::pipe_handle&) {
+    connection_handle_->on<uvw::error_event>([this, path](const uvw::error_event& event, uvw::pipe_handle&) {
         if (!last_error_.has_value() || last_error_ != event.what()) {
-            logger_->Log("pipe error: %s", event.what());
+            logger_->Log("[%s] pipe error: %s", path.c_str(), event.what());
             last_error_ = event.what();
         }
         Reconnect();
     });
 
-    connection_handle_->connect(path_);
+    connection_handle_->connect(path);
 }
 
 void BridgeClient::ResetConnection() {

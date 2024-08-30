@@ -29,7 +29,7 @@
 #include "BridgeTransport.hpp"
 
 /**
- * @brief Client implementation for communication with SlimeVR Server using pipes.
+ * @brief Client implementation for communication with SlimeVR Server using pipes or unix sockets.
  * 
  * This class provides a set of methods to start, stop an IO thread, send messages over a named pipe or unix socket
  * and is abstracted through `libuv`.

@@ -27,6 +27,8 @@ using namespace std::literals::chrono_literals;
 void BridgeServerMock::CreateConnection() {
     logger_->Log("listening");
 
+    std::string path = GetBridgePath();
+
     server_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
     server_handle_->on<uvw::listen_event>([this](const uvw::listen_event &event, uvw::pipe_handle &) {
         logger_->Log("new client");
@@ -52,12 +54,12 @@ void BridgeServerMock::CreateConnection() {
         logger_->Log("connected");
         connected_ = true;
     });
-    server_handle_->on<uvw::error_event>([this](const uvw::error_event &event, uvw::pipe_handle &) {
-        logger_->Log("bind %s error: %s", path_.c_str(), event.what());
+    server_handle_->on<uvw::error_event>([this, path](const uvw::error_event &event, uvw::pipe_handle &) {
+        logger_->Log("[%s] bind error: %s", path.c_str(), event.what());
         StopAsync();
     });
 
-    server_handle_->bind(path_);
+    server_handle_->bind(path);
     server_handle_->listen();
 }
 
