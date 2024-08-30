@@ -22,9 +22,8 @@
 */
 #include "TrackerRole.hpp"
 
-
-std::string getViveRoleHint(TrackerRole role) {
-    switch(role) {
+std::string GetViveRoleHint(TrackerRole role) {
+    switch (role) {
         case LEFT_CONTROLLER:
         case RIGHT_CONTROLLER:
         case GENERIC_CONTROLLER:
@@ -55,13 +54,12 @@ std::string getViveRoleHint(TrackerRole role) {
             return "vive_tracker_camera";
         case KEYBOARD:
             return "vive_tracker_keyboard";
-
     }
     return "";
 }
 
-std::string getViveRole(TrackerRole role) {
-    switch(role) {
+std::string GetViveRole(TrackerRole role) {
+    switch (role) {
         case LEFT_CONTROLLER:
         case RIGHT_CONTROLLER:
         case GENERIC_CONTROLLER:
@@ -92,13 +90,12 @@ std::string getViveRole(TrackerRole role) {
             return "TrackerRole_Camera";
         case KEYBOARD:
             return "TrackerRole_Keyboard";
-
     }
     return "";
 }
 
-DeviceType getDeviceType(TrackerRole role) {
-    switch(role) {
+DeviceType GetDeviceType(TrackerRole role) {
+    switch (role) {
         case LEFT_CONTROLLER:
         case RIGHT_CONTROLLER:
         case GENERIC_CONTROLLER:

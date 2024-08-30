@@ -1,6 +1,6 @@
 /*
     SlimeVR Code is placed under the MIT license
-    Copyright (c) 2021 Eiren Rain
+    Copyright (c) 2022 SlimeVR Contributors
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -22,36 +22,19 @@
 */
 #pragma once
 
-#include <string>
-#include "DeviceType.hpp"
+#include <uvw.hpp>
+#include <stdint.h>
 
-enum TrackerRole {
-    NONE = 0,
-    WAIST = 1,
-    LEFT_FOOT = 2,
-    RIGHT_FOOT = 3,
-    CHEST = 4,
-    LEFT_KNEE = 5,
-    RIGHT_KNEE = 6,
-    LEFT_ELBOW = 7,
-    RIGHT_ELBOW = 8,
-    LEFT_SHOULDER = 9,
-    RIGHT_SHOULDER = 10,
-    LEFT_HAND = 11,
-    RIGHT_HAND = 12,
-    LEFT_CONTROLLER = 13,
-    RIGHT_CONTROLLER = 14,
-    HEAD = 15,
-    NECK = 16,
-    CAMERA = 17,
-    KEYBOARD = 18,
-    HMD = 19,
-    BEACON = 20,
-    GENERIC_CONTROLLER = 21,
+#include "bridge/BridgeTransport.hpp"
+
+class BridgeServerMock: public BridgeTransport {
+public:
+    using BridgeTransport::BridgeTransport;
+
+private:
+    void CreateConnection() override;
+    void ResetConnection() override;
+    void CloseConnectionHandles() override;
+
+    std::shared_ptr<uvw::pipe_handle> server_handle_ = nullptr;
 };
-
-std::string GetViveRoleHint(TrackerRole role);
-
-std::string GetViveRole(TrackerRole role);
-
-DeviceType GetDeviceType(TrackerRole role);

@@ -38,8 +38,16 @@ okay with this and that you are authorized to provide the above licenses.
 
 ### Building
 
-To build the project with VSCode you need to install two things: [vcpkg](https://vcpkg.io/en/getting-started.html) and [VS Build Tools](https://visualstudio.microsoft.com/downloads/).
+Clone the repo with `git clone --recurse-submodules https://github.com/SlimeVR/SlimeVR-OpenVR-Driver` to clone with all libraries and [vcpkg](https://vcpkg.io/en/getting-started.html) registry.
+
+To build the project with VSCode on Windows you need to install [VS Build Tools](https://visualstudio.microsoft.com/downloads/).
+
+Run the bootstrap script to build vcpkg binary `.\vcpkg\bootstrap-vcpkg.bat` or `./vcpkg/bootstrap-vcpkg.sh`.
 
 After installing vcpkg if you're on Windows, you need to run `vcpkg integrate install` command from the vcpkg folder to integrate it for VSCode.
 
 For other systems and IDEs instructions are not available as of now, contributions are welcome.
+
+### Updating vcpkg packages
+
+To update vcpkg packages set the vcpkg registry submodule to a newer commit.
