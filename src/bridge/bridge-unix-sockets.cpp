@@ -35,6 +35,7 @@
 #define TMP_DIR "/tmp"
 #define XDG_DATA_DIR_DEFAULT ".local/share"
 #define SLIMEVR_DATA_DIR "slimevr"
+#define SLIMEVR_FLATPAK_RUNTIME_DIR "app/dev.slimevr.SlimeVR"
 #define SOCKET_NAME "SlimeVRDriver"
 
 namespace fs = std::filesystem;
@@ -162,7 +163,11 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
             // TODO: do this once in the constructor or something
             if(const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
                 const fs::path xdg_runtime = ptr;
-                socket = (xdg_runtime / SOCKET_NAME);
+                // check flatpak dir first, then root runtime dir
+                socket = (xdg_runtime / SLIMEVR_FLATPAK_RUNTIME_DIR / SOCKET_NAME);
+                if(!fs::exists(socket)) {
+                    socket = (xdg_runtime / SOCKET_NAME);
+                }
             }
             if(!fs::exists(socket)) {
                 socket = (fs::path(TMP_DIR) / SOCKET_NAME);
