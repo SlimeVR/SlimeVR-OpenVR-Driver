@@ -33,7 +33,7 @@
 #include <filesystem>
 
 #define TMP_DIR "/tmp"
-#define XDG_DATA_DIR_DEFAULT ".local/share"
+#define XDG_DATA_HOME_DEFAULT ".local/share"
 #define SLIMEVR_DATA_DIR "dev.slimevr.SlimeVR"
 #define SOCKET_NAME "SlimeVRDriver"
 
@@ -169,7 +169,7 @@ BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver& driver) {
             }
             // try using home dir if the vrserver is run in a chroot like
             if(!fs::exists(socket)) {
-                if (const char* ptr = std::getenv("XDG_DATA_DIR")) {
+                if (const char* ptr = std::getenv("XDG_DATA_HOME")) {
                     const fs::path data_dir = ptr;
                     socket = (data_dir / SLIMEVR_DATA_DIR / SOCKET_NAME);
                 } else if (const char* ptr = std::getenv("HOME")) {
