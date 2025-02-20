@@ -99,8 +99,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         last_universe_error_ = universe_error;
 
         vr::TrackedDevicePose_t hmd_pose;
-        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(
-            vr::k_unTrackedDeviceIndex_Hmd, &hmd_pose, 1);
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, &hmd_pose, 1);
 
         vr::HmdQuaternion_t q = GetRotation(hmd_pose.mDeviceToAbsoluteTracking);
         vr::HmdVector3_t pos = GetPosition(hmd_pose.mDeviceToAbsoluteTracking);
