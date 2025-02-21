@@ -48,6 +48,8 @@ void TestBridgeClient() {
                 TestLogTrackerAdded(logger, message);
             } else if (message.has_tracker_status()) {
                 TestLogTrackerStatus(logger, message);
+            } else if (message.has_battery()) {
+                TestLogTrackerStatus(logger, message);
             } else if (message.has_position()) {
                 messages::Position pos = message.position();
                 if (!last_logged_position) logger->Log("... tracker positions");
