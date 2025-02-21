@@ -48,7 +48,8 @@ namespace SlimeVRDriver {
         int device_id_;
         TrackerRole tracker_role_;
 
-        std::atomic<vr::DriverPose_t> last_pose_ = IVRDevice::MakeDefaultPose();
+        vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
+        std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
 
         bool did_vibrate_ = false;
         float vibrate_anim_state_ = 0.f;

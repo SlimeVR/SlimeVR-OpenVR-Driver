@@ -5,6 +5,7 @@ SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, T
     tracker_role_(tracker_role),
     device_id_(device_id),
     last_pose_(MakeDefaultPose()),
+    last_pose_atomic_(MakeDefaultPose()),
     is_setup_(false)
 { }
 
@@ -42,7 +43,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
 
     // Setup pose for this frame
-    auto pose = MakeDefaultPose();
+    auto pose = last_pose_;
     //send the new position and rotation from the pipe to the tracker object
     if (position.has_x()) {
         pose.vecPosition[0] = position.x();
@@ -71,7 +72,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     }
 
     // Notify SteamVR that pose was updated
-    last_pose_ = pose;
+    last_pose_atomic_ = (last_pose_ = pose);
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
@@ -123,7 +124,7 @@ void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status
 
     // TODO: send position/rotation of 0 instead of last pose?
     
-    last_pose_ = pose;
+    last_pose_atomic_ = (last_pose_ = pose);
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
@@ -200,7 +201,7 @@ void SlimeVRDriver::TrackerDevice::DebugRequest(const char* pchRequest, char* pc
 }
 
 vr::DriverPose_t SlimeVRDriver::TrackerDevice::GetPose() {
-    return last_pose_;
+    return last_pose_atomic_;
 }
 
 int SlimeVRDriver::TrackerDevice::GetDeviceId() {
