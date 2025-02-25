@@ -80,7 +80,11 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 
         char len_buf[4];
         recv_buf_.Peek(len_buf, 4);
-        uint32_t size = LE32_TO_NATIVE(*reinterpret_cast<uint32_t*>(len_buf));
+        uint32_t size = 0;
+        size |= static_cast<uint32_t>(len_buf[0]) << 0;
+        size |= static_cast<uint32_t>(len_buf[1]) << 8;
+        size |= static_cast<uint32_t>(len_buf[2]) << 16;
+        size |= static_cast<uint32_t>(len_buf[3]) << 24;
 
         if (size > VRBRIDGE_MAX_MESSAGE_SIZE) {
             logger_->Log("message size overflow");
@@ -116,8 +120,12 @@ void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message
     uint32_t wrapped_size = size + 4;
     
     auto message_buf = std::make_unique<char[]>(wrapped_size);
-    *reinterpret_cast<uint32_t*>(message_buf.get()) = NATIVE_TO_LE32(wrapped_size);
+    message_buf.get()[0] = (wrapped_size >> 0) & 0xFF;
+    message_buf.get()[1] = (wrapped_size >> 8) & 0xFF;
+    message_buf.get()[2] = (wrapped_size >> 16) & 0xFF;
+    message_buf.get()[3] = (wrapped_size >> 24) & 0xFF;
     message.SerializeToArray(message_buf.get() + 4, size);
+
     if (!send_buf_.Push(message_buf.get(), wrapped_size)) {
         ResetConnection();
         return;

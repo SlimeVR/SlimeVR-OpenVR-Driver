@@ -31,18 +31,6 @@
 #include "CircularBuffer.hpp"
 #include "ProtobufMessages.pb.h"
 
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    #define LE32_TO_NATIVE(x) (x)
-#else
-    #define LE32_TO_NATIVE(x) ( \
-        ((uint32_t)(x) << 24) | \
-        (((uint32_t)(x) << 8) & 0x00FF0000) | \
-        (((uint32_t)(x) >> 8) & 0x0000FF00) | \
-        ((uint32_t)(x) >> 24) \
-    )
-#endif
-#define NATIVE_TO_LE32 LE32_TO_NATIVE
-
 #define VRBRIDGE_MAX_MESSAGE_SIZE 1024
 #define VRBRIDGE_BUFFERS_SIZE 8192
 
