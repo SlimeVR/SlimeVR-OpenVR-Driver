@@ -5,8 +5,7 @@ SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, T
     tracker_role_(tracker_role),
     device_id_(device_id),
     last_pose_(MakeDefaultPose()),
-    last_pose_atomic_(MakeDefaultPose()),
-    is_setup_(false)
+    last_pose_atomic_(MakeDefaultPose())
 { }
 
 std::string SlimeVRDriver::TrackerDevice::GetSerial() {

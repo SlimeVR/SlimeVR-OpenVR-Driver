@@ -43,7 +43,6 @@ namespace SlimeVRDriver {
     private:
         std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;
-        bool is_setup_;
 
         int device_id_;
         TrackerRole tracker_role_;
