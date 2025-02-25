@@ -66,7 +66,7 @@ namespace SlimeVRDriver {
         vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);
         vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);
 
-        bool send_hmd_add_message_ = false;
+        bool sent_hmd_add_message_ = false;
 
         simdjson::ondemand::parser json_parser_;
         std::optional<std::string> default_chap_path_ = std::nullopt;

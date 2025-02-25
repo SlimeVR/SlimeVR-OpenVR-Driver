@@ -49,14 +49,14 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
     while (!exiting_pose_request_thread_) {
         if (!bridge_->IsConnected()) {
             // If bridge not connected, assume we need to resend hmd tracker add message
-            send_hmd_add_message_ = false;
+            sent_hmd_add_message_ = false;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
         messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
 
-        if (!send_hmd_add_message_) {
+        if (!sent_hmd_add_message_) {
             // Send add message for HMD
             messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
             message->set_allocated_tracker_added(tracker_added);
@@ -72,7 +72,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
             bridge_->SendBridgeMessage(*message);
 
-            send_hmd_add_message_ = true;
+            sent_hmd_add_message_ = true;
             logger_->Log("Sent HMD hello message");
         }
 
