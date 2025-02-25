@@ -14,6 +14,7 @@
 #include <iostream>
 #include <string>
 #include "TrackerRole.hpp"
+#include "Logger.hpp"
 
 namespace SlimeVRDriver {
     class TrackerDevice : public IVRDevice {
@@ -41,6 +42,8 @@ namespace SlimeVRDriver {
         virtual vr::DriverPose_t GetPose() override;
 
     private:
+        std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
+
         std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;
 

@@ -85,13 +85,6 @@ namespace SlimeVRDriver {
          */
         virtual std::optional<UniverseTranslation> GetCurrentUniverse() = 0;
 
-        /**
-         * Writes a log message.
-         * 
-         * @param message Message string to log.
-         */
-        virtual void Log(std::string message) = 0;
-
         virtual inline const char* const* GetInterfaceVersions() override {
             return vr::k_InterfaceVersions;
         };

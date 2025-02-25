@@ -138,7 +138,7 @@ vr::TrackedDeviceIndex_t SlimeVRDriver::TrackerDevice::GetDeviceIndex() {
 vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     device_index_ = unObjectId;
 
-    GetDriver()->Log("Activating tracker " + serial_);
+    logger_->Log("Activating tracker %s", serial_);
 
     // Get the properties handle
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);

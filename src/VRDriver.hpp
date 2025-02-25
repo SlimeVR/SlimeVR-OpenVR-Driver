@@ -24,9 +24,6 @@ namespace SlimeVRDriver {
         virtual std::chrono::milliseconds GetLastFrameTime() override;
         virtual bool AddDevice(std::shared_ptr<IVRDevice> device) override;
         virtual SettingsValue GetSettingsValue(std::string key) override;
-        virtual void Log(std::string message) override {
-            logger_->Log("%s", message.c_str());
-        };
 
         virtual vr::IVRDriverInput* GetInput() override;
         virtual vr::CVRPropertyHelpers* GetProperties() override;
