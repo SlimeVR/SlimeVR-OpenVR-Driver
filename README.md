@@ -50,4 +50,4 @@ For other systems and IDEs instructions are not available as of now, contributio
 
 ### Updating vcpkg packages
 
-To update vcpkg packages set the vcpkg registry submodule to a newer commit.
+To update vcpkg packages set the vcpkg registry submodule to a newer commit and rerun the bootstrap script.
