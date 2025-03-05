@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <thread>
 
 #include "bridge/CircularBuffer.hpp"
 
@@ -43,4 +44,42 @@ TEST_CASE("Peek/Skip", "[CircularBuffer]") {
     REQUIRE(buffer.Peek(data, 1) == 1); // [34]
     REQUIRE(buffer.BytesAvailable() == 2);
     REQUIRE(std::string(data, 1) == "3");
+}
+
+void consumer(int n, CircularBuffer& buf, int& sum1) {
+    char k;
+    int i = 0;
+    while (i != n) {
+        if (!buf.Pop(&k, 1)) continue;
+        sum1 += k;
+        i++;
+    }
+}
+
+void threading(int size) {
+    CircularBuffer buf(size);
+    const int n = 1000000;
+
+    int sum0 = 0, sum1 = 0;
+    char v = 1;
+    std::thread t { [&]() { consumer(n, buf, sum1); } };
+    int i = 0;
+    while (i != n) {
+        if (!buf.Push(&v, 1)) continue;
+        sum0 += v;
+        v = 3 + 2 * v;
+        i++;
+    }
+    t.join();
+    REQUIRE(sum0 == sum1);
+}
+
+TEST_CASE("Threading8192", "[CircularBuffer]") {
+    threading(8192);
+}
+TEST_CASE("Threading4", "[CircularBuffer]") {
+    threading(4);
+}
+TEST_CASE("Threading1", "[CircularBuffer]") {
+    threading(1);
 }
