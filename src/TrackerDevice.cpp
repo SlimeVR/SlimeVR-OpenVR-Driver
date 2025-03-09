@@ -70,6 +70,10 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
         pose.qWorldFromDriverRotation.z = 0;
     }
 
+    pose.deviceIsConnected = true;
+    pose.poseIsValid = true;
+    pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
+
     // Notify SteamVR that pose was updated
     last_pose_atomic_ = (last_pose_ = pose);
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
