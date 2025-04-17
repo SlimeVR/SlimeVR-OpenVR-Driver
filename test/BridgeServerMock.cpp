@@ -25,34 +25,34 @@
 using namespace std::literals::chrono_literals;
 
 void BridgeServerMock::CreateConnection() {
-    logger_->Log("listening");
-
     std::string path = GetBridgePath();
 
+    logger_->Log("[%s] listening", path.c_str());
+
     server_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
-    server_handle_->on<uvw::listen_event>([this](const uvw::listen_event &event, uvw::pipe_handle &) {
-        logger_->Log("new client");
+    server_handle_->on<uvw::listen_event>([this, path](const uvw::listen_event &event, uvw::pipe_handle &) {
+        logger_->Log("[%s] new client", path.c_str());
         ResetBuffers();
 
         /* ipc = false -> pipe will be used for handle passing between processes? no */
         connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
 
-        connection_handle_->on<uvw::end_event>([this](const uvw::end_event &, uvw::pipe_handle &) {
-            logger_->Log("disconnected");
+        connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event &, uvw::pipe_handle &) {
+            logger_->Log("[%s] disconnected", path.c_str());
             StopAsync();
         });
         connection_handle_->on<uvw::data_event>([this](const uvw::data_event &event, uvw::pipe_handle &) {
             OnRecv(event);
         });
-        connection_handle_->on<uvw::error_event>([this](const uvw::error_event &event, uvw::pipe_handle &) {
-            logger_->Log("pipe error: %s", event.what());
+        connection_handle_->on<uvw::error_event>([this, path](const uvw::error_event &event, uvw::pipe_handle &) {
+            logger_->Log("[%s] pipe error: %s", path.c_str(), event.what());
             StopAsync();
         });
         
         server_handle_->accept(*connection_handle_);
-        connection_handle_->read();
-        logger_->Log("connected");
+        logger_->Log("[%s] connected", path.c_str());
         connected_ = true;
+        connection_handle_->read();
     });
     server_handle_->on<uvw::error_event>([this, path](const uvw::error_event &event, uvw::pipe_handle &) {
         logger_->Log("[%s] bind error: %s", path.c_str(), event.what());

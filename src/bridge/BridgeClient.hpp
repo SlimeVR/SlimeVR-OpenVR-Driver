@@ -51,5 +51,6 @@ private:
     void Reconnect();
 
     std::optional<std::string> last_error_;
+    std::optional<std::string> last_path_;
     std::shared_ptr<uvw::timer_handle> reconnect_timeout_;
 };
