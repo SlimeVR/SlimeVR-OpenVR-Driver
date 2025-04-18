@@ -63,7 +63,7 @@ jobs:
       run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.sh
     
     - name: Configure CMake
-      run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}" -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}}
+      run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}" -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DCMAKE_BUILD_TYPE=Release
       
     - name: Build
       run: cmake --build "${{env.CMAKE_BUILD_DIR}}" --config Release --target "${{ matrix.target }}" -j 6 --

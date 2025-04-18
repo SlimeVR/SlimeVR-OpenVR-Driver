@@ -49,6 +49,7 @@ package messages;
 
 option java_package = "dev.slimevr.bridge";
 option java_outer_classname = "ProtobufMessages";
+option optimize_for = LITE_RUNTIME;
 
 message PingPong {
 }
