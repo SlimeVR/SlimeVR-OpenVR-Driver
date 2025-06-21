@@ -47,7 +47,7 @@ package messages;
  * recieve messages this frame.
  */
 
-option java_package = "dev.slimevr.bridge";
+option java_package = "dev.slimevr.desktop.platform";
 option java_outer_classname = "ProtobufMessages";
 option optimize_for = LITE_RUNTIME;
 
