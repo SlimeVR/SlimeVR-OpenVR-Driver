@@ -54,6 +54,31 @@ option optimize_for = LITE_RUNTIME;
 message PingPong {
 }
 
+message FingerBoneRotation {
+    enum FingerBoneName {
+        THUMB_METACARPAL = 0;
+        THUMB_PROXIMAL = 1;
+        THUMB_DISTAL = 2;
+        INDEX_PROXIMAL = 3;
+        INDEX_INTERMEDIATE = 4;
+        INDEX_DISTAL = 5;
+        MIDDLE_PROXIMAL = 6;
+        MIDDLE_INTERMEDIATE = 7;
+        MIDDLE_DISTAL = 8;
+        RING_PROXIMAL = 9;
+        RING_INTERMEDIATE = 10;
+        RING_DISTAL = 11;
+        LITTLE_PROXIMAL = 12;
+        LITTLE_INTERMEDIATE = 13;
+        LITTLE_DISTAL = 14;
+    }
+    FingerBoneName name = 1;
+    float x = 2;
+    float y = 3;
+    float z = 4;
+    float w = 5;
+}
+
 message Position {
     int32 tracker_id = 1;
     optional float x = 2;
@@ -70,6 +95,7 @@ message Position {
         FULL = 3;
     }
     optional DataSource data_source = 9;
+    repeated FingerBoneRotation finger_bone_rotations = 10;
 }
 
 message UserAction {
@@ -82,6 +108,7 @@ message TrackerAdded {
     string tracker_serial = 2;
     string tracker_name = 3;
     int32 tracker_role = 4;
+    optional bool fingertracking_enabled = 10;
 }
 
 message TrackerStatus {

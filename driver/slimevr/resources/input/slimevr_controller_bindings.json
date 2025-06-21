@@ -1,0 +1,58 @@
+{
+  "jsonid": "input_profile",
+  "controller_type": "slimevr_virtual_controller",
+  "device_class": "TrackedDeviceClass_Controller",
+  "resource_root": "slimevr",
+  "driver_name": "slimevr",
+  "input_bindingui_mode": "controller_handed",
+  "should_show_binding_errors": true,
+  "input_bindingui_left": {
+    "image": "{slimevr}/icons/slimevr_tracker_icon.png"
+  },
+  "input_bindingui_right": {
+    "image": "{slimevr}/icons/slimevr_tracker_icon.png"
+  },
+  "input_source": {
+    "/pose/raw" : {
+      "type" : "pose",
+      "binding_image_point" : [50,50]
+    },
+    "/output/haptic": {
+      "type": "vibration",
+      "binding_image_point": [50,50]
+    },
+    "/input/tap": {
+      "type": "button",
+      "click": true,
+      "touch" : false,
+      "binding_image_point": [50,50],
+      "order" : 1
+    },
+    "/input/double_tap": {
+      "type": "button",
+      "click": true,
+      "touch" : false,
+      "binding_image_point": [50,50],
+      "order" : 2
+    },
+    "/input/triple_tap": {
+      "type": "button",
+      "click": true,
+      "touch" : false,
+      "binding_image_point": [50,50],
+      "order" : 3
+    },
+    "/input/skeleton/left" : {
+      "type" : "skeleton",
+      "skeleton": "/skeleton/hand/left",
+      "side" : "left",
+      "binding_image_point" : [50,50]
+    },
+    "/input/skeleton/right" : {
+      "type" : "skeleton",
+      "skeleton": "/skeleton/hand/right",
+      "side" : "right",
+      "binding_image_point" : [50,50]
+    }
+  }
+}
