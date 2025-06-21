@@ -1,9 +1,13 @@
 #include "TrackerDevice.hpp"
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role):
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role, bool fingertracking_enabled):
     serial_(serial),
     tracker_role_(tracker_role),
     device_id_(device_id),
+    is_left_hand_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_HAND),
+    is_right_hand_(tracker_role_ == TrackerRole::RIGHT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_HAND),
+    fingertracking_enabled_real_(fingertracking_enabled && (is_left_hand_ || is_right_hand_)),
+    is_controller_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_CONTROLLER),
     last_pose_(MakeDefaultPose()),
     last_pose_atomic_(MakeDefaultPose())
 { }
@@ -77,6 +81,36 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
         pose.qWorldFromDriverRotation.x = 0;
         pose.qWorldFromDriverRotation.y = sin(trans.yaw / 2);
         pose.qWorldFromDriverRotation.z = 0;
+    }
+
+    if (is_controller_) {
+        // Set inputs
+        // TODO
+        //GetDriver()->GetInput()->UpdateBooleanComponent(this->tap_component_, false, 0);
+    }
+
+    if (fingertracking_enabled_real_) {
+        // Set finger rotations
+        vr::VRBoneTransform_t finger_skeleton_[31]{};
+        for (int i = 0; i < position.finger_bone_rotations_size(); i++)
+        {
+            // Get data from protobuf
+            auto fingerData = position.finger_bone_rotations(i);
+            int fingerBoneName = fingerData.name();
+
+            // Map from our 15 bones to OpenVR's 31 bones
+            int boneIndex = protobuf_fingers_to_openvr[fingerBoneName];
+            finger_skeleton_[boneIndex].orientation = {
+                fingerData.w(),
+                fingerData.x(),
+                fingerData.y(),
+                fingerData.z()
+            };
+        }
+
+        // Update the finger skeleton for this hand. With and without controller are the same.
+        vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithController, finger_skeleton_, 31);
+        vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithoutController, finger_skeleton_, 31);
     }
 
     pose.deviceIsConnected = true;
@@ -155,19 +189,84 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
     
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
+    // Set up a model "number" (not needed but good to have)
+    if (is_controller_) {
+        GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Controller");
+    } else {
+        GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
+    }
 
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
+    // Hand selection
+    if (is_left_hand_) {
+        GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_LeftHand);
+    } else if (is_right_hand_) {
+        GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
+    } else {
+        GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
+    }
 
-    // Some device properties will be derived at runtime by SteamVR
-    // using the profile, such as the device class and controller type
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_tracker_profile.json");
+    // Should be treated as controller or as tracker? (Hand = Tracker and Controller = Controller)
+    if (is_controller_) {
+        vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_Controller);
+    } else {
+        vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
+    }
 
-    // Doesn't apply until restart of SteamVR
-    auto role = GetViveRole(tracker_role_);
-    if (role != "") {
-        vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial_).c_str(), role.c_str());
+    // Set up a render model path (index controllers for controllers and vive trackers 1.0 for trackers)
+    if (is_controller_) {
+        vr::VRProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, is_right_hand_ ? "{indexcontroller}valve_controller_knu_1_0_right" : "{indexcontroller}valve_controller_knu_1_0_left");
+    } else {
+        GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
+    }
+
+    // Set the icons
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceReady_String, "{slimevr}/icons/tracker_status_ready.png");
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceOff_String, "{slimevr}/icons/tracker_status_off.png");
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceSearching_String, "{slimevr}/icons/tracker_status_ready.png");
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceSearchingAlert_String, "{slimevr}/icons/tracker_status_ready_alert.png");
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceReadyAlert_String, "{slimevr}/icons/tracker_status_ready_alert.png");
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceNotReady_String, "{slimevr}/icons/tracker_status_error.png");
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
+
+    // Set inputs
+    if (is_controller_) {
+        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/tap", &this->tap_component_);
+        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap", &this->double_tap_component_);
+        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap", &this->triple_tap_component_);
+
+        GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
+    }
+
+    // Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
+    if (!is_controller_) {
+        auto role_hint = GetViveRoleHint(tracker_role_);
+        if (role_hint != "") {
+           GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, role_hint.c_str());
+        }
+    
+        auto role = GetViveRole(tracker_role_);
+        if (role != "") {
+            vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial_).c_str(), role.c_str());
+        }
+    }
+
+    // Setup skeletal input for fingertracking
+    if (fingertracking_enabled_real_) {
+        vr::VRDriverInput()->CreateSkeletonComponent(
+            props,
+            is_right_hand_ ? "/input/skeleton/right" : "/input/skeleton/left",
+            is_right_hand_ ? "/skeleton/hand/right" : "/skeleton/hand/left",
+            "/pose/raw",
+            vr::EVRSkeletalTrackingLevel::VRSkeletalTracking_Full,
+            NULL, // Fist
+            31,
+            &skeletal_component_handle_);
+    
+        // Update the skeleton so steamvr knows we have an active skeletal input device
+        vr::VRBoneTransform_t finger_skeleton_[31]{};
+        vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithController, finger_skeleton_, 31);
+        vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithoutController, finger_skeleton_, 31);
     }
 
     return vr::EVRInitError::VRInitError_None;
