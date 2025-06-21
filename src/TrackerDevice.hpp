@@ -19,7 +19,7 @@
 namespace SlimeVRDriver {
     class TrackerDevice : public IVRDevice {
     public:
-        TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
+        TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role, bool fingertracking_enabled);
         ~TrackerDevice() = default;
 
         // Inherited via IVRDevice
@@ -49,6 +49,7 @@ namespace SlimeVRDriver {
 
         int device_id_;
         TrackerRole tracker_role_;
+        bool fingertracking_enabled_real_;
 
         vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
         std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
@@ -57,7 +58,32 @@ namespace SlimeVRDriver {
         float vibrate_anim_state_ = 0.f;
 
         vr::VRInputComponentHandle_t haptic_component_ = 0;
-        vr::VRInputComponentHandle_t system_click_component_ = 0;
-        vr::VRInputComponentHandle_t system_touch_component_ = 0;
+        vr::VRInputComponentHandle_t tap_component_ = 0;
+        vr::VRInputComponentHandle_t double_tap_component_ = 0;
+        vr::VRInputComponentHandle_t triple_tap_component_ = 0;
+
+        bool is_controller_;
+        bool is_left_hand_;
+        bool is_right_hand_;
+
+        vr::VRInputComponentHandle_t skeletal_component_handle_;
+
+        const int protobuf_fingers_to_openvr[15] = {
+            2,  // THUMB_METACARPAL      → eBone_Thumb1
+            3,  // THUMB_PROXIMAL        → eBone_Thumb2
+            4,  // THUMB_DISTAL          → eBone_Thumb3
+            6,  // INDEX_PROXIMAL        → eBone_IndexFinger1
+            7,  // INDEX_INTERMEDIATE    → eBone_IndexFinger2
+            8,  // INDEX_DISTAL          → eBone_IndexFinger3
+            11, // MIDDLE_PROXIMAL       → eBone_MiddleFinger1
+            12, // MIDDLE_INTERMEDIATE   → eBone_MiddleFinger2
+            13, // MIDDLE_DISTAL         → eBone_MiddleFinger3
+            16, // RING_PROXIMAL         → eBone_RingFinger1
+            17, // RING_INTERMEDIATE     → eBone_RingFinger2
+            18, // RING_DISTAL           → eBone_RingFinger3
+            21, // LITTLE_PROXIMAL       → eBone_PinkyFinger1
+            22, // LITTLE_INTERMEDIATE   → eBone_PinkyFinger2
+            23  // LITTLE_DISTAL         → eBone_PinkyFinger3
+        };
     };
 };
