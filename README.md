@@ -58,6 +58,6 @@ To update vcpkg packages set the vcpkg registry submodule to a newer commit and 
 
 ### Updating protobuf messages
 
-You can modify the protobuf messages for communication between the server and this driver at [src\bridge\ProtobufMessages.proto](src\bridge\ProtobufMessages.proto)
+You can modify the protobuf messages for communication between the server and this driver in [src\bridge\ProtobufMessages.proto](src\bridge\ProtobufMessages.proto). Please update PROTOCOL_VERSION in [src\bridge\BridgeClient.hpp](src\bridge\BridgeClient.hpp)
 
 To update the protobuf messages on the server, you will need to install [protoc](https://protobuf.dev/installation/) (we use version 4.31.1), then make sure that your SlimeVR-Server and SlimeVR-OpenVR-Driver repositories are in the same parent directory and run `protobuf_update.bat` located at `SlimeVR-Server\server\desktop`

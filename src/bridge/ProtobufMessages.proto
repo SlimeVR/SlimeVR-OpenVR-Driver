@@ -54,6 +54,10 @@ option optimize_for = LITE_RUNTIME;
 message PingPong {
 }
 
+message Version {
+  int32 protocol_version = 1;
+}
+
 message Position {
     int32 tracker_id = 1;
     optional float x = 2;
@@ -117,5 +121,6 @@ message ProtobufMessage {
         TrackerAdded tracker_added = 3;
         TrackerStatus tracker_status = 4;
         Battery battery = 5;
+        Version version = 6;
     }
 }

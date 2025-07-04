@@ -40,6 +40,7 @@ void BridgeClient::CreateConnection() {
         logger_->Log("[{}] connected", path);
         connected_ = true;
         last_error_ = std::nullopt;
+        SendVersion();
     });
     connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event&, uvw::pipe_handle&) {
         logger_->Log("[{}] disconnected", path);
@@ -78,4 +79,13 @@ void BridgeClient::CloseConnectionHandles() {
     if (connection_handle_) connection_handle_->close();
     if (reconnect_timeout_) reconnect_timeout_->close();
     connected_ = false;
+}
+
+void BridgeClient::SendVersion() {
+    messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
+    messages::Version* version = google::protobuf::Arena::CreateMessage<messages::Version>(&arena_);
+    message->set_allocated_version(version);
+    version->set_protocol_version(PROTOCOL_VERSION);
+    SendBridgeMessage(*message);
+    arena_.Reset();
 }
