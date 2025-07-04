@@ -19,7 +19,7 @@
 namespace SlimeVRDriver {
     class TrackerDevice : public IVRDevice {
     public:
-        TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role, bool fingertracking_enabled);
+        TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
         ~TrackerDevice() = default;
 
         // Inherited via IVRDevice
@@ -49,7 +49,7 @@ namespace SlimeVRDriver {
 
         int device_id_;
         TrackerRole tracker_role_;
-        bool fingertracking_enabled_real_;
+        bool fingertracking_enabled_;
 
         vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
         std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
