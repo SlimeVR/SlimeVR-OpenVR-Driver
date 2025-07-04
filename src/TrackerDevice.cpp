@@ -1,12 +1,12 @@
 #include "TrackerDevice.hpp"
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role, bool fingertracking_enabled):
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role):
     serial_(serial),
     tracker_role_(tracker_role),
     device_id_(device_id),
     is_left_hand_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_HAND),
     is_right_hand_(tracker_role_ == TrackerRole::RIGHT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_HAND),
-    fingertracking_enabled_real_(fingertracking_enabled && (is_left_hand_ || is_right_hand_)),
+    fingertracking_enabled_(is_left_hand_ || is_right_hand_),
     is_controller_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_CONTROLLER),
     last_pose_(MakeDefaultPose()),
     last_pose_atomic_(MakeDefaultPose())
@@ -75,12 +75,28 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     }
 
     if (is_controller_) {
+        bool tap = false;
+        bool double_tap = false;
+        bool triple_tap = false;
+
+        // Get inputs from protobuf
+        for (int i = 0; i < position.input_size(); ++i) {
+            if (position.input(i).type() == messages::Input_InputType_TAP) {
+                tap = true;
+            } else if (position.input(i).type() == messages::Input_InputType_DOUBLE_TAP) {
+                double_tap = true;
+            } else if (position.input(i).type() == messages::Input_InputType_TRIPLE_TAP) {
+                triple_tap = true;
+            }
+        }
+
         // Set inputs
-        // TODO
-        //GetDriver()->GetInput()->UpdateBooleanComponent(this->tap_component_, false, 0);
+        GetDriver()->GetInput()->UpdateBooleanComponent(this->tap_component_, tap, 0);
+        GetDriver()->GetInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
+        GetDriver()->GetInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
     }
 
-    if (fingertracking_enabled_real_) {
+    if (fingertracking_enabled_) {
         // Set finger rotations
         vr::VRBoneTransform_t finger_skeleton_[31]{};
         for (int i = 0; i < position.finger_bone_rotations_size(); i++)
@@ -99,7 +115,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
             };
         }
 
-        // Update the finger skeleton for this hand. With and without controller are the same.
+        // Update the finger skeleton for this hand. With and without controller have the same pose.
         vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithController, finger_skeleton_, 31);
         vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithoutController, finger_skeleton_, 31);
     }
@@ -203,6 +219,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     // Should be treated as controller or as tracker? (Hand = Tracker and Controller = Controller)
     if (is_controller_) {
         vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_Controller);
+        vr::VRProperties()->SetInt32Property(props, vr::Prop_ControllerHandSelectionPriority_Int32, 2147483647); // Prioritizes our controller over whatever else.
     } else {
         vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
     }
@@ -247,7 +264,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     }
 
     // Setup skeletal input for fingertracking
-    if (fingertracking_enabled_real_) {
+    if (fingertracking_enabled_) {
         vr::VRDriverInput()->CreateSkeletonComponent(
             props,
             is_right_hand_ ? "/input/skeleton/right" : "/input/skeleton/left",
