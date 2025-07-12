@@ -85,9 +85,8 @@ message FingerBoneRotation {
 
 message Input {
     enum InputType {
-        TAP = 0;
-        DOUBLE_TAP = 1;
-        TRIPLE_TAP = 2;
+        DOUBLE_TAP = 0;
+        TRIPLE_TAP = 1;
     }
     InputType type = 1;
 }
@@ -110,7 +109,6 @@ message Position {
     optional DataSource data_source = 9;
     repeated FingerBoneRotation finger_bone_rotations = 10;
     repeated Input input = 11;
-
 }
 
 message UserAction {

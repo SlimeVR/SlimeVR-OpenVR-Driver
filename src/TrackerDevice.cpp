@@ -75,15 +75,11 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     }
 
     if (is_controller_) {
-        bool tap = false;
+        // Get inputs from protobuf
         bool double_tap = false;
         bool triple_tap = false;
-
-        // Get inputs from protobuf
         for (int i = 0; i < position.input_size(); ++i) {
-            if (position.input(i).type() == messages::Input_InputType_TAP) {
-                tap = true;
-            } else if (position.input(i).type() == messages::Input_InputType_DOUBLE_TAP) {
+            if (position.input(i).type() == messages::Input_InputType_DOUBLE_TAP) {
                 double_tap = true;
             } else if (position.input(i).type() == messages::Input_InputType_TRIPLE_TAP) {
                 triple_tap = true;
@@ -91,7 +87,6 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
         }
 
         // Set inputs
-        GetDriver()->GetInput()->UpdateBooleanComponent(this->tap_component_, tap, 0);
         GetDriver()->GetInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
         GetDriver()->GetInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
     }
@@ -243,11 +238,10 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
     // Set inputs
     if (is_controller_) {
-        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/tap", &this->tap_component_);
-        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap", &this->double_tap_component_);
-        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap", &this->triple_tap_component_);
-
         GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
+
+        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
+        GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
     }
 
     // Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
