@@ -15,44 +15,43 @@
   "input_source": {
     "/pose/raw" : {
       "type" : "pose",
-      "binding_image_point" : [50,50]
+      "binding_image_point" : [80,80]
     },
     "/output/haptic": {
       "type": "vibration",
-      "binding_image_point": [50,50]
-    },
-    "/input/tap": {
-      "type": "button",
-      "click": true,
-      "touch" : false,
-      "binding_image_point": [50,50],
-      "order" : 1
+      "binding_image_point": [80,80]
     },
     "/input/double_tap": {
       "type": "button",
       "click": true,
       "touch" : false,
-      "binding_image_point": [50,50],
-      "order" : 2
+      "binding_image_point": [80,80],
+      "order" : 1
     },
     "/input/triple_tap": {
       "type": "button",
       "click": true,
       "touch" : false,
-      "binding_image_point": [50,50],
-      "order" : 3
+      "binding_image_point": [80,80],
+      "order" : 2
     },
     "/input/skeleton/left" : {
       "type" : "skeleton",
       "skeleton": "/skeleton/hand/left",
       "side" : "left",
-      "binding_image_point" : [50,50]
+      "binding_image_point" : [80,80]
     },
     "/input/skeleton/right" : {
       "type" : "skeleton",
       "skeleton": "/skeleton/hand/right",
       "side" : "right",
-      "binding_image_point" : [50,50]
+      "binding_image_point" : [80,80]
     }
-  }
+  },
+  "default_bindings": [
+    {
+      "app_key": "openvr.component.vrcompositor",
+      "binding_url": "vrcompositor_bindings_slimevr.json"
+    }
+  ]
 }

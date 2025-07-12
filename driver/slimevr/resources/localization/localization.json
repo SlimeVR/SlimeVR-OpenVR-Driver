@@ -11,7 +11,6 @@
     "/output/haptic": "Haptic",
     "slimevr": "SlimeVR",
     "slimevr_virtual_controller": "SlimeVR Virtual Controller",
-    "/input/tap": "Single tap",
     "/input/double_tap": "Double tap",
     "/input/triple_tap": "Triple tap",
     "slimevr_tracker" : "SlimeVR Tracker",

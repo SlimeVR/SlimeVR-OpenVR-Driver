@@ -58,7 +58,6 @@ namespace SlimeVRDriver {
         float vibrate_anim_state_ = 0.f;
 
         vr::VRInputComponentHandle_t haptic_component_ = 0;
-        vr::VRInputComponentHandle_t tap_component_ = 0;
         vr::VRInputComponentHandle_t double_tap_component_ = 0;
         vr::VRInputComponentHandle_t triple_tap_component_ = 0;
 
