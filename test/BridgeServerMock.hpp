@@ -1,6 +1,6 @@
 /*
     SlimeVR Code is placed under the MIT license
-    Copyright (c) 2021 Eiren Rain
+    Copyright (c) 2022 SlimeVR Contributors
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -20,26 +20,21 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 */
-/**
- * Header file for cross-platform handling of IPC between SteamVR driver/app
- * and SlimeVR server
- */
 #pragma once
 
-#define BRIDGE_USE_PIPES 1
-#include "ProtobufMessages.pb.h"
-#include <variant>
-#include <optional>
-#include "../VRDriver.hpp"
+#include <uvw.hpp>
+#include <stdint.h>
 
-enum BridgeStatus {
-    BRIDGE_DISCONNECTED = 0,
-    BRIDGE_CONNECTED = 1,
-    BRIDGE_ERROR = 2
+#include "bridge/BridgeTransport.hpp"
+
+class BridgeServerMock: public BridgeTransport {
+public:
+    using BridgeTransport::BridgeTransport;
+
+private:
+    void CreateConnection() override;
+    void ResetConnection() override;
+    void CloseConnectionHandles() override;
+
+    std::shared_ptr<uvw::pipe_handle> server_handle_ = nullptr;
 };
-
-BridgeStatus runBridgeFrame(SlimeVRDriver::VRDriver &driver);
-
-bool getNextBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);
-
-bool sendBridgeMessage(messages::ProtobufMessage &message, SlimeVRDriver::VRDriver &driver);

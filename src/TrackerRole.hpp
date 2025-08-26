@@ -50,8 +50,8 @@ enum TrackerRole {
     GENERIC_CONTROLLER = 21,
 };
 
-std::string getViveRoleHint(TrackerRole role);
+std::string GetViveRoleHint(TrackerRole role);
 
-std::string getViveRole(TrackerRole role);
+std::string GetViveRole(TrackerRole role);
 
-DeviceType getDeviceType(TrackerRole role);
+DeviceType GetDeviceType(TrackerRole role);
