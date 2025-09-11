@@ -37,8 +37,8 @@
 namespace fs = std::filesystem;
 
 #define WINDOWS_PIPE_NAME "\\\\.\\pipe\\SlimeVRDriver"
-#define UNIX_XDG_DATA_DIR_DEFAULT ".local/share/"
-#define UNIX_SLIMEVR_DIR "slimevr"
+#define UNIX_XDG_DATA_HOME_DEFAULT ".local/share/"
+#define UNIX_SLIMEVR_DIR "dev.slimevr.SlimeVR"
 #define UNIX_TMP_DIR "/tmp"
 #define UNIX_SOCKET_NAME "SlimeVRDriver"
 
@@ -126,14 +126,14 @@ protected:
             paths.push_back((xdg_runtime / UNIX_SOCKET_NAME).string());
         }
 
-        if (const char* ptr = std::getenv("XDG_DATA_DIR")) {
+        if (const char* ptr = std::getenv("XDG_DATA_HOME")) {
             const fs::path xdg_data = ptr;
             paths.push_back((xdg_data / UNIX_SLIMEVR_DIR / UNIX_SOCKET_NAME).string());
         }
 
         if (const char* ptr = std::getenv("HOME")) {
             const fs::path home = ptr;
-            paths.push_back((home / UNIX_XDG_DATA_DIR_DEFAULT / UNIX_SLIMEVR_DIR / UNIX_SOCKET_NAME).string());
+            paths.push_back((home / UNIX_XDG_DATA_HOME_DEFAULT / UNIX_SLIMEVR_DIR / UNIX_SOCKET_NAME).string());
         }
 
         for (auto path : paths) {
