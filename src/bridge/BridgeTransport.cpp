@@ -69,7 +69,7 @@ void BridgeTransport::ResetBuffers() {
 
 void BridgeTransport::OnRecv(const uvw::data_event& event) {
     if (!recv_buf_.Push(event.data.get(), event.length)) {
-        logger_->Log("recv_buf_.Push(%i) failed", event.length);
+        logger_->Log("recv_buf_.Push({}) failed", event.length);
         ResetConnection();
         return;
     }
@@ -81,13 +81,16 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
         char len_buf[4];
         recv_buf_.Peek(len_buf, 4);
         uint32_t size = 0;
-        size |= static_cast<uint32_t>(len_buf[0]) << 0;
-        size |= static_cast<uint32_t>(len_buf[1]) << 8;
-        size |= static_cast<uint32_t>(len_buf[2]) << 16;
-        size |= static_cast<uint32_t>(len_buf[3]) << 24;
+        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[0])) << 0;
+        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[1])) << 8;
+        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[2])) << 16;
+        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[3])) << 24;
 
         if (size > VRBRIDGE_MAX_MESSAGE_SIZE) {
-            logger_->Log("message size overflow");
+            logger_->Log(
+                "message size overflow: {} > {}",
+                size, VRBRIDGE_MAX_MESSAGE_SIZE
+            );
             ResetConnection();
             return;
         }
@@ -97,7 +100,7 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 
         auto message_buf = std::make_unique<char[]>(size);
         if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf.get(), unwrapped_size)) {
-            logger_->Log("recv_buf_.Pop(%i) failed", size);
+            logger_->Log("recv_buf_.Pop({}) failed", size);
             ResetConnection();
             return;
         }
