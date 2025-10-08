@@ -3,11 +3,11 @@
 void TestLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
     if (!message.has_tracker_added()) return;
     messages::TrackerAdded tracker_added = message.tracker_added();
-    logger->Log("tracker added id %i name %s role %i serial %s",
+    logger->Log("tracker added id {} name {} role {} serial {}",
         tracker_added.tracker_id(),
-        tracker_added.tracker_name().c_str(),
+        tracker_added.tracker_name(),
         tracker_added.tracker_role(),
-        tracker_added.tracker_serial().c_str()
+        tracker_added.tracker_serial()
     );
 }
 
@@ -21,7 +21,7 @@ void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::Protob
         { messages::TrackerStatus_Status_BUSY, "BUSY" },
     };
     if (status_map.count(status.status())) {
-        logger->Log("tracker status id %i status %s", status.tracker_id(), status_map.at(status.status()).c_str());
+        logger->Log("tracker status id {} status {}", status.tracker_id(), status_map.at(status.status()));
     }
 }
 
@@ -127,7 +127,7 @@ void TestBridgeClient() {
     for (const auto& [id, sum] : latency_nanos_sum) {
         auto avg_latency_nanos = static_cast<int>(latency_nanos_count[id] ? sum / latency_nanos_count[id] : -1);
         auto avg_latency_ms = duration_cast<duration<double, std::milli>>(nanoseconds(avg_latency_nanos));
-        logger->Log("avg latency for tracker %i: %.3fms", id, avg_latency_ms.count());
+        logger->Log("avg latency for tracker {}: {:.3f}ms", id, avg_latency_ms.count());
     }
 
     if (invalid_messages) FAIL("Invalid messages received");

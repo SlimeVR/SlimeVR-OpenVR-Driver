@@ -37,12 +37,12 @@ void BridgeClient::CreateConnection() {
     connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
     connection_handle_->on<uvw::connect_event>([this, path](const uvw::connect_event&, uvw::pipe_handle&) {
         connection_handle_->read();
-        logger_->Log("[%s] connected", path.c_str());
+        logger_->Log("[{}] connected", path);
         connected_ = true;
         last_error_ = std::nullopt;
     });
     connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event&, uvw::pipe_handle&) {
-        logger_->Log("[%s] disconnected", path.c_str());
+        logger_->Log("[{}] disconnected", path);
         Reconnect();
     });
     connection_handle_->on<uvw::data_event>([this](const uvw::data_event& event, uvw::pipe_handle&) {
@@ -50,7 +50,7 @@ void BridgeClient::CreateConnection() {
     });
     connection_handle_->on<uvw::error_event>([this, path](const uvw::error_event& event, uvw::pipe_handle&) {
         if (!last_error_.has_value() || last_error_ != event.what() || last_path_ != path) {
-            logger_->Log("[%s] pipe error: %s", path.c_str(), event.what());
+            logger_->Log("[{}] pipe error: {}", path, event.what());
             last_error_ = event.what();
             last_path_ = path;
         }

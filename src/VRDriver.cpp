@@ -19,7 +19,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         auto path = std::string { doc.get_object()["config"].at(0).get_string().value() };
         default_chap_path_ = GetDefaultChaperoneFromConfigPath(path);
     } catch (simdjson::simdjson_error& e) {
-        logger_->Log("Error getting VR Config path, continuing: %s", e.error());
+        logger_->Log("Error getting VR Config path, continuing (error code {})", std::to_string(e.error()));
     }
 
     logger_->Log("SlimeVR Driver Loaded Successfully");
@@ -92,7 +92,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                 }
             }
         } else if (universe_error != last_universe_error_) {
-            logger_->Log("Failed to find current universe: Prop_CurrentUniverseId_Uint64 error = %s",
+            logger_->Log("Failed to find current universe: Prop_CurrentUniverseId_Uint64 error = {}",
                 vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(universe_error)
             );
         }
@@ -218,7 +218,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
                 { messages::TrackerStatus_Status_BUSY, "BUSY" },
             };
             if (status_map.count(status.status())) {
-                logger_->Log("Tracker status id %i status %s", status.tracker_id(), status_map.at(status.status()).c_str());
+                logger_->Log("Tracker status id {} status {}", status.tracker_id(), status_map.at(status.status()));
             }
         }
     } else if (message.has_battery()) {
@@ -280,9 +280,9 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
             devices_.push_back(device);
             devices_by_id_[device->GetDeviceId()] = device;
             devices_by_serial_[device->GetSerial()] = device;
-            logger_->Log("New tracker device added %s (id %i)", device->GetSerial().c_str(), device->GetDeviceId());
+            logger_->Log("New tracker device added {} (id {})", device->GetSerial(), device->GetDeviceId());
         } else {
-            logger_->Log("Failed to add tracker device %s (id %i)", device->GetSerial().c_str(), device->GetDeviceId());
+            logger_->Log("Failed to add tracker device {} (id {})", device->GetSerial(), device->GetDeviceId());
             return false;
         }
     } else {
@@ -290,9 +290,9 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
         if (oldDevice->GetDeviceId() != device->GetDeviceId()) {
             devices_by_id_[device->GetDeviceId()] = oldDevice;
             oldDevice->SetDeviceId(device->GetDeviceId());
-            logger_->Log("Device overridden from id %i to %i for serial %s", oldDevice->GetDeviceId(), device->GetDeviceId(), device->GetSerial());
+            logger_->Log("Device overridden from id {} to {} for serial {}", oldDevice->GetDeviceId(), device->GetDeviceId(), device->GetSerial());
         } else {
-            logger_->Log("Device readded id %i, serial %s", device->GetDeviceId(), device->GetSerial().c_str());
+            logger_->Log("Device readded id {}, serial {}", device->GetDeviceId(), device->GetSerial());
         }
     }
     return true;
@@ -407,7 +407,7 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
             }
         }
     } catch (simdjson::simdjson_error& e) {
-        logger_->Log("Error getting universes from %s: %s", path.c_str(), e.what());
+        logger_->Log("Error getting universes from {}: {}", path, e.what());
         return std::nullopt;
     }
 
