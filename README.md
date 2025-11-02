@@ -21,6 +21,43 @@ Edit file `C:\Users\<Username>\AppData\Local\openvr\openvrpaths.vrpath`, add `"P
 ![img](https://eiren.cat/ib4_)  
 *Don't forget to double backwards slashes!*
 
+## Building On Linux
+
+Note: Only for Arch 
+
+Dependencies needed:
+    vcpkg(Aur),
+    cmake
+
+Note: On others
+
+Dependencies Needed:
+    git,
+    g++
+
+Run `git clone https://github.com/Microsoft/vcpkg.git`
+
+Run `./vcpkg/bootstrap-vcpkg.sh`
+
+### Step One
+
+Go to the root of the project and `mkdir build`
+
+### Step Two
+
+In the terminal run `vcpkg install protobuf`
+
+### Step Three
+
+Run `cmake -B build/ -S . -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake` in the terminal
+
+### Step Four
+
+Run `cmake --build build/`
+
+Should finish building if it doesn't ask for help in the discord
+https://discord.gg/SlimeVR
+
 ## Contributions
 Any contributions submitted for inclusion in this repository will be dual-licensed under
 either:
