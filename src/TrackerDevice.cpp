@@ -98,7 +98,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
         {
             // Get data from protobuf
             auto fingerData = position.finger_bone_rotations(i);
-            int fingerBoneName = fingerData.name();
+            int fingerBoneName = static_cast<int>(fingerData.name());
 
             // Map from our 15 bones to OpenVR's 31 bones
             int boneIndex = protobuf_fingers_to_openvr[fingerBoneName];
