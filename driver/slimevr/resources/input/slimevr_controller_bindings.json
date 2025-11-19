@@ -13,39 +13,111 @@
     "image": "{slimevr}/icons/slimevr_tracker_icon.png"
   },
   "input_source": {
-    "/pose/raw" : {
-      "type" : "pose",
-      "binding_image_point" : [80,80]
+    "/pose/raw": {
+      "type": "pose",
+      "binding_image_point": [ 80, 80 ]
     },
     "/output/haptic": {
       "type": "vibration",
-      "binding_image_point": [80,80]
+      "binding_image_point": [ 80, 80 ]
     },
     "/input/double_tap": {
       "type": "button",
       "click": true,
-      "touch" : false,
-      "binding_image_point": [80,80],
-      "order" : 1
+      "touch": false,
+      "binding_image_point": [ 80, 80 ],
+      "order": 1
     },
     "/input/triple_tap": {
       "type": "button",
       "click": true,
-      "touch" : false,
-      "binding_image_point": [80,80],
-      "order" : 2
+      "touch": false,
+      "binding_image_point": [ 80, 80 ],
+      "order": 2
     },
-    "/input/skeleton/left" : {
-      "type" : "skeleton",
+    "/input/skeleton/left": {
+      "type": "skeleton",
       "skeleton": "/skeleton/hand/left",
-      "side" : "left",
-      "binding_image_point" : [80,80]
+      "side": "left",
+      "binding_image_point": [ 80, 80 ]
     },
-    "/input/skeleton/right" : {
-      "type" : "skeleton",
+    "/input/skeleton/right": {
+      "type": "skeleton",
       "skeleton": "/skeleton/hand/right",
-      "side" : "right",
-      "binding_image_point" : [80,80]
+      "side": "right",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/x/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/y/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/a/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/b/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/left/trigger": {
+      "type": "trigger",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/right/trigger": {
+      "type": "trigger",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/left/stick/x": {
+      "type": "scalar",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/left/stick/y": {
+      "type": "scalar",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/left/stick/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/right/stick/x": {
+      "type": "scalar",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/right/stick/y": {
+      "type": "scalar",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/right/stick/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/menu/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/recenter/click": {
+      "type": "button",
+      "click": true,
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/left/grip": {
+      "type": "trigger",
+      "binding_image_point": [ 80, 80 ]
+    },
+    "/input/right/grip": {
+      "type": "trigger",
+      "binding_image_point": [ 80, 80 ]
     }
   },
   "default_bindings": [
