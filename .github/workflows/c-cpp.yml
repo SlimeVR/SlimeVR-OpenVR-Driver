@@ -109,7 +109,7 @@ jobs:
             target: test
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: slimevr-openvr-driver-${{ matrix.triplet }}
           path: ${{ github.workspace }}
