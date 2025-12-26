@@ -25,6 +25,12 @@ void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::Protob
     }
 }
 
+void TestLogVersion(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
+    if (!message.has_version()) return;
+    messages::Version version = message.version();
+    logger->Log("protocol version {}", version.protocol_version());
+}
+
 void TestBridgeClient() {
     using namespace std::chrono;
 

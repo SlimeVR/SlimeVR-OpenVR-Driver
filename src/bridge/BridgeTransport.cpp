@@ -81,10 +81,10 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
         char len_buf[4];
         recv_buf_.Peek(len_buf, 4);
         uint32_t size = 0;
-        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[0])) << 0;
-        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[1])) << 8;
-        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[2])) << 16;
-        size |= static_cast<uint32_t>(static_cast<uint8_t>(len_buf[3])) << 24;
+        size = static_cast<uint32_t>(static_cast<uint8_t>(len_buf[0])) |
+              (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[1])) << 8) |
+              (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[2])) << 16) |
+              (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[3])) << 24);
 
         if (size > VRBRIDGE_MAX_MESSAGE_SIZE) {
             logger_->Log(
