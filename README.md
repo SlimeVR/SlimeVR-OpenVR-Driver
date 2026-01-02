@@ -46,8 +46,18 @@ Run the bootstrap script to build vcpkg binary `.\vcpkg\bootstrap-vcpkg.bat` or 
 
 After installing vcpkg if you're on Windows, you need to run `vcpkg integrate install` command from the vcpkg folder to integrate it for VSCode.
 
-For other systems and IDEs instructions are not available as of now, contributions are welcome.
+Then you will need to run `cmake -B build` once to setup CMake.
+
+Finally, everytime you want to build binaries, just run `cmake --build build --config Release`. The newly built binary will be in the build/release directory.
+
+For other systems and IDEs, instructions are not available as of now, but contributions are welcome.
 
 ### Updating vcpkg packages
 
 To update vcpkg packages set the vcpkg registry submodule to a newer commit and rerun the bootstrap script.
+
+### Updating protobuf messages
+
+You can modify the protobuf messages for communication between the server and this driver in [src\bridge\ProtobufMessages.proto](src\bridge\ProtobufMessages.proto). When making breaking changes, please update PROTOCOL_VERSION in [src\bridge\BridgeClient.hpp](src\bridge\BridgeClient.hpp).
+
+To update the protobuf messages on the server, you will need to install [protoc](https://protobuf.dev/installation/) (we use version 4.31.1), then make sure that your SlimeVR-Server and SlimeVR-OpenVR-Driver repositories are in the same parent directory and run `protobuf_update.bat` located at `SlimeVR-Server\server\desktop`.

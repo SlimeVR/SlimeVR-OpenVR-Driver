@@ -47,11 +47,15 @@ package messages;
  * recieve messages this frame.
  */
 
-option java_package = "dev.slimevr.bridge";
+option java_package = "dev.slimevr.desktop.platform";
 option java_outer_classname = "ProtobufMessages";
 option optimize_for = LITE_RUNTIME;
 
 message PingPong {
+}
+
+message Version {
+  int32 protocol_version = 1;
 }
 
 message Position {
@@ -117,5 +121,6 @@ message ProtobufMessage {
         TrackerAdded tracker_added = 3;
         TrackerStatus tracker_status = 4;
         Battery battery = 5;
+        Version version = 6;
     }
 }

@@ -28,6 +28,8 @@
 
 #include "BridgeTransport.hpp"
 
+#define PROTOCOL_VERSION 1
+
 /**
  * @brief Client implementation for communication with SlimeVR Server using pipes or unix sockets.
  * 
@@ -49,8 +51,11 @@ private:
     void ResetConnection() override;
     void CloseConnectionHandles() override;
     void Reconnect();
+    void SendVersion();
 
     std::optional<std::string> last_error_;
     std::optional<std::string> last_path_;
     std::shared_ptr<uvw::timer_handle> reconnect_timeout_;
+
+    google::protobuf::Arena arena_;
 };

@@ -74,7 +74,10 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                     tracker_position->set_qw(0);
                     server_mock->SendBridgeMessage(*server_message);
                 }
-            } else {
+            } else if(message.has_version()) {
+                TestLogVersion(logger, message);
+            }
+            else {
                 invalid_messages++;
             }
 
