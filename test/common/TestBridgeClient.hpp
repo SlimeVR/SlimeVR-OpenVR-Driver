@@ -8,4 +8,5 @@
 
 void TestLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
 void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
+void TestLogVersion(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
 void TestBridgeClient();
