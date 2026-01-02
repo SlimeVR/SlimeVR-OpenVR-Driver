@@ -29,3 +29,4 @@ vcpkg_installed/
 # Project-specific
 build/*
 out/
+/.vscode
