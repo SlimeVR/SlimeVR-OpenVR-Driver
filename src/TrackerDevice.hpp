@@ -53,14 +53,6 @@ namespace SlimeVRDriver {
         vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
         std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
 
-        // --- NaLo Support: derived kinematics (pos -> vel -> accel) ---
-        bool kinematics_has_prev_ = false;
-
-        std::chrono::steady_clock::time_point kinematics_prev_time_{};
-        vr::HmdVector3_t kinematics_prev_pos_{};
-        vr::HmdVector3_t kinematics_prev_vel_{};
-        // --- End NaLo Support ---
-
         bool did_vibrate_ = false;
         float vibrate_anim_state_ = 0.f;
 

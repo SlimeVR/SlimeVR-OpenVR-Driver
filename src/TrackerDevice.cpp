@@ -70,65 +70,6 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
         pose.qWorldFromDriverRotation.z = 0;
     }
 
-    // --- NaLo Support: derived velocity/acceleration from position ---
-    auto now = std::chrono::steady_clock::now();
-
-    if (kinematics_has_prev_) {
-        const double dt = std::chrono::duration<double>(now - kinematics_prev_time_).count();
-
-        // Guard against divide-by-zero and crazy dt spikes
-        if (dt > 1e-4 && dt < 0.5) {
-
-            // Velocity = (pos - prev_pos) / dt
-            pose.vecVelocity[0] = (pose.vecPosition[0] - kinematics_prev_pos_.v[0]) / dt;
-            pose.vecVelocity[1] = (pose.vecPosition[1] - kinematics_prev_pos_.v[1]) / dt;
-            pose.vecVelocity[2] = (pose.vecPosition[2] - kinematics_prev_pos_.v[2]) / dt;
-
-            // --- Velocity spike clamp ---
-            constexpr double SPIKE_THRESHOLD = 6.0; // detect spike
-            constexpr double SAFE_MAX = 3.5;        // resolved safe velocity
-
-            auto clamp = [](double v, double max) {
-                return std::max(-max, std::min(v, max));
-                };
-
-            for (int i = 0; i < 3; i++) {
-                if (std::abs(pose.vecVelocity[i]) > SPIKE_THRESHOLD) {
-                    pose.vecVelocity[i] = clamp(pose.vecVelocity[i], SAFE_MAX);
-                }
-            }
-
-            // Acceleration = (vel - prev_vel) / dt
-            pose.vecAcceleration[0] = (pose.vecVelocity[0] - kinematics_prev_vel_.v[0]) / dt;
-            pose.vecAcceleration[1] = (pose.vecVelocity[1] - kinematics_prev_vel_.v[1]) / dt;
-            pose.vecAcceleration[2] = (pose.vecVelocity[2] - kinematics_prev_vel_.v[2]) / dt;
-        }
-        else {
-            // dt invalid -> zero out
-            pose.vecVelocity[0] = pose.vecVelocity[1] = pose.vecVelocity[2] = 0.0;
-            pose.vecAcceleration[0] = pose.vecAcceleration[1] = pose.vecAcceleration[2] = 0.0;
-        }
-    }
-    else {
-        // first frame -> zero out
-        pose.vecVelocity[0] = pose.vecVelocity[1] = pose.vecVelocity[2] = 0.0;
-        pose.vecAcceleration[0] = pose.vecAcceleration[1] = pose.vecAcceleration[2] = 0.0;
-    }
-
-    // Store for next frame
-    kinematics_prev_time_ = now;
-
-    kinematics_prev_pos_.v[0] = static_cast<float>(pose.vecPosition[0]);
-    kinematics_prev_pos_.v[1] = static_cast<float>(pose.vecPosition[1]);
-    kinematics_prev_pos_.v[2] = static_cast<float>(pose.vecPosition[2]);
-
-    kinematics_prev_vel_.v[0] = static_cast<float>(pose.vecVelocity[0]);
-    kinematics_prev_vel_.v[1] = static_cast<float>(pose.vecVelocity[1]);
-    kinematics_prev_vel_.v[2] = static_cast<float>(pose.vecVelocity[2]);
-
-    kinematics_has_prev_ = true;
-	// --- End NaLo Support ---
-
     pose.deviceIsConnected = true;
     pose.poseIsValid = true;
     pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
