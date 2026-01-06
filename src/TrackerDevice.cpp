@@ -55,6 +55,15 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     pose.qRotation.y = position.qy();
     pose.qRotation.z = position.qz();
 
+    if (position.has_vx()) { 
+        pose.vecVelocity[0] = position.vx(); 
+        pose.vecVelocity[1] = position.vy(); 
+        pose.vecVelocity[2] = position.vz(); 
+    }
+    else { // If velocity isn't being sent, don't keep stale values 
+        pose.vecVelocity[0] = 0.0f; pose.vecVelocity[1] = 0.0f; pose.vecVelocity[2] = 0.0f; 
+    }
+
     auto current_universe = GetDriver()->GetCurrentUniverse();
     if (current_universe.has_value()) {
         auto trans = current_universe.value();
