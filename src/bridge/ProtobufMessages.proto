@@ -58,6 +58,48 @@ message Version {
   int32 protocol_version = 1;
 }
 
+message FingerBoneRotation {
+    enum FingerBoneName {
+        THUMB_METACARPAL = 0;
+        THUMB_PROXIMAL = 1;
+        THUMB_DISTAL = 2;
+        INDEX_PROXIMAL = 3;
+        INDEX_INTERMEDIATE = 4;
+        INDEX_DISTAL = 5;
+        MIDDLE_PROXIMAL = 6;
+        MIDDLE_INTERMEDIATE = 7;
+        MIDDLE_DISTAL = 8;
+        RING_PROXIMAL = 9;
+        RING_INTERMEDIATE = 10;
+        RING_DISTAL = 11;
+        LITTLE_PROXIMAL = 12;
+        LITTLE_INTERMEDIATE = 13;
+        LITTLE_DISTAL = 14;
+    }
+    FingerBoneName name = 1;
+    float x = 2;
+    float y = 3;
+    float z = 4;
+    float w = 5;
+}
+
+message Input {
+    enum InputType {
+        DOUBLE_TAP = 0;
+        TRIPLE_TAP = 1;
+        TRIGGER = 2;
+        GRIP = 3;
+        BUTTON_X = 4;
+        BUTTON_Y = 5;
+        BUTTON_A = 6;
+        BUTTON_B = 7;
+        STICK_X = 8;
+        STICK_Y = 9;
+        STICK_CLICK = 10;
+    }
+    InputType type = 1;
+}
+
 message Position {
     int32 tracker_id = 1;
     optional float x = 2;
