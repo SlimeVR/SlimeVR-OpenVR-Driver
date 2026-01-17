@@ -72,7 +72,7 @@ namespace SlimeVRDriver {
         /**
          * Updates device position from a received message.
         */
-        virtual void ControllerInputMessage(messages::Position& position) = 0;
+        virtual void ControllerInputMessage(messages::ControllerInput& position) = 0;
         
         /**
          * Updates device status from a received message.
