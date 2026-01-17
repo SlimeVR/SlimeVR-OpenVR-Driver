@@ -306,14 +306,14 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/b/click", &this->button_b_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/menu/click", &this->menu_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/system/click", &this->recenter_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, hand_prefix + "stick/click", is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, hand_prefix.c_str() + "stick/click", is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_);
 
 		// Scalar components
-		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix + "grip/click", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix + "trigger/value", is_left_hand_  ? &this->left_trigger_component_ : &this->left_trigger_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix + "grip/value", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix + "stick/x", is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix + "stick/y", is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix.c_str() + "grip/click", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix.c_str() + "trigger/value", is_left_hand_  ? &this->left_trigger_component_ : &this->left_trigger_component_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix.c_str() + "grip/value", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix.c_str() + "stick/x", is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, hand_prefix.c_str() + "stick/y", is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_);
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
