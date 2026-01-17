@@ -87,15 +87,14 @@ message Input {
     enum InputType {
         DOUBLE_TAP = 0;
         TRIPLE_TAP = 1;
-        TRIGGER = 2;
-        GRIP = 3;
-        BUTTON_X = 4;
-        BUTTON_Y = 5;
-        BUTTON_A = 6;
-        BUTTON_B = 7;
-        STICK_X = 8;
-        STICK_Y = 9;
-        STICK_CLICK = 10;
+        BUTTON_1_HELD = 2;
+        BUTTON_1_UNHELD = 3;
+        BUTTON_2_HELD = 4;
+        BUTTON_2_UNHELD = 5;
+        MENU_RECENTER_HELD = 6;
+        MENU_RECENTER_UNHELD = 7;
+        STICK_CLICK_HELD = 9;
+        STICK_CLICK_UNHELD = 10;
     }
     InputType type = 1;
 }
@@ -116,6 +115,18 @@ message Position {
         FULL = 3;
     }
     optional DataSource data_source = 9;
+}
+
+message ControllerInput {
+    int32 tracker_id = 1;
+    float thumbstick_x = 2;
+	float thumbstick_y = 3;
+    float trigger = 4;
+	float grip = 5;
+	bool button_1 = 6;
+	bool button_2 = 7;
+	bool menu_recenter = 8;
+	bool stick_click = 9;
 }
 
 message UserAction {
@@ -164,5 +175,6 @@ message ProtobufMessage {
         TrackerStatus tracker_status = 4;
         Battery battery = 5;
         Version version = 6;
+		ControllerInput controller_input = 7;
     }
 }
