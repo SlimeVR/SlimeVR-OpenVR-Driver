@@ -141,14 +141,14 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 		float grip = 0.0f;
 
 
-		thumbstick_x = controllerInput.thumbstick_x;
-		thumbstick_y = controllerInput.thumbstick_y;
-		trigger = controllerInput.trigger;
-		grip = controllerInput.grip;
-		stick_click = controllerInput.stick_click;
+		thumbstick_x = controllerInput.thumbstick_x();
+		thumbstick_y = controllerInput.thumbstick_y();
+		trigger = controllerInput.trigger();
+		grip = controllerInput.grip();
+		stick_click = controllerInput.stick_click();
 		if (is_left_hand_) {
-			x_pressed = controllerInput.button_1;
-			y_pressed = controllerInput.button_2;
+			x_pressed = controllerInput.button_1();
+			y_pressed = controllerInput.button_2();
 			menu = controllerInput.menu_recenter;
 			GetDriver()->GetInput()->UpdateScalarComponent(left_trigger_component_, trigger, 0);
 			GetDriver()->GetInput()->UpdateScalarComponent(left_grip_value_component_, grip, 0);
@@ -159,9 +159,9 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 			GetDriver()->GetInput()->UpdateBooleanComponent(left_stick_click_component_, stick_click, 0);
 		}
 		else if (is_right_hand_) {
-			a_pressed = controllerInput.button_1;
-			b_pressed = controllerInput.button_2;
-			recenter = controllerInput.menu_recenter;
+			a_pressed = controllerInput.button_1();
+			b_pressed = controllerInput.button_2();
+			recenter = controllerInput.menu_recenter();
 			GetDriver()->GetInput()->UpdateScalarComponent(right_trigger_component_, trigger, 0);
 			GetDriver()->GetInput()->UpdateScalarComponent(right_grip_value_component_, grip, 0);
 			GetDriver()->GetInput()->UpdateScalarComponent(right_stick_x_component_, thumbstick_x, 0);
