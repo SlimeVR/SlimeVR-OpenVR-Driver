@@ -77,17 +77,17 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 
 	bool double_tap = false;
 	bool triple_tap = false;
-	for (int i = 0; i < position.input_size(); ++i) {
-		const auto& input = position.input(i);
-		switch (input.type()) {
-		case messages::Input_InputType_DOUBLE_TAP:
-			double_tap = true;
-			break;
-		case messages::Input_InputType_TRIPLE_TAP:
-			triple_tap = true;
-			break;
-		}
-	}
+	//for (int i = 0; i < position.input_size(); ++i) {
+	//	const auto& input = position.input(i);
+	//	switch (input.type()) {
+	//	case messages::Input_InputType_DOUBLE_TAP:
+	//		double_tap = true;
+	//		break;
+	//	case messages::Input_InputType_TRIPLE_TAP:
+	//		triple_tap = true;
+	//		break;
+	//	}
+	//}
 
 	//if (fingertracking_enabled_) {
 	//	// Set finger rotations
