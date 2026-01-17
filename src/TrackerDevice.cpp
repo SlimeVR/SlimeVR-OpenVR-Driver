@@ -300,20 +300,22 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
 
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/x/click", &this->button_x_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/y/click", &this->button_y_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/a/click", &this->button_a_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/b/click", &this->button_b_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/menu/click", &this->menu_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/system/click", &this->recenter_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, (hand_prefix + "stick/click").c_str(), is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_);
+		if (is_left_hand_) {
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/x/click", &this->button_x_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/y/click", &this->button_y_component_);
+		}
+		if (is_right_hand_) {
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/a/click", &this->button_a_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/b/click", &this->button_b_component_);
+		}
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/system/click", is_left_hand_ ? &this->menu_component_ : &this->recenter_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, ("/input/joystick/click").c_str(), (is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_));
 
 		// Scalar components
-		GetDriver()->GetInput()->CreateScalarComponent(props, (hand_prefix + "grip/click").c_str(), is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, (hand_prefix + "trigger/value").c_str(), is_left_hand_  ? &this->left_trigger_component_ : &this->left_trigger_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, (hand_prefix + "grip/value").c_str(), is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, (hand_prefix + "stick/x").c_str(), is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, (hand_prefix + "stick/y").c_str(), is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/trigger/value").c_str(), is_left_hand_ ? &this->left_trigger_component_ : &this->left_trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/grip/value").c_str(), is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/joystick/x").c_str(), is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_,vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/joystick/y").c_str(), is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
