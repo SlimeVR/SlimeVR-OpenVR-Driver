@@ -30,6 +30,7 @@ namespace SlimeVRDriver {
         virtual int GetDeviceId() override;
         virtual void SetDeviceId(int device_id) override;
         virtual void PositionMessage(messages::Position &position) override;
+        virtual void ControllerInputMessage(messages::ControllerInput& position) override;
         virtual void StatusMessage(messages::TrackerStatus &status) override;
         virtual void BatteryMessage(messages::Battery &battery) override;
 
