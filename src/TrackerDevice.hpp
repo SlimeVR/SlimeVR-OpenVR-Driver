@@ -62,6 +62,21 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t double_tap_component_ = 0;
         vr::VRInputComponentHandle_t triple_tap_component_ = 0;
 
+        vr::VRInputComponentHandle_t left_trigger_component_ = 0;
+        vr::VRInputComponentHandle_t left_grip_value_component_ = 0;
+        vr::VRInputComponentHandle_t left_stick_x_component_ = 0;
+        vr::VRInputComponentHandle_t left_stick_y_component_ = 0;
+        vr::VRInputComponentHandle_t button_x_component_ = 0;
+        vr::VRInputComponentHandle_t button_y_component_ = 0;
+        vr::VRInputComponentHandle_t left_stick_click_component_ = 0;
+
+        vr::VRInputComponentHandle_t right_trigger_component_ = 0;
+        vr::VRInputComponentHandle_t right_grip_value_component_ = 0;
+        vr::VRInputComponentHandle_t right_stick_x_component_ = 0;
+        vr::VRInputComponentHandle_t right_stick_y_component_ = 0;
+        vr::VRInputComponentHandle_t button_a_component_ = 0;
+        vr::VRInputComponentHandle_t button_b_component_ = 0;
+        vr::VRInputComponentHandle_t right_stick_click_component_ = 0;
         bool is_controller_;
         bool is_left_hand_;
         bool is_right_hand_;

@@ -149,7 +149,7 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 		if (is_left_hand_) {
 			x_pressed = controllerInput.button_1();
 			y_pressed = controllerInput.button_2();
-			menu = controllerInput.menu_recenter;
+			menu = controllerInput.menu_recenter();
 			GetDriver()->GetInput()->UpdateScalarComponent(left_trigger_component_, trigger, 0);
 			GetDriver()->GetInput()->UpdateScalarComponent(left_grip_value_component_, grip, 0);
 			GetDriver()->GetInput()->UpdateScalarComponent(left_stick_x_component_, thumbstick_x, 0);
