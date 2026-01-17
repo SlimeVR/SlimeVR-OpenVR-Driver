@@ -157,6 +157,7 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 			GetDriver()->GetInput()->UpdateBooleanComponent(button_x_component_, x_pressed, 0);
 			GetDriver()->GetInput()->UpdateBooleanComponent(button_y_component_, y_pressed, 0);
 			GetDriver()->GetInput()->UpdateBooleanComponent(left_stick_click_component_, stick_click, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, menu, 0);
 		}
 		else if (is_right_hand_) {
 			a_pressed = controllerInput.button_1();
@@ -169,6 +170,7 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 			GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, a_pressed, 0);
 			GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, b_pressed, 0);
 			GetDriver()->GetInput()->UpdateBooleanComponent(right_stick_click_component_, stick_click, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(recenter_component_, recenter, 0);
 		}
 	}
 }
