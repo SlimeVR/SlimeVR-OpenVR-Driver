@@ -202,7 +202,15 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
         if (device != devices_by_id_.end()) {
             device->second->PositionMessage(pos);
         }
-    } else if (message.has_tracker_status()) {
+    }
+    else if (message.has_controller_input()) {
+        messages::ControllerInput controllerInput = message.controller_input();
+        auto device = devices_by_id_.find(controllerInput.tracker_id());
+        if (device != devices_by_id_.end()) {
+            device->second->ControllerInputMessage(controllerInput);
+        }
+    }
+    else if (message.has_tracker_status()) {
         messages::TrackerStatus status = message.tracker_status();
         auto device = devices_by_id_.find(status.tracker_id());
         if (device != devices_by_id_.end()) {

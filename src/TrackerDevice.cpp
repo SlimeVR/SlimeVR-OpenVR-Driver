@@ -75,80 +75,17 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 		pose.qWorldFromDriverRotation.z = 0;
 	}
 
-	if (is_controller_) {
-		// Get inputs from protobuf
-		bool double_tap = false;
-		bool triple_tap = false;
-		bool x_pressed = false;
-		bool y_pressed = false;
-		bool a_pressed = false;
-		bool b_pressed = false;
-		bool stick_click = false;
-		float stick_x = 0.0f;
-		float stick_y = 0.0f;
-		float trigger = 0.0f;
-		float grip = 0.0f;
-
-		for (int i = 0; i < position.input_size(); ++i) {
-			const auto& input = position.input(i);
-			switch (input.type()) {
-			case messages::Input_InputType_DOUBLE_TAP:
-				double_tap = true;
-				break;
-			case messages::Input_InputType_TRIPLE_TAP:
-				triple_tap = true;
-				break;
-			case messages::Input_InputType_TRIGGER:
-				trigger = input.value();
-				break;
-			case messages::Input_InputType_GRIP:
-				grip = input.value();
-				break;
-			case messages::Input_InputType_BUTTON_X:
-				x_pressed = true;
-				break;
-			case messages::Input_InputType_BUTTON_Y:
-				y_pressed = true;
-				break;
-			case messages::Input_InputType_BUTTON_A:
-				a_pressed = true;
-				break;
-			case messages::Input_InputType_BUTTON_B:
-				b_pressed = true;
-				break;
-			case messages::Input_InputType_STICK_X:
-				stick_x = input.value();
-				break;
-			case messages::Input_InputType_STICK_Y:
-				stick_y = input.value();
-				break;
-			case messages::Input_InputType_STICK_CLICK:
-				stick_click = true;
-				break;
-			}
-		}
-
-		// Set inputs
-		GetDriver()->GetInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
-		GetDriver()->GetInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
-
-		if (is_left_hand_) {
-			GetDriver()->GetInput()->UpdateScalarComponent(left_trigger_component_, trigger, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(left_grip_value_component_, grip, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(left_stick_x_component_, stick_x, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(left_stick_y_component_, stick_y, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_x_component_, x_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_y_component_, y_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(left_stick_click_component_, stick_click, 0);
-		}
-		else if (is_right_hand_) {
-			GetDriver()->GetInput()->UpdateScalarComponent(right_trigger_component_, trigger, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(right_grip_value_component_, grip, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(right_stick_x_component_, stick_x, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(right_stick_y_component_, stick_y, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, a_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, b_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(right_stick_click_component_, stick_click, 0);
+	bool double_tap = false;
+	bool triple_tap = false;
+	for (int i = 0; i < position.input_size(); ++i) {
+		const auto& input = position.input(i);
+		switch (input.type()) {
+		case messages::Input_InputType_DOUBLE_TAP:
+			double_tap = true;
+			break;
+		case messages::Input_InputType_TRIPLE_TAP:
+			triple_tap = true;
+			break;
 		}
 	}
 
@@ -180,11 +117,61 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	pose.poseIsValid = true;
 	pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
 
+	// Set inputs
+	GetDriver()->GetInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
+	GetDriver()->GetInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
+
 	// Notify SteamVR that pose was updated
 	last_pose_atomic_ = (last_pose_ = pose);
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
+void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
+	if (is_controller_) {
+		// Get inputs from protobuf
+		bool x_pressed = false;
+		bool y_pressed = false;
+		bool a_pressed = false;
+		bool b_pressed = false;
+		bool stick_click = false;
+		bool menu = false;
+		bool recenter = false;
+		float thumbstick_x = 0.0f;
+		float thumbstick_y = 0.0f;
+		float trigger = 0.0f;
+		float grip = 0.0f;
 
+
+		thumbstick_x = controllerInput.thumbstick_x;
+		thumbstick_y = controllerInput.thumbstick_y;
+		trigger = controllerInput.trigger;
+		grip = controllerInput.grip;
+		stick_click = controllerInput.stick_click;
+		if (is_left_hand_) {
+			x_pressed = controllerInput.button_1;
+			y_pressed = controllerInput.button_2;
+			menu = controllerInput.menu_recenter;
+			GetDriver()->GetInput()->UpdateScalarComponent(left_trigger_component_, trigger, 0);
+			GetDriver()->GetInput()->UpdateScalarComponent(left_grip_value_component_, grip, 0);
+			GetDriver()->GetInput()->UpdateScalarComponent(left_stick_x_component_, thumbstick_x, 0);
+			GetDriver()->GetInput()->UpdateScalarComponent(left_stick_y_component_, thumbstick_y, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(button_x_component_, x_pressed, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(button_y_component_, y_pressed, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(left_stick_click_component_, stick_click, 0);
+		}
+		else if (is_right_hand_) {
+			a_pressed = controllerInput.button_1;
+			b_pressed = controllerInput.button_2;
+			recenter = controllerInput.menu_recenter;
+			GetDriver()->GetInput()->UpdateScalarComponent(right_trigger_component_, trigger, 0);
+			GetDriver()->GetInput()->UpdateScalarComponent(right_grip_value_component_, grip, 0);
+			GetDriver()->GetInput()->UpdateScalarComponent(right_stick_x_component_, thumbstick_x, 0);
+			GetDriver()->GetInput()->UpdateScalarComponent(right_stick_y_component_, thumbstick_y, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, a_pressed, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, b_pressed, 0);
+			GetDriver()->GetInput()->UpdateBooleanComponent(right_stick_click_component_, stick_click, 0);
+		}
+	}
+}
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
 	if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
 		return;
