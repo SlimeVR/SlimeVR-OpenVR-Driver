@@ -89,29 +89,29 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 		}
 	}
 
-	if (fingertracking_enabled_) {
-		// Set finger rotations
-		vr::VRBoneTransform_t finger_skeleton_[31]{};
-		for (int i = 0; i < position.finger_bone_rotations_size(); i++)
-		{
-			// Get data from protobuf
-			auto fingerData = position.finger_bone_rotations(i);
-			int fingerBoneName = static_cast<int>(fingerData.name());
+	//if (fingertracking_enabled_) {
+	//	// Set finger rotations
+	//	vr::VRBoneTransform_t finger_skeleton_[31]{};
+	//	for (int i = 0; i < position.finger_bone_rotations_size(); i++)
+	//	{
+	//		// Get data from protobuf
+	//		auto fingerData = position.finger_bone_rotations(i);
+	//		int fingerBoneName = static_cast<int>(fingerData.name());
 
-			// Map from our 15 bones to OpenVR's 31 bones
-			int boneIndex = protobuf_fingers_to_openvr[fingerBoneName];
-			finger_skeleton_[boneIndex].orientation = {
-				fingerData.w(),
-				fingerData.x(),
-				fingerData.y(),
-				fingerData.z()
-			};
-		}
+	//		// Map from our 15 bones to OpenVR's 31 bones
+	//		int boneIndex = protobuf_fingers_to_openvr[fingerBoneName];
+	//		finger_skeleton_[boneIndex].orientation = {
+	//			fingerData.w(),
+	//			fingerData.x(),
+	//			fingerData.y(),
+	//			fingerData.z()
+	//		};
+	//	}
 
-		// Update the finger skeleton for this hand. With and without controller have the same pose.
-		vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithController, finger_skeleton_, 31);
-		vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithoutController, finger_skeleton_, 31);
-	}
+	//	// Update the finger skeleton for this hand. With and without controller have the same pose.
+	//	vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithController, finger_skeleton_, 31);
+	//	vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithoutController, finger_skeleton_, 31);
+	//}
 
 	pose.deviceIsConnected = true;
 	pose.poseIsValid = true;
