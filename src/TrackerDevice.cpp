@@ -77,17 +77,6 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 
 	bool double_tap = false;
 	bool triple_tap = false;
-	//for (int i = 0; i < position.input_size(); ++i) {
-	//	const auto& input = position.input(i);
-	//	switch (input.type()) {
-	//	case messages::Input_InputType_DOUBLE_TAP:
-	//		double_tap = true;
-	//		break;
-	//	case messages::Input_InputType_TRIPLE_TAP:
-	//		triple_tap = true;
-	//		break;
-	//	}
-	//}
 
 	//if (fingertracking_enabled_) {
 	//	// Set finger rotations
@@ -309,13 +298,13 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/b/click", &this->button_b_component_);
 		}
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/system/click", is_left_hand_ ? &this->menu_component_ : &this->recenter_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, ("/input/joystick/click").c_str(), (is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_));
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", (is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_));
 
 		// Scalar components
-		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/trigger/value").c_str(), is_left_hand_ ? &this->left_trigger_component_ : &this->left_trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/grip/value").c_str(), is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/joystick/x").c_str(), is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_,vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, ("/input/joystick/y").c_str(), is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", is_left_hand_ ? &this->left_trigger_component_ : &this->left_trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_,vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
