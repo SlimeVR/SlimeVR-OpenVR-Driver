@@ -114,7 +114,8 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	last_pose_atomic_ = (last_pose_ = pose);
 
 	if (is_controller_) {
-		GetDriver()->GetInput()->UpdatePoseComponent(pose_component_handle_, &pose, sizeof(vr::DriverPose_t));
+		vr::HmdMatrix34_t poseMatrix = ToHmdMatrix(pose);
+		GetDriver()->GetInput()->UpdatePoseComponent(pose_component_handle_, &poseMatrix, 0.0);
 	}
 	else {
 		GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
@@ -385,3 +386,43 @@ int SlimeVRDriver::TrackerDevice::GetDeviceId() {
 void SlimeVRDriver::TrackerDevice::SetDeviceId(int device_id) {
 	device_id_ = device_id;
 }
+vr::HmdMatrix34_t ToHmdMatrix(const vr::DriverPose_t& pose) {
+	vr::HmdMatrix34_t m;
+
+	const auto& q = pose.qRotation;
+	const auto& p = pose.vecPosition;
+
+	float x2 = q.x + q.x;
+	float y2 = q.y + q.y;
+	float z2 = q.z + q.z;
+
+	float xx2 = q.x * x2;
+	float yy2 = q.y * y2;
+	float zz2 = q.z * z2;
+
+	float xy2 = q.x * y2;
+	float xz2 = q.x * z2;
+	float yz2 = q.y * z2;
+
+	float wx2 = q.w * x2;
+	float wy2 = q.w * y2;
+	float wz2 = q.w * z2;
+
+	m.m[0][0] = 1.0f - (yy2 + zz2);
+	m.m[0][1] = xy2 - wz2;
+	m.m[0][2] = xz2 + wy2;
+	m.m[0][3] = p[0];
+
+	m.m[1][0] = xy2 + wz2;
+	m.m[1][1] = 1.0f - (xx2 + zz2);
+	m.m[1][2] = yz2 - wx2;
+	m.m[1][3] = p[1];
+
+	m.m[2][0] = xz2 - wy2;
+	m.m[2][1] = yz2 + wx2;
+	m.m[2][2] = 1.0f - (xx2 + yy2);
+	m.m[2][3] = p[2];
+
+	return m;
+}
+
