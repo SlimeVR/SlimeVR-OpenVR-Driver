@@ -287,7 +287,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		GetDriver()->GetInput()->CreateHapticComponent(props, "/output/haptic", &haptic_component_);
-		vr::Vrindput
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
