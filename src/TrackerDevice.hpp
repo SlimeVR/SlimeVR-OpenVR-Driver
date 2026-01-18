@@ -63,6 +63,7 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t triple_tap_component_ = 0;
 
         vr::VRInputComponentHandle_t ignored = 0;
+        vr::VRInputComponentHandle_t pose_component_handle_ = 0;
 
         vr::VRInputComponentHandle_t left_trigger_component_ = 0;
         vr::VRInputComponentHandle_t left_grip_value_component_ = 0;

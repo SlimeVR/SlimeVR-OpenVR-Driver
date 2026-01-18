@@ -112,7 +112,13 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 
 	// Notify SteamVR that pose was updated
 	last_pose_atomic_ = (last_pose_ = pose);
-	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
+
+	if (is_controller_) {
+		GetDriver()->GetInput()->UpdatePoseComponent(pose_component_handle_, &pose, sizeof(vr::DriverPose_t));
+	}
+	else {
+		GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
+	}
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
 	if (is_controller_) {
@@ -284,14 +290,13 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceNotReady_String, "{slimevr}/icons/tracker_status_error.png");
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
-
 	// Set inputs
 	if (is_controller_) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
-
+		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/raw", &pose_component_handle_);
 		if (is_left_hand_) {
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/click", &this->button_x_component_);
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/touch", &this->button_x_component_touch_);
