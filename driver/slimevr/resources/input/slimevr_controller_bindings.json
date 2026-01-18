@@ -18,35 +18,34 @@
       "type": "pose",
       "binding_image_point": [ 80, 80 ]
     },
+    "/pose/aim": {
+      "type": "pose",
+      "binding_image_point": [ 80, 80 ]
+    },
+
     "/output/haptic": {
       "type": "vibration",
       "binding_image_point": [ 80, 80 ]
     },
+
     "/input/double_tap": {
       "type": "button",
-      "click": true,
-      "touch": false,
-      "binding_image_point": [ 80, 80 ],
-      "order": 1
+      "click": true
     },
     "/input/triple_tap": {
       "type": "button",
-      "click": true,
-      "touch": false,
-      "binding_image_point": [ 80, 80 ],
-      "order": 2
+      "click": true
     },
+
     "/input/skeleton/left": {
       "type": "skeleton",
       "skeleton": "/skeleton/hand/left",
-      "side": "left",
-      "binding_image_point": [ 80, 80 ]
+      "side": "left"
     },
     "/input/skeleton/right": {
       "type": "skeleton",
       "skeleton": "/skeleton/hand/right",
-      "side": "right",
-      "binding_image_point": [ 80, 80 ]
+      "side": "right"
     },
 
     "/input/x/click": {
@@ -65,7 +64,6 @@
       "type": "button",
       "touch": true
     },
-
     "/input/a/click": {
       "type": "button",
       "click": true
@@ -101,7 +99,6 @@
       "type": "button",
       "touch": true
     },
-
     "/input/grip/value": { "type": "trigger" },
     "/input/grip/touch": {
       "type": "button",

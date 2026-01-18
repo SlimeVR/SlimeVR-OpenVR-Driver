@@ -115,7 +115,8 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 
 	if (is_controller_) {
 		vr::HmdMatrix34_t poseMatrix = ToHmdMatrix(pose);
-		GetDriver()->GetInput()->UpdatePoseComponent(pose_component_handle_, &poseMatrix, 0.0);
+		GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
+		GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &poseMatrix, 0.0);
 	}
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
@@ -292,6 +293,10 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set inputs
 	if (is_controller_) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
+
+		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/raw", &raw_pose_component_handle_);
+
+		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/aim", &aim_pose_component_handle_);
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
