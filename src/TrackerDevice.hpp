@@ -81,8 +81,8 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t grip_value_component_touch_ = 0;
         vr::VRInputComponentHandle_t stick_x_component_touch_ = 0;
         vr::VRInputComponentHandle_t stick_y_component_touch_ = 0;
-        vr::VRInputComponentHandle_t button_x_component_touch_ = 0;
-        vr::VRInputComponentHandle_t button_y_component_touch_ = 0;
+        vr::VRInputComponentHandle_t button_a_component_touch_ = 0;
+        vr::VRInputComponentHandle_t button_b_component_touch_ = 0;
         vr::VRInputComponentHandle_t stick_click_component_touch_ = 0;
         vr::VRInputComponentHandle_t menu_component_touch_ = 0;
 
