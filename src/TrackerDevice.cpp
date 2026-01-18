@@ -270,10 +270,10 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	std::string model_path;
 	if (is_controller_) {
 		if (is_left_hand_) {
-			model_path = "{oculus}oculus_quest_pro_controller_left";
+			model_path = "{htc}/vr_controller_vive_1_5"; // Use Vive 1.5 model for left
 		}
 		else if (is_right_hand_) {
-			model_path = "{oculus}oculus_quest_pro_controller_right";
+			model_path = "{htc}/vr_controller_vive_1_5"; // Right hand uses same model
 		}
 		GetDriver()->GetProperties()->SetStringProperty(
 			props, vr::Prop_RenderModelName_String, model_path.c_str()
