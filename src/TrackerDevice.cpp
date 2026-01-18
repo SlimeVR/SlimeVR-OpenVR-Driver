@@ -269,15 +269,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set up a render model path (index controllers for controllers and vive trackers 1.0 for trackers)
 	std::string model_path;
 	if (is_controller_) {
-		if (is_left_hand_) {
-			model_path = "{htc}/vr_controller_vive_1_5"; // Use Vive 1.5 model for left
-		}
-		else if (is_right_hand_) {
-			model_path = "{htc}/vr_controller_vive_1_5"; // Right hand uses same model
-		}
-		GetDriver()->GetProperties()->SetStringProperty(
-			props, vr::Prop_RenderModelName_String, model_path.c_str()
-		);
+		vr::VRProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, is_right_hand_ ? "{indexcontroller}valve_controller_knu_1_0_right" : "{indexcontroller}valve_controller_knu_1_0_left");
 	}
 	else {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
