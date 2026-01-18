@@ -1,62 +1,27 @@
 {
-	"action_manifest_version": 0,
-	"alias_info": {},
+	"action_manifest_version": 1,
+	"controller_type": "slimevr_virtual_controller",
+	"interaction_profile": "/interaction_profiles/valve/index_controller",
+	"description": "SlimeVR virtual controller",
 	"app_key": "openvr.component.vrcompositor",
 	"bindings": {
-		"/actions/lasermouse": {
+		"/actions/default": {
 			"sources": [
-				{
-					"inputs": {
-						"click": {
-							"output": "/actions/lasermouse/in/LeftClick"
-						}
-					},
-					"mode": "button",
-					"parameters": {},
-					"path": "/user/hand/left/input/double_tap"
-				},
-				{
-					"inputs": {
-						"click": {
-							"output": "/actions/lasermouse/in/LeftClick"
-						}
-					},
-					"mode": "button",
-					"parameters": {},
-					"path": "/user/hand/right/input/double_tap"
-				}
+				{ "path": "/user/hand/left/pose/aim" },
+				{ "path": "/user/hand/right/pose/aim" }
+			]
+		},
+		"/actions/laser_click": {
+			"sources": [
+				{ "path": "/user/hand/left/input/trigger/value" },
+				{ "path": "/user/hand/right/input/trigger/value" }
 			]
 		},
 		"/actions/system": {
 			"sources": [
-				{
-					"inputs": {
-						"click": {
-							"output": "/actions/system/in/ToggleDashboard"
-						}
-					},
-					"mode": "button",
-					"parameters": {},
-					"path": "/user/hand/left/input/triple_tap"
-				},
-				{
-					"inputs": {
-						"click": {
-							"output": "/actions/system/in/ToggleDashboard"
-						}
-					},
-					"mode": "button",
-					"parameters": {},
-					"path": "/user/hand/right/input/triple_tap"
-				}
+				{ "path": "/user/hand/left/input/system/click" },
+				{ "path": "/user/hand/right/input/system/click" }
 			]
 		}
-	},
-	"category": "steamvr_input",
-	"controller_type": "slimevr_virtual_controller",
-	"description": "Triple tap to toggle the dashboard. Double tap to click with the laser mouse.",
-	"interaction_profile": "",
-	"name": "Default SteamVR Dashboard bindings for SlimeVR",
-	"options": {},
-	"simulated_actions": []
+	}
 }
