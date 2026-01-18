@@ -41,7 +41,7 @@ namespace SlimeVRDriver {
         virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
         virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
         virtual vr::DriverPose_t GetPose() override;
-
+        vr::HmdMatrix34_t ToHmdMatrix(const vr::DriverPose_t& pose);
     private:
         std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
 
