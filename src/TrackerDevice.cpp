@@ -7,7 +7,7 @@ SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, T
 	is_left_hand_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_HAND),
 	is_right_hand_(tracker_role_ == TrackerRole::RIGHT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_HAND),
 	fingertracking_enabled_(is_left_hand_ || is_right_hand_),
-	is_controller_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_CONTROLLER),
+	is_controller_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_HAND),
 	last_pose_(MakeDefaultPose()),
 	last_pose_atomic_(MakeDefaultPose())
 {
@@ -269,7 +269,12 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set up a render model path (index controllers for controllers and vive trackers 1.0 for trackers)
 	std::string model_path;
 	if (is_controller_) {
-		model_path = "{generic}controller";
+		if (is_left_hand_) {
+			model_path = "{oculus}oculus_quest_pro_controller_left";
+		}
+		else if (is_right_hand_) {
+			model_path = "{oculus}oculus_quest_pro_controller_right";
+		}
 		GetDriver()->GetProperties()->SetStringProperty(
 			props, vr::Prop_RenderModelName_String, model_path.c_str()
 		);
