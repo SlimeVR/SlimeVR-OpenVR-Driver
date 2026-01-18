@@ -117,9 +117,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 		vr::HmdMatrix34_t poseMatrix = ToHmdMatrix(pose);
 		GetDriver()->GetInput()->UpdatePoseComponent(pose_component_handle_, &poseMatrix, 0.0);
 	}
-	else {
-		GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
-	}
+	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
 	if (is_controller_) {
