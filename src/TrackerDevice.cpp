@@ -115,10 +115,11 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 
 	if (is_controller_) {
 		vr::HmdMatrix34_t poseMatrix = ToHmdMatrix(pose);
+		vr::HmdMatrix34_t aimPose = poseMatrix;
+		aimPose.m[0][3] += 0.02f; // 2cm forward
 		GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
-		GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &poseMatrix, 0.0);
+		GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &aimPose, 0.0);
 	}
-	GetDriver()->GetInput()->ReportActiveDevice(device_index_);
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
@@ -268,6 +269,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Should be treated as controller or as tracker? (Hand = Tracker and Controller = Controller)
 	if (is_controller_) {
 		vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_Controller);
+		vr::VRProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "index_controller");
 		vr::VRProperties()->SetInt32Property(props, vr::Prop_ControllerHandSelectionPriority_Int32, 2147483647); // Prioritizes our controller over whatever else.
 	}
 	else {
