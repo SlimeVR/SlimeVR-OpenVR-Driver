@@ -243,14 +243,18 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
 	}
 
-	// Hand selection
-	if (is_left_hand_) {
-		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_LeftHand);
-	}
-	else if (is_right_hand_) {
-		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
-	}
-	else {
+	//// Hand selection
+	//if (is_left_hand_) {
+	//	GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_LeftHand);
+	//}
+	//else if (is_right_hand_) {
+	//	GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
+	//}
+	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String,
+		is_right_hand_ ? "{indexcontroller}valve_controller_knu_1_0_right"
+		: "{indexcontroller}valve_controller_knu_1_0_left");
+
+	if(!is_left_hand_ && !is_right_hand_) {
 		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
 	}
 
@@ -301,7 +305,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", (is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_));
 
 		// Scalar components
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", is_left_hand_ ? &this->left_trigger_component_ : &this->left_trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", is_left_hand_ ? &this->left_trigger_component_ : &this->right_trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_,vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
