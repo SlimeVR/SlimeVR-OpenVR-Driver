@@ -168,7 +168,6 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 			GetDriver()->GetInput()->UpdateBooleanComponent(right_stick_click_component_, stick_click, 0);
 			GetDriver()->GetInput()->UpdateBooleanComponent(recenter_component_, recenter, 0);
 		}
-		GetDriver()->GetInput()->ReportActiveDevice(device_index_);
 	}
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
