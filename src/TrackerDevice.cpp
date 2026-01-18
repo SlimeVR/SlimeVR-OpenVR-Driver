@@ -7,7 +7,7 @@ SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, T
 	is_left_hand_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_HAND),
 	is_right_hand_(tracker_role_ == TrackerRole::RIGHT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_HAND),
 	fingertracking_enabled_(is_left_hand_ || is_right_hand_),
-	is_controller_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_HAND),
+	is_controller_(tracker_role_ == TrackerRole::LEFT_CONTROLLER || tracker_role_ == TrackerRole::RIGHT_CONTROLLER || tracker_role_ == TrackerRole::LEFT_HAND || tracker_role_ == TrackerRole::RIGHT_HAND),
 	last_pose_(MakeDefaultPose()),
 	last_pose_atomic_(MakeDefaultPose())
 {
