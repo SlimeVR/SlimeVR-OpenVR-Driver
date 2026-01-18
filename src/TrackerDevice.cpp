@@ -269,14 +269,9 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set up a render model path (index controllers for controllers and vive trackers 1.0 for trackers)
 	std::string model_path;
 	if (is_controller_) {
-		// Try Oculus Touch first, fallback to generic
-		model_path = "{oculus}oculus_touch_left";
-		if (!SteamVRModelExists(model_path)) {
-			model_path = "{generic}controller";
-		}
+		model_path = "{generic}controller";
 		GetDriver()->GetProperties()->SetStringProperty(
-			props, vr::Prop_RenderModelName_String,
-			is_right_hand_ ? model_path.replace("left", "right") : model_path.c_str()
+			props, vr::Prop_RenderModelName_String, model_path.c_str()
 		);
 	}
 	else {
