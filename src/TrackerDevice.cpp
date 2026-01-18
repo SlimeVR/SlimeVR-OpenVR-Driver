@@ -118,6 +118,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 		GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
 		GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &poseMatrix, 0.0);
 	}
+	GetDriver()->GetInput()->ReportActiveDevice(device_index_);
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
@@ -166,6 +167,7 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 			GetDriver()->GetInput()->UpdateBooleanComponent(right_stick_click_component_, stick_click, 0);
 			GetDriver()->GetInput()->UpdateBooleanComponent(recenter_component_, recenter, 0);
 		}
+		GetDriver()->GetInput()->ReportActiveDevice(device_index_);
 	}
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
@@ -295,12 +297,10 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
 
 		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/raw", &raw_pose_component_handle_);
-
 		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/aim", &aim_pose_component_handle_);
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
-		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/raw", &pose_component_handle_);
 		if (is_left_hand_) {
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/click", &this->button_x_component_);
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/touch", &this->button_x_component_touch_);
