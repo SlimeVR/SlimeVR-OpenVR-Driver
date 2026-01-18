@@ -100,7 +100,6 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t right_stick_click_component_touch_ = 0;
         vr::VRInputComponentHandle_t recenter_component_touch_ = 0;
 
-        vr::VRInputComponentHandle_t haptic_component_ = 0;
 
         bool is_controller_;
         bool is_left_hand_;
