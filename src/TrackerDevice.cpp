@@ -386,7 +386,7 @@ int SlimeVRDriver::TrackerDevice::GetDeviceId() {
 void SlimeVRDriver::TrackerDevice::SetDeviceId(int device_id) {
 	device_id_ = device_id;
 }
-vr::HmdMatrix34_t ToHmdMatrix(const vr::DriverPose_t& pose) {
+vr::HmdMatrix34_t SlimeVRDriver::TrackerDevice::ToHmdMatrix(const vr::DriverPose_t& pose) {
 	vr::HmdMatrix34_t m;
 
 	const auto& q = pose.qRotation;
