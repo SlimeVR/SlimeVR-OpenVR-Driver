@@ -288,9 +288,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set inputs
 	if (is_controller_) {
 		std::string hand_prefix = is_left_hand_ ? "/input/left/" : "/input/right/";
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{steamvr}/input/vr_controller_generic_hmd.json"
-		);
-
+		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{openvr}/input/oculus_quest_touch.json");
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
