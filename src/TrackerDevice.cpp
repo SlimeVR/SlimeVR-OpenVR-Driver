@@ -116,7 +116,10 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	if (is_controller_) {
 		vr::HmdMatrix34_t poseMatrix = ToHmdMatrix(pose);
 		vr::HmdMatrix34_t aimPose = poseMatrix;
-		aimPose.m[0][3] += 0.02f; // 2cm forward
+		// Move 2cm forward in the controller's local space
+		aimPose.m[0][3] += -0.02f * poseMatrix.m[2][0];
+		aimPose.m[1][3] += -0.02f * poseMatrix.m[2][1];
+		aimPose.m[2][3] += -0.02f * poseMatrix.m[2][2];
 		GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
 		GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &aimPose, 0.0);
 	}
@@ -125,49 +128,14 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
 	if (is_controller_) {
 		// Get inputs from protobuf
-		bool x_pressed = false;
-		bool y_pressed = false;
-		bool a_pressed = false;
-		bool b_pressed = false;
-		bool stick_click = false;
-		bool menu = false;
-		bool recenter = false;
-		float thumbstick_x = 0.0f;
-		float thumbstick_y = 0.0f;
-		float trigger = 0.0f;
-		float grip = 0.0f;
-
-		thumbstick_x = controllerInput.thumbstick_x();
-		thumbstick_y = controllerInput.thumbstick_y();
-		trigger = controllerInput.trigger();
-		grip = controllerInput.grip();
-		stick_click = controllerInput.stick_click();
-		if (is_left_hand_) {
-			x_pressed = controllerInput.button_1();
-			y_pressed = controllerInput.button_2();
-			menu = controllerInput.menu_recenter();
-			GetDriver()->GetInput()->UpdateScalarComponent(left_trigger_component_, trigger, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(left_grip_value_component_, grip, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(left_stick_x_component_, thumbstick_x, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(left_stick_y_component_, thumbstick_y, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_x_component_, x_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_y_component_, y_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(left_stick_click_component_, stick_click, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, menu, 0);
-		}
-		else if (is_right_hand_) {
-			a_pressed = controllerInput.button_1();
-			b_pressed = controllerInput.button_2();
-			recenter = controllerInput.menu_recenter();
-			GetDriver()->GetInput()->UpdateScalarComponent(right_trigger_component_, trigger, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(right_grip_value_component_, grip, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(right_stick_x_component_, thumbstick_x, 0);
-			GetDriver()->GetInput()->UpdateScalarComponent(right_stick_y_component_, thumbstick_y, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, a_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, b_pressed, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(right_stick_click_component_, stick_click, 0);
-			GetDriver()->GetInput()->UpdateBooleanComponent(recenter_component_, recenter, 0);
-		}
+		GetDriver()->GetInput()->UpdateScalarComponent(trigger_component_, controllerInput.trigger(), 0);
+		GetDriver()->GetInput()->UpdateScalarComponent(grip_value_component_, controllerInput.grip(), 0);
+		GetDriver()->GetInput()->UpdateScalarComponent(stick_x_component_, controllerInput.thumbstick_x(), 0);
+		GetDriver()->GetInput()->UpdateScalarComponent(stick_y_component_, controllerInput.thumbstick_y(), 0);
+		GetDriver()->GetInput()->UpdateBooleanComponent(a_component_, controllerInput.button_1(), 0);
+		GetDriver()->GetInput()->UpdateBooleanComponent(b_component_, controllerInput.button_2(), 0);
+		GetDriver()->GetInput()->UpdateBooleanComponent(stick_click_component_, controllerInput.stick_click(), 0);
+		GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, controllerInput.menu_recenter(), 0);
 	}
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
@@ -268,8 +236,9 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Should be treated as controller or as tracker? (Hand = Tracker and Controller = Controller)
 	if (is_controller_) {
 		vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_Controller);
-		vr::VRProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "index_controller");
+		vr::VRProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "knuckles");
 		vr::VRProperties()->SetInt32Property(props, vr::Prop_ControllerHandSelectionPriority_Int32, 2147483647); // Prioritizes our controller over whatever else.
+		std::string manifestPath = "C:\\Program Files\\SlimeVR\\steamvr_input\\actions.json";
 	}
 	else {
 		vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
@@ -302,30 +271,23 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
-		if (is_left_hand_) {
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/click", &this->button_x_component_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/touch", &this->button_x_component_touch_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/y/click", &this->button_y_component_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/y/touch", &this->button_y_component_touch_);
-		}
-		if (is_right_hand_) {
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/click", &this->button_a_component_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/touch", &this->button_a_component_touch_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
-		}
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", is_left_hand_ ? &this->menu_component_ : &this->recenter_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", (is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_));
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", (is_left_hand_ ? &this->left_stick_click_component_touch_ : &this->right_stick_click_component_touch_));
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/click", &this->button_a_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/touch", &this->button_a_component_touch_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", &this->menu_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", &this->stick_click_component_));
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", &this->stick_click_component_touch_));
 
 		// Scalar components
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", is_left_hand_ ? &this->left_trigger_component_ : &this->right_trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/touch", is_left_hand_ ? &this->left_trigger_component_touch_ : &this->right_trigger_component_touch_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/grip/touch", is_left_hand_ ? &this->left_grip_value_component_touch_ : &this->right_grip_value_component_touch_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", &this->trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/touch", &this->trigger_component_touch_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", &this->grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/grip/touch", &this->grip_value_component_touch_);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		GetDriver()->GetInput()->CreateHapticComponent(props, "/output/haptic", &haptic_component_);
+		vr::Vrindput
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
