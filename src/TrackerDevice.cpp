@@ -129,7 +129,6 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 		float trigger = 0.0f;
 		float grip = 0.0f;
 
-
 		thumbstick_x = controllerInput.thumbstick_x();
 		thumbstick_y = controllerInput.thumbstick_y();
 		trigger = controllerInput.trigger();
@@ -254,7 +253,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	else if (is_right_hand_) {
 		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
 	}
-	if (!is_left_hand_ && !is_right_hand_) {
+	else {
 		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
 	}
 
@@ -268,8 +267,17 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	}
 
 	// Set up a render model path (index controllers for controllers and vive trackers 1.0 for trackers)
+	std::string model_path;
 	if (is_controller_) {
-		vr::VRProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, is_right_hand_ ? "{indexcontroller}valve_controller_knu_1_0_right" : "{indexcontroller}valve_controller_knu_1_0_left");
+		// Try Oculus Touch first, fallback to generic
+		model_path = "{oculus}oculus_touch_left";
+		if (!SteamVRModelExists(model_path)) {
+			model_path = "{generic}controller";
+		}
+		GetDriver()->GetProperties()->SetStringProperty(
+			props, vr::Prop_RenderModelName_String,
+			is_right_hand_ ? model_path.replace("left", "right") : model_path.c_str()
+		);
 	}
 	else {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
@@ -287,28 +295,35 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 	// Set inputs
 	if (is_controller_) {
-		std::string hand_prefix = is_left_hand_ ? "/input/left/" : "/input/right/";
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{steamvr}/input/vr_controller_vive_1_5.json");
+		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
 
 		if (is_left_hand_) {
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/click", &this->button_x_component_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/y/click", &this->button_y_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/touch", &this->button_x_component_touch_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/y/click", &this->button_y_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/y/touch", &this->button_y_component_touch_);
 		}
 		if (is_right_hand_) {
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/click", &this->button_a_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/touch", &this->button_a_component_touch_);
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
 		}
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", is_left_hand_ ? &this->menu_component_ : &this->recenter_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", (is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_));
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", (is_left_hand_ ? &this->left_stick_click_component_touch_ : &this->right_stick_click_component_touch_));
 
 		// Scalar components
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", is_left_hand_ ? &this->left_trigger_component_ : &this->right_trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/touch", is_left_hand_ ? &this->left_trigger_component_touch_ : &this->right_trigger_component_touch_);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", is_left_hand_ ? &this->left_grip_value_component_ : &this->right_grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/grip/touch", is_left_hand_ ? &this->left_grip_value_component_touch_ : &this->right_grip_value_component_touch_);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", is_left_hand_ ? &this->left_stick_x_component_ : &this->right_stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", is_left_hand_ ? &this->left_stick_y_component_ : &this->right_stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateHapticComponent(props, "/output/haptic", &haptic_component_);
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)

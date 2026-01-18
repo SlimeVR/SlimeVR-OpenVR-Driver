@@ -47,77 +47,75 @@
       "side": "right",
       "binding_image_point": [ 80, 80 ]
     },
+
     "/input/x/click": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "click": true
+    },
+    "/input/x/touch": {
+      "type": "button",
+      "touch": true
     },
     "/input/y/click": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "click": true
     },
+    "/input/y/touch": {
+      "type": "button",
+      "touch": true
+    },
+
     "/input/a/click": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "click": true
+    },
+    "/input/a/touch": {
+      "type": "button",
+      "touch": true
     },
     "/input/b/click": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "click": true
     },
-    "/input/left/trigger": {
-      "type": "trigger",
-      "binding_image_point": [ 80, 80 ]
-    },
-    "/input/right/trigger": {
-      "type": "trigger",
-      "binding_image_point": [ 80, 80 ]
-    },
-    "/input/left/stick/x": {
-      "type": "scalar",
-      "binding_image_point": [ 80, 80 ]
-    },
-    "/input/left/stick/y": {
-      "type": "scalar",
-      "binding_image_point": [ 80, 80 ]
-    },
-    "/input/left/stick/click": {
+    "/input/b/touch": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "touch": true
     },
-    "/input/right/stick/x": {
-      "type": "scalar",
-      "binding_image_point": [ 80, 80 ]
-    },
-    "/input/right/stick/y": {
-      "type": "scalar",
-      "binding_image_point": [ 80, 80 ]
-    },
-    "/input/right/stick/click": {
+
+    "/input/system/click": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "click": true
     },
     "/input/menu/click": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "click": true
     },
     "/input/recenter/click": {
       "type": "button",
-      "click": true,
-      "binding_image_point": [ 80, 80 ]
+      "click": true
     },
-    "/input/left/grip": {
-      "type": "trigger",
-      "binding_image_point": [ 80, 80 ]
+
+    "/input/trigger/value": { "type": "trigger" },
+    "/input/trigger/touch": {
+      "type": "button",
+      "touch": true
     },
-    "/input/right/grip": {
-      "type": "trigger",
-      "binding_image_point": [ 80, 80 ]
+
+    "/input/grip/value": { "type": "trigger" },
+    "/input/grip/touch": {
+      "type": "button",
+      "touch": true
+    },
+
+    "/input/joystick/x": { "type": "scalar" },
+    "/input/joystick/y": { "type": "scalar" },
+    "/input/joystick/click": {
+      "type": "button",
+      "click": true
+    },
+    "/input/joystick/touch": {
+      "type": "button",
+      "touch": true
     }
   },
   "default_bindings": [
