@@ -62,6 +62,8 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t double_tap_component_ = 0;
         vr::VRInputComponentHandle_t triple_tap_component_ = 0;
 
+        vr::VRInputComponentHandle_t ignored = 0;
+
         vr::VRInputComponentHandle_t left_trigger_component_ = 0;
         vr::VRInputComponentHandle_t left_grip_value_component_ = 0;
         vr::VRInputComponentHandle_t left_stick_x_component_ = 0;
@@ -71,6 +73,15 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t left_stick_click_component_ = 0;
         vr::VRInputComponentHandle_t menu_component_ = 0;
 
+        vr::VRInputComponentHandle_t left_trigger_component_touch_ = 0;
+        vr::VRInputComponentHandle_t left_grip_value_component_touch_ = 0;
+        vr::VRInputComponentHandle_t left_stick_x_component_touch_ = 0;
+        vr::VRInputComponentHandle_t left_stick_y_component_touch_ = 0;
+        vr::VRInputComponentHandle_t button_x_component_touch_ = 0;
+        vr::VRInputComponentHandle_t button_y_component_touch_ = 0;
+        vr::VRInputComponentHandle_t left_stick_click_component_touch_ = 0;
+        vr::VRInputComponentHandle_t menu_component_touch_ = 0;
+
         vr::VRInputComponentHandle_t right_trigger_component_ = 0;
         vr::VRInputComponentHandle_t right_grip_value_component_ = 0;
         vr::VRInputComponentHandle_t right_stick_x_component_ = 0;
@@ -79,6 +90,17 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t button_b_component_ = 0;
         vr::VRInputComponentHandle_t right_stick_click_component_ = 0;
         vr::VRInputComponentHandle_t recenter_component_ = 0;
+
+        vr::VRInputComponentHandle_t right_trigger_component_touch_ = 0;
+        vr::VRInputComponentHandle_t right_grip_value_component_touch_ = 0;
+        vr::VRInputComponentHandle_t right_stick_x_component_touch_ = 0;
+        vr::VRInputComponentHandle_t right_stick_y_component_touch_ = 0;
+        vr::VRInputComponentHandle_t button_a_component_touch_ = 0;
+        vr::VRInputComponentHandle_t button_b_component_touch_ = 0;
+        vr::VRInputComponentHandle_t right_stick_click_component_touch_ = 0;
+        vr::VRInputComponentHandle_t recenter_component_touch_ = 0;
+
+        vr::VRInputComponentHandle_t haptic_component_ = 0;
 
         bool is_controller_;
         bool is_left_hand_;
