@@ -6,6 +6,7 @@
   "driver_name": "slimevr",
   "input_bindingui_mode": "controller_handed",
   "should_show_binding_errors": true,
+  "compatibility_mode_controller_type": "oculus_touch",
   "input_bindingui_left": {
     "image": "{slimevr}/icons/slimevr_tracker_icon.png"
   },
