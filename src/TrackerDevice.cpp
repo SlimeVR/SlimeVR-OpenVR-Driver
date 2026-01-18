@@ -248,12 +248,12 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	}
 
 	//// Hand selection
-	//if (is_left_hand_) {
-	//	GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_LeftHand);
-	//}
-	//else if (is_right_hand_) {
-	//	GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
-	//}
+	if (is_left_hand_) {
+		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_LeftHand);
+	}
+	else if (is_right_hand_) {
+		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
+	}
 	if (!is_left_hand_ && !is_right_hand_) {
 		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
 	}
@@ -288,20 +288,20 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set inputs
 	if (is_controller_) {
 		std::string hand_prefix = is_left_hand_ ? "/input/left/" : "/input/right/";
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{openvr}/input/oculus_quest_touch.json");
+		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{steamvr}/input/vr_controller_vive_1_5.json");
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
 
 		if (is_left_hand_) {
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/x/click", &this->button_x_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/x/click", &this->button_x_component_);
 			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/y/click", &this->button_y_component_);
 		}
 		if (is_right_hand_) {
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/a/click", &this->button_a_component_);
-			GetDriver()->GetInput()->CreateBooleanComponent(props, "input/b/click", &this->button_b_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/click", &this->button_a_component_);
+			GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
 		}
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "input/system/click", is_left_hand_ ? &this->menu_component_ : &this->recenter_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", is_left_hand_ ? &this->menu_component_ : &this->recenter_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", (is_left_hand_ ? &this->left_stick_click_component_ : &this->right_stick_click_component_));
 
 		// Scalar components
