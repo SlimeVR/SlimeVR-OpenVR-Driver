@@ -120,8 +120,8 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 		//aimPose.m[0][3] += -0.02f * poseMatrix.m[2][0];
 		//aimPose.m[1][3] += -0.02f * poseMatrix.m[2][1];
 		//aimPose.m[2][3] += -0.02f * poseMatrix.m[2][2];
-		GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
-		GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &aimPose, 0.0);
+		//GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
+		//GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &aimPose, 0.0);
 	}
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
