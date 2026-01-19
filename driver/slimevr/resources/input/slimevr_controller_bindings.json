@@ -6,7 +6,7 @@
   "driver_name": "slimevr",
   "input_bindingui_mode": "controller_handed",
   "should_show_binding_errors": true,
-  "compatibility_mode_controller_type": "oculus_touch",
+  "compatibility_mode_controller_type": "knuckles",
   "input_bindingui_left": {
     "image": "{slimevr}/icons/slimevr_tracker_icon.png"
   },
@@ -47,23 +47,6 @@
       "skeleton": "/skeleton/hand/right",
       "side": "right"
     },
-
-    "/input/x/click": {
-      "type": "button",
-      "click": true
-    },
-    "/input/x/touch": {
-      "type": "button",
-      "touch": true
-    },
-    "/input/y/click": {
-      "type": "button",
-      "click": true
-    },
-    "/input/y/touch": {
-      "type": "button",
-      "touch": true
-    },
     "/input/a/click": {
       "type": "button",
       "click": true
@@ -80,20 +63,14 @@
       "type": "button",
       "touch": true
     },
-
     "/input/system/click": {
       "type": "button",
       "click": true
     },
-    "/input/menu/click": {
+    "/input/system/touch": {
       "type": "button",
       "click": true
     },
-    "/input/recenter/click": {
-      "type": "button",
-      "click": true
-    },
-
     "/input/trigger/value": { "type": "trigger" },
     "/input/trigger/touch": {
       "type": "button",
@@ -104,14 +81,13 @@
       "type": "button",
       "touch": true
     },
-
-    "/input/joystick/x": { "type": "scalar" },
-    "/input/joystick/y": { "type": "scalar" },
-    "/input/joystick/click": {
+    "/input/thumbstick/x": { "type": "scalar" },
+    "/input/thumbstick/y": { "type": "scalar" },
+    "/input/thumbstick/click": {
       "type": "button",
       "click": true
     },
-    "/input/joystick/touch": {
+    "/input/thumbstick/touch": {
       "type": "button",
       "touch": true
     }
