@@ -113,30 +113,18 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	// Notify SteamVR that pose was updated
 	last_pose_atomic_ = (last_pose_ = pose);
 
-	if (is_controller_) {
-		vr::HmdMatrix34_t poseMatrix = ToHmdMatrix(pose);
-		vr::HmdMatrix34_t aimPose = poseMatrix;
-		// Move 2cm forward in the controller's local space
-		//aimPose.m[0][3] += -0.02f * poseMatrix.m[2][0];
-		//aimPose.m[1][3] += -0.02f * poseMatrix.m[2][1];
-		//aimPose.m[2][3] += -0.02f * poseMatrix.m[2][2];
-		//GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
-		//GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &aimPose, 0.0);
-	}
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
-	if (is_controller_) {
-		// Get inputs from protobuf
-		GetDriver()->GetInput()->UpdateScalarComponent(trigger_component_, controllerInput.trigger(), 0);
-		GetDriver()->GetInput()->UpdateScalarComponent(grip_value_component_, controllerInput.grip(), 0);
-		GetDriver()->GetInput()->UpdateScalarComponent(stick_x_component_, controllerInput.thumbstick_x(), 0);
-		GetDriver()->GetInput()->UpdateScalarComponent(stick_y_component_, controllerInput.thumbstick_y(), 0);
-		GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, controllerInput.button_1(), 0);
-		GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, controllerInput.button_2(), 0);
-		GetDriver()->GetInput()->UpdateBooleanComponent(stick_click_component_, controllerInput.stick_click(), 0);
-		GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, controllerInput.menu_recenter(), 0);
-	}
+	// Get inputs from protobuf
+	GetDriver()->GetInput()->UpdateScalarComponent(trigger_component_, controllerInput.trigger(), 0);
+	GetDriver()->GetInput()->UpdateScalarComponent(grip_value_component_, controllerInput.grip(), 0);
+	GetDriver()->GetInput()->UpdateScalarComponent(stick_x_component_, controllerInput.thumbstick_x(), 0);
+	GetDriver()->GetInput()->UpdateScalarComponent(stick_y_component_, controllerInput.thumbstick_y(), 0);
+	GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, controllerInput.button_1(), 0);
+	GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, controllerInput.button_2(), 0);
+	GetDriver()->GetInput()->UpdateBooleanComponent(stick_click_component_, controllerInput.stick_click(), 0);
+	GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, controllerInput.menu_recenter(), 0)
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
 	if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
@@ -265,7 +253,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceNotReady_String, "{slimevr}/icons/tracker_status_error.png");
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
-	
+
 	// Set inputs
 	if (is_controller_) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
@@ -357,43 +345,3 @@ int SlimeVRDriver::TrackerDevice::GetDeviceId() {
 void SlimeVRDriver::TrackerDevice::SetDeviceId(int device_id) {
 	device_id_ = device_id;
 }
-vr::HmdMatrix34_t SlimeVRDriver::TrackerDevice::ToHmdMatrix(const vr::DriverPose_t& pose) {
-	vr::HmdMatrix34_t m;
-
-	const auto& q = pose.qRotation;
-	const auto& p = pose.vecPosition;
-
-	float x2 = q.x + q.x;
-	float y2 = q.y + q.y;
-	float z2 = q.z + q.z;
-
-	float xx2 = q.x * x2;
-	float yy2 = q.y * y2;
-	float zz2 = q.z * z2;
-
-	float xy2 = q.x * y2;
-	float xz2 = q.x * z2;
-	float yz2 = q.y * z2;
-
-	float wx2 = q.w * x2;
-	float wy2 = q.w * y2;
-	float wz2 = q.w * z2;
-
-	m.m[0][0] = 1.0f - (yy2 + zz2);
-	m.m[0][1] = xy2 - wz2;
-	m.m[0][2] = xz2 + wy2;
-	m.m[0][3] = p[0];
-
-	m.m[1][0] = xy2 + wz2;
-	m.m[1][1] = 1.0f - (xx2 + zz2);
-	m.m[1][2] = yz2 - wx2;
-	m.m[1][3] = p[1];
-
-	m.m[2][0] = xz2 - wy2;
-	m.m[2][1] = yz2 + wx2;
-	m.m[2][2] = 1.0f - (xx2 + yy2);
-	m.m[2][3] = p[2];
-
-	return m;
-}
-
