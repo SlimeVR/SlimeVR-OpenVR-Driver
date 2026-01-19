@@ -240,7 +240,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Should be treated as controller or as tracker? (Hand = Tracker and Controller = Controller)
 	if (is_controller_) {
 		vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_Controller);
-		vr::VRProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "knuckles");
+		vr::VRProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "slimevr_virtual_controller");
 		vr::VRProperties()->SetInt32Property(props, vr::Prop_ControllerHandSelectionPriority_Int32, 2147483647); // Prioritizes our controller over whatever else.
 	}
 	else {
