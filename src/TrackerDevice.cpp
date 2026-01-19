@@ -217,10 +217,14 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set up a model "number" (not needed but good to have)
 	if (is_controller_) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Controller");
+		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_SerialNumber_String, "SLMVR-CTRL");
 	}
 	else {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
+		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_SerialNumber_String, "SLMVR-TRK");
 	}
+
+	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
 
 	//// Hand selection
 	if (is_left_hand_) {
@@ -261,12 +265,15 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceNotReady_String, "{slimevr}/icons/tracker_status_error.png");
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
+	
 	// Set inputs
 	if (is_controller_) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
+		uint64_t supportedButtons = 0xFFFFFFFFFFFFFFFFULL;
+		vr::VRProperties()->SetUint64Property(props, vr::Prop_SupportedButtons_Uint64, supportedButtons);
 
-		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/raw", &raw_pose_component_handle_);
-		vr::VRDriverInput()->CreatePoseComponent(props, "/pose/aim", &aim_pose_component_handle_);
+		GetDriver()->GetInput()->CreatePoseComponent(props, "/pose/raw", &raw_pose_component_handle_);
+		GetDriver()->GetInput()->CreatePoseComponent(props, "/pose/tip", &aim_pose_component_handle_);
 
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
