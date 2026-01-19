@@ -117,9 +117,9 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 		vr::HmdMatrix34_t poseMatrix = ToHmdMatrix(pose);
 		vr::HmdMatrix34_t aimPose = poseMatrix;
 		// Move 2cm forward in the controller's local space
-		aimPose.m[0][3] += -0.02f * poseMatrix.m[2][0];
-		aimPose.m[1][3] += -0.02f * poseMatrix.m[2][1];
-		aimPose.m[2][3] += -0.02f * poseMatrix.m[2][2];
+		//aimPose.m[0][3] += -0.02f * poseMatrix.m[2][0];
+		//aimPose.m[1][3] += -0.02f * poseMatrix.m[2][1];
+		//aimPose.m[2][3] += -0.02f * poseMatrix.m[2][2];
 		GetDriver()->GetInput()->UpdatePoseComponent(raw_pose_component_handle_, &poseMatrix, 0.0);
 		GetDriver()->GetInput()->UpdatePoseComponent(aim_pose_component_handle_, &aimPose, 0.0);
 	}
