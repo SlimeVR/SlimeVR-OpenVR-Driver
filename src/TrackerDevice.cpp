@@ -270,7 +270,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", &this->system_component);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system", &this->system_component);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/click", &this>trackpad_click_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/click", &this->trackpad_click_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/touch", &this->trackpad_touch_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/thumbstick/click", &this->stick_click_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/thumbstick/touch", &this->stick_click_component_touch_);
