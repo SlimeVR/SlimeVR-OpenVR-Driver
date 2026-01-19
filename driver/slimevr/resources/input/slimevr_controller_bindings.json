@@ -81,8 +81,8 @@
       "type": "button",
       "touch": true
     },
-    "/input/thumbstick/x": { "type": "scalar" },
-    "/input/thumbstick/y": { "type": "scalar" },
+    "/input/thumbstick/x": { "type": "joystick" },
+    "/input/thumbstick/y": { "type": "joystick" },
     "/input/thumbstick/click": {
       "type": "button",
       "click": true
