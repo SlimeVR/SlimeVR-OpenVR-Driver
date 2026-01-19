@@ -205,11 +205,9 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	// Set up a model "number" (not needed but good to have)
 	if (is_controller_) {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Controller");
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_SerialNumber_String, "SLMVR-CTRL");
 	}
 	else {
 		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_SerialNumber_String, "SLMVR-TRK");
 	}
 
 	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
