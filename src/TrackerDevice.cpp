@@ -276,8 +276,8 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", &this->menu_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", &this->stick_click_component_));
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", &this->stick_click_component_touch_));
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", &this->stick_click_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", &this->stick_click_component_touch_);
 
 		// Scalar components
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", &this->trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
