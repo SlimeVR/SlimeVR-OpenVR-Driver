@@ -132,8 +132,8 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 		GetDriver()->GetInput()->UpdateScalarComponent(grip_value_component_, controllerInput.grip(), 0);
 		GetDriver()->GetInput()->UpdateScalarComponent(stick_x_component_, controllerInput.thumbstick_x(), 0);
 		GetDriver()->GetInput()->UpdateScalarComponent(stick_y_component_, controllerInput.thumbstick_y(), 0);
-		GetDriver()->GetInput()->UpdateBooleanComponent(a_component_, controllerInput.button_1(), 0);
-		GetDriver()->GetInput()->UpdateBooleanComponent(b_component_, controllerInput.button_2(), 0);
+		GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, controllerInput.button_1(), 0);
+		GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, controllerInput.button_2(), 0);
 		GetDriver()->GetInput()->UpdateBooleanComponent(stick_click_component_, controllerInput.stick_click(), 0);
 		GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, controllerInput.menu_recenter(), 0);
 	}
