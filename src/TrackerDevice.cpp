@@ -124,7 +124,7 @@ void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerIn
 	GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, controllerInput.button_1(), 0);
 	GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, controllerInput.button_2(), 0);
 	GetDriver()->GetInput()->UpdateBooleanComponent(stick_click_component_, controllerInput.stick_click(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, controllerInput.menu_recenter(), 0)
+	GetDriver()->GetInput()->UpdateBooleanComponent(menu_component_, controllerInput.menu_recenter(), 0);
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
 	if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
