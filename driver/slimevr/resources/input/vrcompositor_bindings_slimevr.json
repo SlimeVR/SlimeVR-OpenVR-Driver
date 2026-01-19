@@ -5,22 +5,82 @@
 	"description": "SlimeVR virtual controller",
 	"app_key": "openvr.component.vrcompositor",
 	"bindings": {
-		"/actions/default": {
+		"/actions/lasermouse": {
 			"sources": [
 				{ "path": "/user/hand/left/pose/aim" },
 				{ "path": "/user/hand/right/pose/aim" }
 			]
 		},
-		"/actions/laser_click": {
+		"/actions/lasermouse/in/LeftClick": {
 			"sources": [
 				{ "path": "/user/hand/left/input/trigger/value" },
 				{ "path": "/user/hand/right/input/trigger/value" }
 			]
 		},
-		"/actions/system": {
+		"/actions/lasermouse/out/Haptic": {
+			"sources": [
+				{ "path": "/user/hand/left/output/haptic" },
+				{ "path": "/user/hand/right/output/haptic" }
+			]
+		},
+		"/actions/controller/in/DoubleTap": {
+			"sources": [
+				{ "path": "/user/hand/left/input/double_tap/click" },
+				{ "path": "/user/hand/right/input/double_tap/click" }
+			]
+		},
+		"/actions/controller/in/TripleTap": {
+			"sources": [
+				{ "path": "/user/hand/left/input/triple_tap/click" },
+				{ "path": "/user/hand/right/input/triple_tap/click" }
+			]
+		},
+		"/actions/controller/in/A": {
+			"sources": [
+				{ "path": "/user/hand/left/input/a/click" },
+				{ "path": "/user/hand/right/input/a/click" }
+			]
+		},
+		"/actions/controller/in/B": {
+			"sources": [
+				{ "path": "/user/hand/left/input/b/click" },
+				{ "path": "/user/hand/right/input/b/click" }
+			]
+		},
+		"/actions/controller/in/Menu": {
 			"sources": [
 				{ "path": "/user/hand/left/input/system/click" },
 				{ "path": "/user/hand/right/input/system/click" }
+			]
+		},
+		"/actions/controller/in/ThumbstickX": {
+			"sources": [
+				{ "path": "/user/hand/left/input/joystick/x" },
+				{ "path": "/user/hand/right/input/joystick/x" }
+			]
+		},
+		"/actions/controller/in/ThumbstickY": {
+			"sources": [
+				{ "path": "/user/hand/left/input/joystick/y" },
+				{ "path": "/user/hand/right/input/joystick/y" }
+			]
+		},
+		"/actions/controller/in/ThumbstickClick": {
+			"sources": [
+				{ "path": "/user/hand/left/input/joystick/click" },
+				{ "path": "/user/hand/right/input/joystick/click" }
+			]
+		},
+		"/actions/controller/in/Grip": {
+			"sources": [
+				{ "path": "/user/hand/left/input/grip/value" },
+				{ "path": "/user/hand/right/input/grip/value" }
+			]
+		},
+		"/actions/controller/in/Trigger": {
+			"sources": [
+				{ "path": "/user/hand/left/input/trigger/value" },
+				{ "path": "/user/hand/right/input/trigger/value" }
 			]
 		}
 	}
