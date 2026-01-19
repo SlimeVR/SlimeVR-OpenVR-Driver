@@ -63,6 +63,10 @@
       "type": "button",
       "touch": true
     },
+    "/input/system": {
+      "type": "button",
+      "click": true
+    },
     "/input/system/click": {
       "type": "button",
       "click": true
@@ -81,6 +85,16 @@
       "type": "button",
       "touch": true
     },
+    "/input/trackpad/position": { "type": "joystick" },
+    "/input/trackpad/click": {
+      "type": "button",
+      "click": true
+    },
+    "/input/trackpad/touch": {
+      "type": "button",
+      "touch": true
+    },
+
     "/input/thumbstick/x": { "type": "joystick" },
     "/input/thumbstick/y": { "type": "joystick" },
     "/input/thumbstick/click": {
