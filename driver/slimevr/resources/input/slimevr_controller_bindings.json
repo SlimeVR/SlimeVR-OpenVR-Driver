@@ -76,7 +76,7 @@
       "click": true
     },
     "/input/trigger/value": { "type": "trigger" },
-    "/input/trigger/touch": {
+    "/input/trigger/click": {
       "type": "button",
       "touch": true
     },
