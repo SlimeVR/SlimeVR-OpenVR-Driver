@@ -1,0 +1,41 @@
+{
+  "action_manifest_version": 1,
+  "controller_type": "slimevr_virtual_controller",
+  "interaction_profile": "/interaction_profiles/valve/index_controller",
+  "description": "SlimeVR virtual controller",
+  "app_key": "openvr.component.slimevr",
+  "actions": {
+    "pose": [
+      { "name": "/actions/main/in/PoseRaw" },
+      { "name": "/actions/main/in/PoseAim" }
+    ],
+    "haptic": [
+      { "name": "/actions/main/out/Haptic" }
+    ],
+    "boolean": [
+      { "name": "/actions/main/in/DoubleTap" },
+      { "name": "/actions/main/in/TripleTap" },
+      { "name": "/actions/main/in/A" },
+      { "name": "/actions/main/in/B" },
+      { "name": "/actions/main/in/System" },
+      { "name": "/actions/main/in/TriggerClick" },
+      { "name": "/actions/main/in/GripTouch" },
+      { "name": "/actions/main/in/TrackpadClick" },
+      { "name": "/actions/main/in/TrackpadTouch" },
+      { "name": "/actions/main/in/ThumbstickClick" },
+      { "name": "/actions/main/in/ThumbstickTouch" }
+    ],
+    "scalar": [
+      { "name": "/actions/main/in/TriggerValue" },
+      { "name": "/actions/main/in/GripValue" },
+      { "name": "/actions/main/in/TrackpadX" },
+      { "name": "/actions/main/in/TrackpadY" },
+      { "name": "/actions/main/in/ThumbstickX" },
+      { "name": "/actions/main/in/ThumbstickY" }
+    ],
+    "skeleton": [
+      { "name": "/actions/main/in/SkeletonLeft" },
+      { "name": "/actions/main/in/SkeletonRight" }
+    ]
+  }
+}
