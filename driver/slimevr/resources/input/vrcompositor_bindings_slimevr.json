@@ -84,12 +84,12 @@
         {
           "inputs": { "click": { "output": "/actions/lasermouse/in/MiddleClick" } },
           "mode": "joystick",
-          "path": "/user/hand/left/input/thumbstick"
+          "path": "/user/hand/left/input/joystick"
         },
         {
           "inputs": { "click": { "output": "/actions/lasermouse/in/MiddleClick" } },
           "mode": "joystick",
-          "path": "/user/hand/right/input/thumbstick"
+          "path": "/user/hand/right/input/joystick"
         }
       ]
     },
@@ -113,13 +113,13 @@
           "inputs": { "scroll": { "output": "/actions/scroll_discrete/in/Scroll" } },
           "mode": "scroll",
           "parameters": { "scroll_mode": "discrete" },
-          "path": "/user/hand/left/input/thumbstick"
+          "path": "/user/hand/left/input/joystick"
         },
         {
           "inputs": { "scroll": { "output": "/actions/scroll_discrete/in/Scroll" } },
           "mode": "scroll",
           "parameters": { "scroll_mode": "discrete" },
-          "path": "/user/hand/right/input/thumbstick"
+          "path": "/user/hand/right/input/joystick"
         },
         {
           "inputs": { "scroll": { "output": "/actions/scroll_discrete/in/Scroll" } },
@@ -161,13 +161,13 @@
           "inputs": { "scroll": { "output": "/actions/scroll_smooth/in/Scroll" } },
           "mode": "scroll",
           "parameters": { "scroll_mode": "smooth" },
-          "path": "/user/hand/left/input/thumbstick"
+          "path": "/user/hand/left/input/joystick"
         },
         {
           "inputs": { "scroll": { "output": "/actions/scroll_smooth/in/Scroll" } },
           "mode": "scroll",
           "parameters": { "scroll_mode": "smooth" },
-          "path": "/user/hand/right/input/thumbstick"
+          "path": "/user/hand/right/input/joystick"
         },
         {
           "inputs": { "scroll": { "output": "/actions/scroll_smooth/in/Scroll" } },
@@ -248,12 +248,12 @@
         {
           "inputs": { "position": { "output": "/actions/roomsetup_floor/in/FloorFineAdjust" } },
           "mode": "joystick",
-          "path": "/user/hand/left/input/thumbstick"
+          "path": "/user/hand/left/input/joystick"
         },
         {
           "inputs": { "position": { "output": "/actions/roomsetup_floor/in/FloorFineAdjust" } },
           "mode": "joystick",
-          "path": "/user/hand/right/input/thumbstick"
+          "path": "/user/hand/right/input/joystick"
         }
       ]
     },
@@ -276,7 +276,7 @@
             "touch": { "output": "/actions/dualanalog/in/LeftTouch" }
           },
           "mode": "joystick",
-          "path": "/user/hand/left/input/thumbstick"
+          "path": "/user/hand/left/input/joystick"
         },
         {
           "inputs": {
@@ -285,7 +285,7 @@
             "touch": { "output": "/actions/dualanalog/in/RightTouch" }
           },
           "mode": "joystick",
-          "path": "/user/hand/right/input/thumbstick"
+          "path": "/user/hand/right/input/joystick"
         },
         {
           "inputs": { "click": { "output": "/actions/dualanalog/in/LeftClick" } },
