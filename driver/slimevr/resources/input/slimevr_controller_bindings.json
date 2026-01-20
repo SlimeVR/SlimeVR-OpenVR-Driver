@@ -14,102 +14,96 @@
     "image": "{slimevr}/icons/slimevr_tracker_icon.png"
   },
   "input_source": {
+    "/input/system": {
+      "type": "button",
+      "binding_image_point": [ 34, 45 ],
+      "order": 1
+    },
+    "/input/a": {
+      "type": "button",
+      "binding_image_point": [ 26, 42 ],
+      "order": 5
+    },
+    "/input/b": {
+      "type": "button",
+      "binding_image_point": [ 18, 37 ],
+      "order": 6
+    },
+    "/input/trigger": {
+      "type": "trigger",
+      "binding_image_point": [ 11, 60 ],
+      "order": 2
+    },
+    "/input/trackpad": {
+      "type": "trackpad",
+      "binding_image_point": [ 27, 37 ],
+      "order": 3
+    },
+    "/input/grip": {
+      "type": "trigger",
+      "binding_image_point": [ 47, 86 ],
+      "order": 7
+    },
+    "/input/thumbstick": {
+      "type": "joystick",
+      "binding_image_point": [ 31, 26 ],
+      "order": 4
+    },
+    "/input/pinch": {
+      "type": "pinch",
+      "binding_image_point": [ 27, 37 ],
+      "value_source": "/input/trigger",
+      "capsense_source": "/input/finger/index",
+      "force_source": "/input/trackpad",
+      "order": 7
+    },
+
+    "/input/finger/index": {
+      "type": "trigger",
+      "visibility": "InputValueVisibility_AvailableButHidden",
+      "binding_image_point": [ 56, 86 ],
+      "order": 7
+    },
+    "/input/finger/middle": {
+      "type": "trigger",
+      "visibility": "InputValueVisibility_AvailableButHidden",
+      "binding_image_point": [ 56, 86 ],
+      "order": 8
+    },
+    "/input/finger/ring": {
+      "type": "trigger",
+      "visibility": "InputValueVisibility_AvailableButHidden",
+      "binding_image_point": [ 56, 86 ],
+      "order": 9
+    },
+    "/input/finger/pinky": {
+      "type": "trigger",
+      "visibility": "InputValueVisibility_AvailableButHidden",
+      "binding_image_point": [ 56, 86 ],
+      "order": 10
+    },
+
     "/pose/raw": {
       "type": "pose",
-      "binding_image_point": [ 80, 80 ]
+      "binding_image_point": [ 5, 35 ]
     },
-    "/pose/aim": {
-      "type": "pose",
-      "binding_image_point": [ 80, 80 ]
-    },
-
-    "/output/haptic": {
-      "type": "vibration",
-      "binding_image_point": [ 80, 80 ]
-    },
-
-    "/input/double_tap": {
-      "type": "button",
-      "click": true
-    },
-    "/input/triple_tap": {
-      "type": "button",
-      "click": true
-    },
-
     "/input/skeleton/left": {
       "type": "skeleton",
       "skeleton": "/skeleton/hand/left",
-      "side": "left"
+      "side": "left",
+      "binding_image_point": [ 5, 35 ]
+
     },
     "/input/skeleton/right": {
       "type": "skeleton",
       "skeleton": "/skeleton/hand/right",
-      "side": "right"
-    },
-    "/input/a/click": {
-      "type": "button",
-      "click": true
-    },
-    "/input/a/touch": {
-      "type": "button",
-      "touch": true
-    },
-    "/input/b/click": {
-      "type": "button",
-      "click": true
-    },
-    "/input/b/touch": {
-      "type": "button",
-      "touch": true
-    },
-    "/input/system": {
-      "type": "button",
-      "click": true
-    },
-    "/input/system/click": {
-      "type": "button",
-      "click": true
-    },
-    "/input/system/touch": {
-      "type": "button",
-      "click": true
-    },
-    "/input/trigger/value": { "type": "trigger" },
-    "/input/trigger/click": {
-      "type": "button",
-      "touch": true
-    },
-    "/input/grip/value": { "type": "trigger" },
-    "/input/grip/touch": {
-      "type": "button",
-      "touch": true
-    },
-    "/input/trackpad/position": { "type": "joystick" },
-    "/input/trackpad/click": {
-      "type": "button",
-      "click": true
-    },
-    "/input/trackpad/touch": {
-      "type": "button",
-      "touch": true
+      "side": "right",
+      "binding_image_point": [ 5, 35 ]
     },
 
-    "/input/thumbstick/x": { "type": "joystick" },
-    "/input/thumbstick/y": { "type": "joystick" },
-    "/input/thumbstick/click": {
-      "type": "button",
-      "click": true
-    },
-    "/input/thumbstick/touch": {
-      "type": "button",
-      "touch": true
+    "/output/haptic": {
+      "type": "vibration",
+      "binding_image_point": [ 5, 35 ]
     }
-  },
-  "default_bindings": [
-    {
-      "app_key": "openvr.component.vrcompositor",
-      "binding_url": "vrcompositor_bindings_slimevr.json"
-    }
-  ]
+  }
 }

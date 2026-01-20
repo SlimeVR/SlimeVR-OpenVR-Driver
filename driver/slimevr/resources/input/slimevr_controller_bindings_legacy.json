@@ -1,0 +1,24 @@
+{
+  "bindings": {
+    "/actions/legacy": {
+      "haptics": [
+      ],
+      "poses": [
+        {
+          "output": "/actions/legacy/in/Left_Pose",
+          "path": "/user/hand/left/pose/raw"
+        },
+        {
+          "output": "/actions/legacy/in/Right_Pose",
+          "path": "/user/hand/right/pose/raw"
+        }
+      ],
+      "sources": [
+      ]
+    }
+  },
+  "controller_type": "slimevr_virtual_controller",
+  "description": "Default binding values for legacy apps using the soft knuckles controller",
+  "name": "SlimeVR Legacy Defaults",
+  "simulated_actions": []
+}

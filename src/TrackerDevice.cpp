@@ -270,21 +270,22 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", &this->system_component);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system", &this->system_component_chord);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/touch", &this->system_component_chord);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/click", &this->trackpad_click_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/touch", &this->trackpad_touch_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/thumbstick/click", &this->stick_click_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/thumbstick/touch", &this->stick_click_component_touch_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", &this->stick_click_component_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", &this->stick_click_component_touch_);
 
 		// Scalar components
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", &this->trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/click", &this->trigger_component_touch_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/touch", &this->trigger_component_touch_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/click", &this->trigger_component_click_);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", &this->grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/grip/touch", &this->grip_value_component_touch_);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trackpad/x", &this->trackpad_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trackpad/y", &this->trackpad_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/thumbstick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/thumbstick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		GetDriver()->GetInput()->CreateHapticComponent(props, "/output/haptic", &this->haptic_component_);
 	}
 
