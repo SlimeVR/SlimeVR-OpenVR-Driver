@@ -118,7 +118,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
 	// Get inputs from protobuf
 	GetDriver()->GetInput()->UpdateScalarComponent(trigger_component_, controllerInput.trigger(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(trigger_component_touch, controllerInput.trigger() > 0.5f, 0);
+	GetDriver()->GetInput()->UpdateBooleanComponent(trigger_component_touch_, controllerInput.trigger() > 0.5f, 0);
 	GetDriver()->GetInput()->UpdateScalarComponent(grip_value_component_, controllerInput.grip(), 0);
 	GetDriver()->GetInput()->UpdateScalarComponent(stick_x_component_, controllerInput.thumbstick_x(), 0);
 	GetDriver()->GetInput()->UpdateScalarComponent(stick_y_component_, controllerInput.thumbstick_y(), 0);
