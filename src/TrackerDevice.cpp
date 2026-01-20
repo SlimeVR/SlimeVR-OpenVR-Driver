@@ -118,6 +118,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
 	// Get inputs from protobuf
 	GetDriver()->GetInput()->UpdateScalarComponent(trigger_component_, controllerInput.trigger(), 0);
+	GetDriver()->GetInput()->UpdateBooleanComponent(trigger_component_touch, controllerInput.trigger() > 0.5f, 0);
 	GetDriver()->GetInput()->UpdateScalarComponent(grip_value_component_, controllerInput.grip(), 0);
 	GetDriver()->GetInput()->UpdateScalarComponent(stick_x_component_, controllerInput.thumbstick_x(), 0);
 	GetDriver()->GetInput()->UpdateScalarComponent(stick_y_component_, controllerInput.thumbstick_y(), 0);
@@ -269,7 +270,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", &this->system_component);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system", &this->system_component);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system", &this->system_component_chord);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/click", &this->trackpad_click_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/touch", &this->trackpad_touch_component_);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/thumbstick/click", &this->stick_click_component_);
@@ -277,7 +278,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 		// Scalar components
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", &this->trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/touch", &this->trigger_component_touch_);
+		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/click", &this->trigger_component_touch_);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", &this->grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
 		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/grip/touch", &this->grip_value_component_touch_);
 		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trackpad/x", &this->trackpad_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);

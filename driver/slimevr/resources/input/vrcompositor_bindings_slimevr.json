@@ -187,14 +187,14 @@
       "chords": [
         {
           "inputs": [
-            [ "/user/hand/left/input/system", "held" ],
+            [ "/user/hand/left/input/system", "click" ],
             [ "/user/hand/left/input/trigger", "click" ]
           ],
           "output": "/actions/system/in/TakeScreenshot"
         },
         {
           "inputs": [
-            [ "/user/hand/right/input/system", "held" ],
+            [ "/user/hand/right/input/system", "click" ],
             [ "/user/hand/right/input/trigger", "click" ]
           ],
           "output": "/actions/system/in/TakeScreenshot"
