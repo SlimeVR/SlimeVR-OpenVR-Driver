@@ -21,7 +21,7 @@ namespace SlimeVRDriver {
     public:
         TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
         ~TrackerDevice() = default;
-
+        void LogInputError(vr::EVRInputError err, const char* path);
         // Inherited via IVRDevice
         virtual std::string GetSerial() override;
         virtual void Update() override;
@@ -47,6 +47,7 @@ namespace SlimeVRDriver {
 
         std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
         std::string serial_;
+        vr::PropertyContainerHandle_t containerHandle_;
 
         int device_id_;
         TrackerRole tracker_role_;
@@ -83,7 +84,7 @@ namespace SlimeVRDriver {
 
         vr::VRInputComponentHandle_t stick_click_component_ = 0;
         vr::VRInputComponentHandle_t system_component = 0;
-        vr::VRInputComponentHandle_t system_component_chord = 0;
+        vr::VRInputComponentHandle_t system_component_touch = 0;
 
 
         vr::VRInputComponentHandle_t trigger_component_click_ = 0;

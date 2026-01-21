@@ -1,4 +1,6 @@
 #include "TrackerDevice.hpp"
+#include <fstream>
+#include <filesystem>
 
 SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role) :
 	serial_(serial),
@@ -107,9 +109,9 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
 
 	// Set inputs
-	GetDriver()->GetInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
-
+	vr::VRDriverInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
+	vr::VRDriverInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
+	vr:
 	// Notify SteamVR that pose was updated
 	last_pose_atomic_ = (last_pose_ = pose);
 
@@ -117,16 +119,16 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
 	// Get inputs from protobuf
-	GetDriver()->GetInput()->UpdateScalarComponent(trigger_component_, controllerInput.trigger(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(trigger_component_touch_, controllerInput.trigger() > 0.5f, 0);
-	GetDriver()->GetInput()->UpdateScalarComponent(grip_value_component_, controllerInput.grip(), 0);
-	GetDriver()->GetInput()->UpdateScalarComponent(stick_x_component_, controllerInput.thumbstick_x(), 0);
-	GetDriver()->GetInput()->UpdateScalarComponent(stick_y_component_, controllerInput.thumbstick_y(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(button_a_component_, controllerInput.button_1(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(button_b_component_, controllerInput.button_2(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(stick_click_component_, controllerInput.stick_click(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(system_component, controllerInput.menu_recenter(), 0);
-	GetDriver()->GetInput()->UpdateBooleanComponent(system_component_chord, controllerInput.menu_recenter(), 0);
+	vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_, controllerInput.trigger(), 0);
+	vr::VRDriverInput()->UpdateBooleanComponent(this->trigger_component_touch_, controllerInput.trigger() > 0.5f, 0);
+	vr::VRDriverInput()->UpdateScalarComponent(this->grip_value_component_, controllerInput.grip(), 0);
+	vr::VRDriverInput()->UpdateScalarComponent(this->stick_x_component_, controllerInput.thumbstick_x(), 0);
+	vr::VRDriverInput()->UpdateScalarComponent(this->stick_y_component_, controllerInput.thumbstick_y(), 0);
+	vr::VRDriverInput()->UpdateBooleanComponent(this->button_a_component_, controllerInput.button_1(), 0);
+	vr::VRDriverInput()->UpdateBooleanComponent(this->button_b_component_, controllerInput.button_2(), 0);
+	vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_, controllerInput.stick_click(), 0);
+	vr::VRDriverInput()->UpdateBooleanComponent(this->system_component, controllerInput.menu_recenter(), 0);
+	vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch, controllerInput.menu_recenter(), 0);
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
 	if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
@@ -198,95 +200,137 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 	logger_->Log("Activating tracker %s", serial_.c_str());
 
-	// Get the properties handle
-	auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
+	const std::string log_dir = "C:\\SlimeVR\\Logs\\";
 
+	// Create directory if it doesn't exist
+	try {
+		fs::create_directories(log_dir);
+	}
+	catch (...) {
+		// If this fails, we silently continue (driver must not crash)
+	}
+
+	// One log file per tracker
+	const std::string log_path = log_dir + "input_" + serial_ + ".log";
+
+	input_log_.open(log_path, std::ios::out | std::ios::app);
+
+	if (input_log_.is_open()) {
+		input_log_ << "=== Activating tracker " << serial_ << " ===" << std::endl;
+	}
+
+	// Get the properties handle
+	containerHandle_ = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
+	
 	// Set some universe ID (Must be 2 or higher)
-	GetDriver()->GetProperties()->SetUint64Property(props, vr::Prop_CurrentUniverseId_Uint64, 4);
+	GetDriver()->GetProperties()->SetUint64Property(containerHandle_, vr::Prop_CurrentUniverseId_Uint64, 4);
 
 	// Set up a model "number" (not needed but good to have)
 	if (is_controller_) {
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Controller");
+		GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_ModelNumber_String, "SlimeVR Virtual Controller");
 	}
 	else {
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
+		GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
 	}
 
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_ManufacturerName_String, "SlimeVR");
 
 	//// Hand selection
 	if (is_left_hand_) {
-		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_LeftHand);
+		GetDriver()->GetProperties()->SetInt32Property(containerHandle_, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_LeftHand);
 	}
 	else if (is_right_hand_) {
-		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
+		GetDriver()->GetProperties()->SetInt32Property(containerHandle_, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_RightHand);
 	}
 	else {
-		GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
+		GetDriver()->GetProperties()->SetInt32Property(containerHandle_, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
 	}
 
 	// Should be treated as controller or as tracker? (Hand = Tracker and Controller = Controller)
 	if (is_controller_) {
-		vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_Controller);
-		vr::VRProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "slimevr_virtual_controller");
-		vr::VRProperties()->SetInt32Property(props, vr::Prop_ControllerHandSelectionPriority_Int32, 2147483647); // Prioritizes our controller over whatever else.
+		vr::VRProperties()->SetInt32Property(containerHandle_, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_Controller);
+		vr::VRProperties()->SetStringProperty(containerHandle_, vr::Prop_ControllerType_String, "slimevr_virtual_controller");
+		vr::VRProperties()->SetInt32Property(containerHandle_, vr::Prop_ControllerHandSelectionPriority_Int32, 2147483647); // Prioritizes our controller over whatever else.
 	}
 	else {
-		vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
+		vr::VRProperties()->SetInt32Property(containerHandle_, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
 	}
 
 	// Set up a render model path (index controllers for controllers and vive trackers 1.0 for trackers)
 	std::string model_path;
 	if (is_controller_) {
-		vr::VRProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, is_right_hand_ ? "{indexcontroller}valve_controller_knu_1_0_right" : "{indexcontroller}valve_controller_knu_1_0_left");
+		vr::VRProperties()->SetStringProperty(containerHandle_, vr::Prop_RenderModelName_String, is_right_hand_ ? "{indexcontroller}valve_controller_knu_1_0_right" : "{indexcontroller}valve_controller_knu_1_0_left");
 	}
 	else {
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
+		GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
 	}
 
 	// Set the icons
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceReady_String, "{slimevr}/icons/tracker_status_ready.png");
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceOff_String, "{slimevr}/icons/tracker_status_off.png");
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceSearching_String, "{slimevr}/icons/tracker_status_ready.png");
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceSearchingAlert_String, "{slimevr}/icons/tracker_status_ready_alert.png");
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceReadyAlert_String, "{slimevr}/icons/tracker_status_ready_alert.png");
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceNotReady_String, "{slimevr}/icons/tracker_status_error.png");
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
-	GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceReady_String, "{slimevr}/icons/tracker_status_ready.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceOff_String, "{slimevr}/icons/tracker_status_off.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceSearching_String, "{slimevr}/icons/tracker_status_ready.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceSearchingAlert_String, "{slimevr}/icons/tracker_status_ready_alert.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceReadyAlert_String, "{slimevr}/icons/tracker_status_ready_alert.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceNotReady_String, "{slimevr}/icons/tracker_status_error.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
+	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
 
 	// Set inputs
 	if (is_controller_) {
-		GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
+		GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
 		uint64_t supportedButtons = 0xFFFFFFFFFFFFFFFFULL;
-		vr::VRProperties()->SetUint64Property(props, vr::Prop_SupportedButtons_Uint64, supportedButtons);
+		vr::VRProperties()->SetUint64Property(containerHandle_, vr::Prop_SupportedButtons_Uint64, supportedButtons);
 
-		GetDriver()->GetInput()->CreatePoseComponent(props, "/pose/raw", &this->raw_pose_component_handle_);
-		GetDriver()->GetInput()->CreatePoseComponent(props, "/pose/tip", &this->aim_pose_component_handle_);
-
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/double_tap/click", &this->double_tap_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/triple_tap/click", &this->triple_tap_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/click", &this->button_a_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/touch", &this->button_a_component_touch_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->button_b_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->button_b_component_touch_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/click", &this->system_component);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/touch", &this->system_component_chord);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/click", &this->trackpad_click_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trackpad/touch", &this->trackpad_touch_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", &this->stick_click_component_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", &this->stick_click_component_touch_);
+		vr::EVRInputError input_error =	vr::VRDriverInput()->CreatePoseComponent(props, "/pose/raw", &this->raw_pose_component_handle_);
+		LogInputError(input_error, "/pose/raw");
+		input_error = vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/tip", &this->aim_pose_component_handle_);
+		LogInputError(input_error, "/pose/tip");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/double_tap/click", &this->double_tap_component_);
+		LogInputError(input_error, "/input/double_tap/click");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/triple_tap/click", &this->triple_tap_component_);
+		LogInputError(input_error, "/input/triple_tap/click");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/a/click", &this->button_a_component_);
+		LogInputError(input_error, "/input/a/click");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/a/touch", &this->button_a_component_touch_);
+		LogInputError(input_error, "/input/a/touch");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/b/click", &this->button_b_component_);
+		LogInputError(input_error, "/input/b/click");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/b/touch", &this->button_b_component_touch_);
+		LogInputError(input_error, "/input/b/touch");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/system/click", &this->system_component);
+		LogInputError(input_error, "/input/system/click");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/system/touch", &this->system_component_touch);
+		LogInputError(input_error, "/input/system/touch");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trackpad/click", &this->trackpad_click_component_);
+		LogInputError(input_error, "/input/trackpad/click");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trackpad/touch", &this->trackpad_touch_component_);
+		LogInputError(input_error, "/input/trackpad/touch");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/joystick/click", &this->stick_click_component_);
+		LogInputError(input_error, "/input/joystick/click");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/joystick/touch", &this->stick_click_component_touch_);
+		LogInputError(input_error, "/input/joystick/touch");
 
 		// Scalar components
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trigger/value", &this->trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/touch", &this->trigger_component_touch_);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/click", &this->trigger_component_click_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", &this->grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/grip/touch", &this->grip_value_component_touch_);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trackpad/x", &this->trackpad_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/trackpad/y", &this->trackpad_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		GetDriver()->GetInput()->CreateHapticComponent(props, "/output/haptic", &this->haptic_component_);
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/trigger/value", &this->trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		LogInputError(input_error, "/input/trigger/value");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trigger/touch", &this->trigger_component_touch_);
+		LogInputError(input_error, "/input/trigger/touch");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trigger/click", &this->trigger_component_click_);
+		LogInputError(input_error, "/input/trigger/click");
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/grip/value", &this->grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
+		LogInputError(input_error, "/input/grip/value");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/grip/touch", &this->grip_value_component_touch_);
+		LogInputError(input_error, "/input/grip/touch");
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/trackpad/x", &this->trackpad_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		LogInputError(input_error, "/input/trackpad/x");
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/trackpad/y", &this->trackpad_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		LogInputError(input_error, "/input/trackpad/y");
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		LogInputError(input_error, "/input/joystick/x");
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		LogInputError(input_error, "/input/joystick/y");
+		input_error = vr::VRDriverInput()->CreateHapticComponent(containerHandle_, "/output/haptic", &this->haptic_component_);
+		LogInputError(input_error, "/output/haptic");
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
@@ -299,6 +343,18 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		auto role = GetViveRole(tracker_role_);
 		if (role != "") {
 			vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial_).c_str(), role.c_str());
+		}
+	}
+
+	void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const char* path) {
+		if (err != vr::VRInputError_None && input_log_.is_open()) {
+			input_log_
+				<< "[InputError] "
+				<< path
+				<< " -> "
+				<< vr::VRDriverInput()->GetInputErrorNameFromEnum(err)
+				<< " (" << err << ")"
+				<< std::endl;
 		}
 	}
 
