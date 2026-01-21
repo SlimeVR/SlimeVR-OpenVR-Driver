@@ -445,9 +445,8 @@ void SlimeVRDriver::TrackerDevice::LogInfo(const char* message) {
 void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const char* path, vr::VRInputComponentHandle_t componentHandle) {
 	if (!input_log_.is_open()) return;
 
-	bool validHandle = componentHandle == vr::k_ulInvalidInputComponentHandle
-
-		input_log_ << "["
+	bool validHandle = componentHandle == vr::k_ulInvalidInputComponentHandle;
+	input_log_ << "["
 		<< (err == vr::VRInputError_None ? "Info" : "InputError")
 		<< "] "
 		<< path
@@ -464,10 +463,9 @@ void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const ch
 void SlimeVRDriver::TrackerDevice::LogInput(const char* path, vr::VRInputComponentHandle_t componentHandle) {
 	if (!input_log_.is_open()) return;
 
-	bool validHandle = componentHandle == vr::k_ulInvalidInputComponentHandle
-
-		input_log_ << "["
-		<< "Info")
+	bool validHandle = componentHandle == vr::k_ulInvalidInputComponentHandle;
+	input_log_ << "["
+		<< "Info"
 		<< "] "
 		<< path
 		<< "\r\n Handle: "
@@ -475,7 +473,7 @@ void SlimeVRDriver::TrackerDevice::LogInput(const char* path, vr::VRInputCompone
 		<< "\r\n Handle Is Valid: "
 		<< (validHandle ? "true" : "false")
 		<< std::endl;
-	input_log_.flush(); // force write immediately
+		input_log_.flush(); // force write immediately
 }
 
 const char* SlimeVRDriver::TrackerDevice::GetInputErrorName(vr::EVRInputError err) {
