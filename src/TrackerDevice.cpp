@@ -71,10 +71,10 @@ void SlimeVRDriver::TrackerDevice::Update() {
 		LogInput(("Check handle for stick click before update. Value is " + std::to_string(stick_click_value)).c_str(), this->stick_click_component_);
 		vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_, stick_click_value, 0);
 
-		LogInput(("Check handle for system before update. Value is " + std::to_string(system_component)).c_str(), this->system_component);
+		LogInput(("Check handle for system before update. Value is " + std::to_string(system_click_value)).c_str(), this->system_component);
 		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component, system_click_value, 0);
 
-		LogInput(("Check handle for system touch before update. Value is " + std::to_string(system_component_touch)).c_str(), this->system_component_touch);
+		LogInput(("Check handle for system touch before update. Value is " + std::to_string(system_click_value)).c_str(), this->system_component_touch);
 		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch, system_click_value, 0);
 	}
 }
