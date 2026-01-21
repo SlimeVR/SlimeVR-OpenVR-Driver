@@ -43,6 +43,7 @@ namespace SlimeVRDriver {
         virtual vr::DriverPose_t GetPose() override;
         vr::HmdMatrix34_t ToHmdMatrix(const vr::DriverPose_t& pose);
     private:
+        std::ofstream input_log_;
         std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
 
         std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;

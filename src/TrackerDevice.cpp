@@ -111,7 +111,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	// Set inputs
 	vr::VRDriverInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
 	vr::VRDriverInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
-	vr:
+
 	// Notify SteamVR that pose was updated
 	last_pose_atomic_ = (last_pose_ = pose);
 
@@ -135,25 +135,25 @@ void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
 		return;
 
 	// Get the properties handle
-	auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
+	auto containerHandle_ = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
 
 	vr::ETrackedPropertyError err;
 
 	// Set that the tracker reports battery level in case it has not already been set to true
 	// It's a given that the tracker supports reporting battery life because otherwise a BatteryMessage would not be received
-	if (vr::VRProperties()->GetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, &err) != true) {
-		vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
+	if (vr::VRProperties()->GetBoolProperty(containerHandle_, vr::Prop_DeviceProvidesBatteryStatus_Bool, &err) != true) {
+		vr::VRProperties()->SetBoolProperty(containerHandle_, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
 	}
 
 	if (battery.is_charging()) {
-		vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, true);
+		vr::VRProperties()->SetBoolProperty(containerHandle_, vr::Prop_DeviceIsCharging_Bool, true);
 	}
 	else {
-		vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, false);
+		vr::VRProperties()->SetBoolProperty(containerHandle_, vr::Prop_DeviceIsCharging_Bool, false);
 	}
 
 	// Set the battery Level; 0 = 0%, 1 = 100%
-	vr::VRProperties()->SetFloatProperty(props, vr::Prop_DeviceBatteryPercentage_Float, battery.battery_level());
+	vr::VRProperties()->SetFloatProperty(containerHandle_, vr::Prop_DeviceBatteryPercentage_Float, battery.battery_level());
 }
 
 void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus& status) {
@@ -214,7 +214,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	const std::string log_path = log_dir + "input_" + serial_ + ".log";
 
 	input_log_.open(log_path, std::ios::out | std::ios::app);
-
 	if (input_log_.is_open()) {
 		input_log_ << "=== Activating tracker " << serial_ << " ===" << std::endl;
 	}
@@ -281,7 +280,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		uint64_t supportedButtons = 0xFFFFFFFFFFFFFFFFULL;
 		vr::VRProperties()->SetUint64Property(containerHandle_, vr::Prop_SupportedButtons_Uint64, supportedButtons);
 
-		vr::EVRInputError input_error =	vr::VRDriverInput()->CreatePoseComponent(props, "/pose/raw", &this->raw_pose_component_handle_);
+		vr::EVRInputError input_error =	vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/raw", &this->raw_pose_component_handle_);
 		LogInputError(input_error, "/pose/raw");
 		input_error = vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/tip", &this->aim_pose_component_handle_);
 		LogInputError(input_error, "/pose/tip");
@@ -337,7 +336,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	if (!is_controller_) {
 		auto role_hint = GetViveRoleHint(tracker_role_);
 		if (role_hint != "") {
-			GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, role_hint.c_str());
+			GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_ControllerType_String, role_hint.c_str());
 		}
 
 		auto role = GetViveRole(tracker_role_);
@@ -346,22 +345,10 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		}
 	}
 
-	void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const char* path) {
-		if (err != vr::VRInputError_None && input_log_.is_open()) {
-			input_log_
-				<< "[InputError] "
-				<< path
-				<< " -> "
-				<< vr::VRDriverInput()->GetInputErrorNameFromEnum(err)
-				<< " (" << err << ")"
-				<< std::endl;
-		}
-	}
-
 	// Setup skeletal input for fingertracking
 	if (fingertracking_enabled_) {
 		vr::VRDriverInput()->CreateSkeletonComponent(
-			props,
+			containerHandle_,
 			is_right_hand_ ? "/input/skeleton/right" : "/input/skeleton/left",
 			is_right_hand_ ? "/skeleton/hand/right" : "/skeleton/hand/left",
 			"/pose/raw",
@@ -377,6 +364,18 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	}
 
 	return vr::EVRInitError::VRInitError_None;
+}
+
+void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const char* path) {
+	if (err != vr::VRInputError_None && input_log_.is_open()) {
+		input_log_
+			<< "[InputError] "
+			<< path
+			<< " -> "
+			<< vr::VRDriverInput()->GetInputErrorNameFromEnum(err)
+			<< " (" << err << ")"
+			<< std::endl;
+	}
 }
 
 void SlimeVRDriver::TrackerDevice::Deactivate() {
