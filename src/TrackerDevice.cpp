@@ -370,9 +370,9 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/joystick/click", &this->stick_click_component_);
 		LogInputError(input_error, "/input/joystick/click", this->stick_click_component_);
 
-		LogInfo("Creating /input/joystick/touch component");
-		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/joystick/touch", &this->stick_click_component_touch_);
-		LogInputError(input_error, "/input/joystick/touch", this->stick_click_component_touch_);
+		LogInfo("Creating /input/thumbstick/touch component");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/thumbstick/touch", &this->stick_click_component_touch_);
+		LogInputError(input_error, "/input/thumbstick/touch", this->stick_click_component_touch_);
 
 		// Scalar components
 
@@ -384,7 +384,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trigger/touch", &this->trigger_component_touch_);
 		LogInputError(input_error, "/input/trigger/touch", this->trigger_component_touch_);
 
-		LogInfo("Creating /input/trigger/clickcomponent");
+		LogInfo("Creating /input/trigger/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trigger/click", &this->trigger_component_click_);
 		LogInputError(input_error, "/input/trigger/click", this->trigger_component_click_);
 
@@ -404,13 +404,13 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/trackpad/y", &this->trackpad_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
 		LogInputError(input_error, "/input/trackpad/y", this->trackpad_y_component_);
 
-		LogInfo("Creating /input/joystick/x component");
-		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		LogInputError(input_error, "/input/joystick/x", this->stick_x_component_);
+		LogInfo("Creating /input/thumbstick/x component");
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/thumbstick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		LogInputError(input_error, "/input/thumbstick/x", this->stick_x_component_);
 
 		LogInfo("Creating /input/joystick/y component");
-		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		LogInputError(input_error, "/input/joystick/y", this->stick_y_component_);
+		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/thumbstick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
+		LogInputError(input_error, "/input/thumbstick/y", this->stick_y_component_);
 
 		LogInfo("Creating /output/haptic component");
 		input_error = vr::VRDriverInput()->CreateHapticComponent(containerHandle_, "/output/haptic", &this->haptic_component_);
