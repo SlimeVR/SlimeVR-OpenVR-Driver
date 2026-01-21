@@ -13,6 +13,9 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <fstream>
+#include <filesystem>
+
 #include "TrackerRole.hpp"
 #include "Logger.hpp"
 
@@ -33,6 +36,7 @@ namespace SlimeVRDriver {
         virtual void ControllerInputMessage(messages::ControllerInput& position) override;
         virtual void StatusMessage(messages::TrackerStatus &status) override;
         virtual void BatteryMessage(messages::Battery &battery) override;
+        const GetInputErrorName(vr::EVRInputError err) override;
 
         // Inherited via ITrackedDeviceServerDriver
         virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
@@ -97,7 +101,6 @@ namespace SlimeVRDriver {
         vr::VRInputComponentHandle_t button_a_component_touch_ = 0;
         vr::VRInputComponentHandle_t button_b_component_touch_ = 0;
         vr::VRInputComponentHandle_t stick_click_component_touch_ = 0;
-        vr::VRInputComponentHandle_t system_component_touch_ = 0;
 
         bool is_controller_;
         bool is_left_hand_;

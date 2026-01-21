@@ -1,6 +1,7 @@
 #include "TrackerDevice.hpp"
 #include <fstream>
 #include <filesystem>
+namespace fs = std::filesystem;
 
 SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role) :
 	serial_(serial),
@@ -220,7 +221,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 	// Get the properties handle
 	containerHandle_ = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
-	
+
 	// Set some universe ID (Must be 2 or higher)
 	GetDriver()->GetProperties()->SetUint64Property(containerHandle_, vr::Prop_CurrentUniverseId_Uint64, 4);
 
@@ -280,7 +281,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		uint64_t supportedButtons = 0xFFFFFFFFFFFFFFFFULL;
 		vr::VRProperties()->SetUint64Property(containerHandle_, vr::Prop_SupportedButtons_Uint64, supportedButtons);
 
-		vr::EVRInputError input_error =	vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/raw", &this->raw_pose_component_handle_);
+		vr::EVRInputError input_error = vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/raw", &this->raw_pose_component_handle_);
 		LogInputError(input_error, "/pose/raw");
 		input_error = vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/tip", &this->aim_pose_component_handle_);
 		LogInputError(input_error, "/pose/tip");
@@ -372,12 +373,20 @@ void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const ch
 			<< "[InputError] "
 			<< path
 			<< " -> "
-			<< vr::VRDriverInput()->GetInputErrorNameFromEnum(err)
+			<< vr::VRDriverInput()->GetInputErrorName(err)
 			<< " (" << err << ")"
 			<< std::endl;
 	}
 }
-
+const SlimeVRDriver::TrackerDevice::char* GetInputErrorName(vr::EVRInputError err) {
+	switch (err) {
+	case vr::VRInputError_None: return "None";
+	case vr::VRInputError_NameNotFound: return "NameNotFound";
+	case vr::VRInputError_WrongType: return "WrongType";
+		// Add others as needed
+	default: return "Unknown";
+	}
+}
 void SlimeVRDriver::TrackerDevice::Deactivate() {
 	device_index_ = vr::k_unTrackedDeviceIndexInvalid;
 }
