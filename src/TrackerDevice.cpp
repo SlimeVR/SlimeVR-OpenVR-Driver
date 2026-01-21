@@ -44,6 +44,39 @@ void SlimeVRDriver::TrackerDevice::Update() {
 			vibrate_anim_state_ = 0.0f;
 		}
 	}
+
+	if (was_activated_) {
+		// Get inputs from protobuf
+		LogInput("Check handle for trigger before update.", this->trigger_component_);
+		vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_, trigger_value_, 0);
+
+		LogInput("Check handle for trigger touch before update.", this->trigger_component_touch_);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->trigger_component_touch_, trigger_value_click, 0);
+
+		LogInput("Check handle for grip before update.", this->grip_value_component_);
+		vr::VRDriverInput()->UpdateScalarComponent(this->grip_value_component_, grip_value, 0);
+
+		LogInput("Check handle for stick x before update.", this->stick_x_component_);
+		vr::VRDriverInput()->UpdateScalarComponent(this->stick_x_component_, thumbstick_x_value, 0);
+
+		LogInput("Check handle for stick y before update.", this->stick_y_component_);
+		vr::VRDriverInput()->UpdateScalarComponent(this->stick_y_component_, thumbstick_y_value, 0);
+
+		LogInput("Check handle for button a before update.", this->button_a_component_);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->button_a_component_, button_1_value, 0);
+
+		LogInput("Check handle for button b before update.", this->button_b_component_);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->button_b_component_, button_2_value, 0);
+
+		LogInput("Check handle for stick click before update.", this->stick_click_component_);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_, stick_click_value, 0);
+
+		LogInput("Check handle for system before update.", this->system_component);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component, system_click_value, 0);
+
+		LogInput("Check handle for system touch before update.", this->system_component_touch);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch, system_click_value, 0);
+	}
 }
 
 void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position) {
@@ -120,36 +153,17 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
 	if (was_activated_) {
-		// Get inputs from protobuf
-		LogInput("Check handle for trigger before update.", this->trigger_component_);
-		vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_, controllerInput.trigger(), 0);
-
-		LogInput("Check handle for trigger touch before update.", this->trigger_component_touch_);
-		vr::VRDriverInput()->UpdateBooleanComponent(this->trigger_component_touch_, controllerInput.trigger() > 0.5f, 0);
-
-		LogInput("Check handle for grip before update.", this->grip_value_component_);
-		vr::VRDriverInput()->UpdateScalarComponent(this->grip_value_component_, controllerInput.grip(), 0);
-
-		LogInput("Check handle for stick x before update.", this->stick_x_component_);
-		vr::VRDriverInput()->UpdateScalarComponent(this->stick_x_component_, controllerInput.thumbstick_x(), 0);
-
-		LogInput("Check handle for stick y before update.", this->stick_y_component_);
-		vr::VRDriverInput()->UpdateScalarComponent(this->stick_y_component_, controllerInput.thumbstick_y(), 0);
-
-		LogInput("Check handle for button a before update.", this->button_a_component_);
-		vr::VRDriverInput()->UpdateBooleanComponent(this->button_a_component_, controllerInput.button_1(), 0);
-
-		LogInput("Check handle for button b before update.", this->button_b_component_);
-		vr::VRDriverInput()->UpdateBooleanComponent(this->button_b_component_, controllerInput.button_2(), 0);
-
-		LogInput("Check handle for stick click before update.", this->stick_click_component_);
-		vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_, controllerInput.stick_click(), 0);
-
-		LogInput("Check handle for system before update.", this->system_component);
-		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component, controllerInput.menu_recenter(), 0);
-
-		LogInput("Check handle for system touch before update.", this->system_component_touch);
-		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch, controllerInput.menu_recenter(), 0);
+		// Get inputs from protobuf, store them for Update which is called during RunFrame
+		trigger_value_ = controllerInput.trigger();
+		trigger_value_click = controllerInput.trigger() > 0.5f;
+		grip_value = controllerInput.grip();
+		thumbstick_x_value = controllerInput.thumbstick_x();
+		thumbstick_y_value = controllerInput.thumbstick_y();
+		button_1_value = controllerInput.button_1();
+		button_2_value = controllerInput.button_2();
+		stick_click_value = controllerInput.stick_click();
+		system_value = controllerInput.menu_recenter();
+		system_click_value = controllerInput.menu_recenter();
 	}
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
@@ -445,7 +459,7 @@ void SlimeVRDriver::TrackerDevice::LogInfo(const char* message) {
 void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const char* path, vr::VRInputComponentHandle_t componentHandle) {
 	if (!input_log_.is_open()) return;
 
-	bool validHandle = componentHandle == vr::k_ulInvalidInputComponentHandle;
+	bool validHandle = componentHandle != vr::k_ulInvalidInputComponentHandle;
 	input_log_ << "["
 		<< (err == vr::VRInputError_None ? "Info" : "InputError")
 		<< "] "
@@ -463,7 +477,7 @@ void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const ch
 void SlimeVRDriver::TrackerDevice::LogInput(const char* path, vr::VRInputComponentHandle_t componentHandle) {
 	if (!input_log_.is_open()) return;
 
-	bool validHandle = componentHandle == vr::k_ulInvalidInputComponentHandle;
+	bool validHandle = componentHandle != vr::k_ulInvalidInputComponentHandle;
 	input_log_ << "["
 		<< "Info"
 		<< "] "
@@ -473,7 +487,7 @@ void SlimeVRDriver::TrackerDevice::LogInput(const char* path, vr::VRInputCompone
 		<< "\r\n Handle Is Valid: "
 		<< (validHandle ? "true" : "false")
 		<< std::endl;
-		input_log_.flush(); // force write immediately
+	input_log_.flush(); // force write immediately
 }
 
 const char* SlimeVRDriver::TrackerDevice::GetInputErrorName(vr::EVRInputError err) {
