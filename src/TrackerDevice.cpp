@@ -142,9 +142,11 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	pose.poseIsValid = true;
 	pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
 
-	// Set inputs
-	vr::VRDriverInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
-	vr::VRDriverInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
+	if (is_controller_) {
+		// Set inputs
+		vr::VRDriverInput()->UpdateBooleanComponent(this->double_tap_component_, double_tap, 0);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->triple_tap_component_, triple_tap, 0);
+	}
 
 	// Notify SteamVR that pose was updated
 	last_pose_atomic_ = (last_pose_ = pose);
@@ -310,14 +312,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
 	GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
 
-	LogInfo("Creating /input/double_tap/click component");
-	input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/double_tap/click", &this->double_tap_component_);
-	LogInputError(input_error, "/input/double_tap/click", this->double_tap_component_);
-
-	LogInfo("Creating /input/triple_tap/click component");
-	input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/triple_tap/click", &this->triple_tap_component_);
-	LogInputError(input_error, "/input/triple_tap/click", this->triple_tap_component_);
-
 	// Set inputs
 	if (is_controller_) {
 		GetDriver()->GetProperties()->SetStringProperty(containerHandle_, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_controller_bindings.json");
@@ -331,6 +325,14 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		LogInfo("Creating /pose/tip component");
 		input_error = vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/tip", &this->aim_pose_component_handle_);
 		LogInputError(input_error, "/pose/tip", this->aim_pose_component_handle_);
+
+		LogInfo("Creating /input/double_tap/click component");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/double_tap/click", &this->double_tap_component_);
+		LogInputError(input_error, "/input/double_tap/click", this->double_tap_component_);
+
+		LogInfo("Creating /input/triple_tap/click component");
+		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/triple_tap/click", &this->triple_tap_component_);
+		LogInputError(input_error, "/input/triple_tap/click", this->triple_tap_component_);
 
 		LogInfo("Creating /input/a/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/a/click", &this->button_a_component_);
