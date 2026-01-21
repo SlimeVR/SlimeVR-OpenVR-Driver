@@ -45,7 +45,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
 		}
 	}
 
-	if (was_activated_) {
+	if (was_activated_ && is_controller_) {
 		// Get inputs from protobuf
 		LogInput("Check handle for trigger before update.", this->trigger_component_);
 		vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_, trigger_value_, 0);
@@ -152,7 +152,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
-	if (was_activated_) {
+	if (was_activated_ && is_controller_) {
 		// Get inputs from protobuf, store them for Update which is called during RunFrame
 		trigger_value_ = controllerInput.trigger();
 		trigger_value_click = controllerInput.trigger() > 0.5f;
