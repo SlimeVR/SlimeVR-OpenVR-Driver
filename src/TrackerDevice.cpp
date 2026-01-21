@@ -371,7 +371,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 		LogInfo("Creating /input/joystick/x component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		LogInputError(input_error, "/input/joystick/x", this->stick_x_component);
+		LogInputError(input_error, "/input/joystick/x", this->stick_x_component_);
 
 		LogInfo("Creating /input/joystick/y component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
