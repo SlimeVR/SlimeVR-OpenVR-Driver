@@ -201,7 +201,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 	logger_->Log("Activating tracker %s", serial_.c_str());
 
-	const std::string log_dir = "C:\\SlimeVR\\Logs\\";
+	const std::string log_dir = "C:\\Temp\\SlimeVRLogs\\";
 
 	// Create directory if it doesn't exist
 	try {
@@ -212,7 +212,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 	}
 
 	// One log file per tracker
-	const std::string log_path = log_dir + "input_" + serial_ + ".log";
+	const std::string log_path = log_dir + "input.log";
 
 	input_log_.open(log_path, std::ios::out | std::ios::app);
 	if (input_log_.is_open()) {
