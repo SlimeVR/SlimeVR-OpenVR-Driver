@@ -58,6 +58,47 @@ message Version {
   int32 protocol_version = 1;
 }
 
+message FingerBoneRotation {
+    enum FingerBoneName {
+        THUMB_METACARPAL = 0;
+        THUMB_PROXIMAL = 1;
+        THUMB_DISTAL = 2;
+        INDEX_PROXIMAL = 3;
+        INDEX_INTERMEDIATE = 4;
+        INDEX_DISTAL = 5;
+        MIDDLE_PROXIMAL = 6;
+        MIDDLE_INTERMEDIATE = 7;
+        MIDDLE_DISTAL = 8;
+        RING_PROXIMAL = 9;
+        RING_INTERMEDIATE = 10;
+        RING_DISTAL = 11;
+        LITTLE_PROXIMAL = 12;
+        LITTLE_INTERMEDIATE = 13;
+        LITTLE_DISTAL = 14;
+    }
+    FingerBoneName name = 1;
+    float x = 2;
+    float y = 3;
+    float z = 4;
+    float w = 5;
+}
+
+message Input {
+    enum InputType {
+        DOUBLE_TAP = 0;
+        TRIPLE_TAP = 1;
+        BUTTON_1_HELD = 2;
+        BUTTON_1_UNHELD = 3;
+        BUTTON_2_HELD = 4;
+        BUTTON_2_UNHELD = 5;
+        MENU_RECENTER_HELD = 6;
+        MENU_RECENTER_UNHELD = 7;
+        STICK_CLICK_HELD = 9;
+        STICK_CLICK_UNHELD = 10;
+    }
+    InputType type = 1;
+}
+
 message Position {
     int32 tracker_id = 1;
     optional float x = 2;
@@ -74,6 +115,21 @@ message Position {
         FULL = 3;
     }
     optional DataSource data_source = 9;
+}
+
+message ControllerInput {
+    int32 tracker_id = 1;
+    float thumbstick_x = 2;
+	float thumbstick_y = 3;
+    float trackpad_x = 4;
+	float trackpad_y = 5;
+    float trigger = 6;
+	float grip = 7;
+	bool button_1 = 8;
+	bool button_2 = 9;
+	bool menu_recenter = 10;
+	bool stick_click = 11;
+    bool trackpad_click = 12;
 }
 
 message UserAction {
@@ -122,5 +178,6 @@ message ProtobufMessage {
         TrackerStatus tracker_status = 4;
         Battery battery = 5;
         Version version = 6;
+		ControllerInput controller_input = 7;
     }
 }

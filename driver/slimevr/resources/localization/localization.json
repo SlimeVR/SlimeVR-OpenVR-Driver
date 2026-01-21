@@ -1,16 +1,16 @@
 [
   {
     "language_tag": "en_US",
-    "example_controller": "Example Controller",
-    "example_tracker": "Example Tracker",
-    "example_basestation": "Example BaseStation",
+    "slimevr_virtual_controller": "SlimeVR Virtual Controller",
+    "/input/double_tap": "Double tap",
+    "/input/triple_tap": "Triple tap",
     "/input/a": "A Button",
     "/input/b": "B Button",
-    "/input/system": "System Button",
-    "/input/trackpad": "Trackpad",
-    "/input/joystick": "Joystick",
-    "/input/skeleton": "Skeleton",
-    "/input/trigger": "Trigger",
-    "/output/haptic": "Haptic"
+    "/input/pinch": "Pinch Gesture",
+    "/input/finger/index": "Index Finger",
+    "/input/finger/middle": "Middle Finger",
+    "/input/finger/ring": "Ring Finger",
+    "/input/finger/pinky": "Pinky Finger",
+    "/input/thumbstick": "Thumb Stick"
   }
 ]

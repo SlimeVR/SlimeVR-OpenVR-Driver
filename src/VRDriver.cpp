@@ -195,18 +195,22 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
     std::lock_guard<std::mutex> lock(devices_mutex_);
     if (message.has_tracker_added()) {
         messages::TrackerAdded ta = message.tracker_added();
-        switch(GetDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
-            case DeviceType::TRACKER:
-                AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
-                break;
-        }
+        AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
     } else if (message.has_position()) {
         messages::Position pos = message.position();
         auto device = devices_by_id_.find(pos.tracker_id());
         if (device != devices_by_id_.end()) {
             device->second->PositionMessage(pos);
         }
-    } else if (message.has_tracker_status()) {
+    }
+    else if (message.has_controller_input()) {
+        messages::ControllerInput controllerInput = message.controller_input();
+        auto device = devices_by_id_.find(controllerInput.tracker_id());
+        if (device != devices_by_id_.end()) {
+            device->second->ControllerInputMessage(controllerInput);
+        }
+    }
+    else if (message.has_tracker_status()) {
         messages::TrackerStatus status = message.tracker_status();
         auto device = devices_by_id_.find(status.tracker_id());
         if (device != devices_by_id_.end()) {
