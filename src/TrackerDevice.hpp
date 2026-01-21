@@ -24,6 +24,7 @@ namespace SlimeVRDriver {
     public:
         TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
         ~TrackerDevice() = default;
+        void LogInput(const char* path, vr::VRInputComponentHandle_t componentHandle);
         void LogInputError(vr::EVRInputError err, const char* path, vr::VRInputComponentHandle_t componentHandle);
         void LogInfo(const char* message);
         // Inherited via IVRDevice
