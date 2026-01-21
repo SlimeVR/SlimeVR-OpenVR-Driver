@@ -378,7 +378,7 @@ void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const ch
 			<< std::endl;
 	}
 }
-const SlimeVRDriver::TrackerDevice::char* GetInputErrorName(vr::EVRInputError err) {
+const char* SlimeVRDriver::TrackerDevice::GetInputErrorName(vr::EVRInputError err) {
 	switch (err) {
 	case vr::VRInputError_None: return "None";
 	case vr::VRInputError_NameNotFound: return "NameNotFound";
