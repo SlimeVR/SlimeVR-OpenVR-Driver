@@ -119,17 +119,19 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 	GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(messages::ControllerInput& controllerInput) {
-	// Get inputs from protobuf
-	vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_, controllerInput.trigger(), 0);
-	vr::VRDriverInput()->UpdateBooleanComponent(this->trigger_component_touch_, controllerInput.trigger() > 0.5f, 0);
-	vr::VRDriverInput()->UpdateScalarComponent(this->grip_value_component_, controllerInput.grip(), 0);
-	vr::VRDriverInput()->UpdateScalarComponent(this->stick_x_component_, controllerInput.thumbstick_x(), 0);
-	vr::VRDriverInput()->UpdateScalarComponent(this->stick_y_component_, controllerInput.thumbstick_y(), 0);
-	vr::VRDriverInput()->UpdateBooleanComponent(this->button_a_component_, controllerInput.button_1(), 0);
-	vr::VRDriverInput()->UpdateBooleanComponent(this->button_b_component_, controllerInput.button_2(), 0);
-	vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_, controllerInput.stick_click(), 0);
-	vr::VRDriverInput()->UpdateBooleanComponent(this->system_component, controllerInput.menu_recenter(), 0);
-	vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch, controllerInput.menu_recenter(), 0);
+	if (was_activated_) {
+		// Get inputs from protobuf
+		vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_, controllerInput.trigger(), 0);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->trigger_component_touch_, controllerInput.trigger() > 0.5f, 0);
+		vr::VRDriverInput()->UpdateScalarComponent(this->grip_value_component_, controllerInput.grip(), 0);
+		vr::VRDriverInput()->UpdateScalarComponent(this->stick_x_component_, controllerInput.thumbstick_x(), 0);
+		vr::VRDriverInput()->UpdateScalarComponent(this->stick_y_component_, controllerInput.thumbstick_y(), 0);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->button_a_component_, controllerInput.button_1(), 0);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->button_b_component_, controllerInput.button_2(), 0);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_, controllerInput.stick_click(), 0);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component, controllerInput.menu_recenter(), 0);
+		vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch, controllerInput.menu_recenter(), 0);
+	}
 }
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
 	if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
@@ -410,7 +412,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 		vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithController, finger_skeleton_, 31);
 		vr::VRDriverInput()->UpdateSkeletonComponent(skeletal_component_handle_, vr::VRSkeletalMotionRange_WithoutController, finger_skeleton_, 31);
 	}
-
+	was_activated_ = true;
 	return vr::EVRInitError::VRInitError_None;
 }
 
