@@ -285,101 +285,101 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
 		LogInfo("Creating /pose/raw component");
 		vr::EVRInputError input_error = vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/raw", &this->raw_pose_component_handle_);
-		LogInputError(input_error, "/pose/raw");
+		LogInputError(input_error, "/pose/raw", this->raw_pose_component_handle_);
 
 		LogInfo("Creating /pose/tip component");
 		input_error = vr::VRDriverInput()->CreatePoseComponent(containerHandle_, "/pose/tip", &this->aim_pose_component_handle_);
-		LogInputError(input_error, "/pose/tip");
+		LogInputError(input_error, "/pose/tip", this->aim_pose_component_handle_);
 
 		LogInfo("Creating /input/double_tap/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/double_tap/click", &this->double_tap_component_);
-		LogInputError(input_error, "/input/double_tap/click");
+		LogInputError(input_error, "/input/double_tap/click", this->double_tap_component_);
 
 		LogInfo("Creating /input/triple_tap/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/triple_tap/click", &this->triple_tap_component_);
-		LogInputError(input_error, "/input/triple_tap/click");
+		LogInputError(input_error, "/input/triple_tap/click", this->triple_tap_component_);
 
 		LogInfo("Creating /input/a/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/a/click", &this->button_a_component_);
-		LogInputError(input_error, "/input/a/click");
-		
+		LogInputError(input_error, "/input/a/click", this->button_a_component_);
+
 		LogInfo("Creating /input/a/touch component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/a/touch", &this->button_a_component_touch_);
-		LogInputError(input_error, "/input/a/touch");
-		
+		LogInputError(input_error, "/input/a/touch", this->button_a_component_touch_);
+
 		LogInfo("Creating /input/b/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/b/click", &this->button_b_component_);
-		LogInputError(input_error, "/input/b/click");
-		
+		LogInputError(input_error, "/input/b/click", this->button_b_component_);
+
 		LogInfo("Creating /input/b/touch component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/b/touch", &this->button_b_component_touch_);
-		LogInputError(input_error, "/input/b/touch");
-		
+		LogInputError(input_error, "/input/b/touch", this->button_b_component_touch_);
+
 		LogInfo("Creating /input/system/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/system/click", &this->system_component);
-		LogInputError(input_error, "/input/system/click");
-		
+		LogInputError(input_error, "/input/system/click", this->system_component);
+
 		LogInfo("Creating /input/system/touch component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/system/touch", &this->system_component_touch);
-		LogInputError(input_error, "/input/system/touch");
-		
+		LogInputError(input_error, "/input/system/touch", this->system_component_touch);
+
 		LogInfo("Creating /input/trackpad/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trackpad/click", &this->trackpad_click_component_);
-		LogInputError(input_error, "/input/trackpad/click");
-		
+		LogInputError(input_error, "/input/trackpad/click", this->trackpad_click_component_);
+
 		LogInfo("Creating /input/trackpad/touch component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trackpad/touch", &this->trackpad_touch_component_);
-		LogInputError(input_error, "/input/trackpad/touch");
-		
+		LogInputError(input_error, "/input/trackpad/touch", this->trackpad_touch_component_);
+
 		LogInfo("Creating /input/joystick/click component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/joystick/click", &this->stick_click_component_);
-		LogInputError(input_error, "/input/joystick/click");
-		
+		LogInputError(input_error, "/input/joystick/click", this->stick_click_component_);
+
 		LogInfo("Creating /input/joystick/touch component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/joystick/touch", &this->stick_click_component_touch_);
-		LogInputError(input_error, "/input/joystick/touch");
+		LogInputError(input_error, "/input/joystick/touch", this->stick_click_component_touch_);
 
 		// Scalar components
-		
-		LogInfo("Creating /input/double_tap/click component");
+
+		LogInfo("Creating /input/trigger/value component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/trigger/value", &this->trigger_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		LogInputError(input_error, "/input/trigger/value");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/trigger/value", this->trigger_component_);
+
+		LogInfo("Creating /input/trigger/touch component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trigger/touch", &this->trigger_component_touch_);
-		LogInputError(input_error, "/input/trigger/touch");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/trigger/touch", this->trigger_component_touch_);
+
+		LogInfo("Creating /input/trigger/clickcomponent");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/trigger/click", &this->trigger_component_click_);
-		LogInputError(input_error, "/input/trigger/click");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/trigger/click", this->trigger_component_click_);
+
+		LogInfo("Creating /input/grip/value component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/grip/value", &this->grip_value_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedOneSided);
-		LogInputError(input_error, "/input/grip/value");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/grip/value", this->grip_value_component_);
+
+		LogInfo("Creating /input/grip/touch component");
 		input_error = vr::VRDriverInput()->CreateBooleanComponent(containerHandle_, "/input/grip/touch", &this->grip_value_component_touch_);
-		LogInputError(input_error, "/input/grip/touch");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/grip/touch", this->grip_value_component_touch_);
+
+		LogInfo("Creating /input/trackpad/x component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/trackpad/x", &this->trackpad_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		LogInputError(input_error, "/input/trackpad/x");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/trackpad/x", this->trackpad_x_component_);
+
+		LogInfo("Creating /input/trackpad/y component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/trackpad/y", &this->trackpad_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		LogInputError(input_error, "/input/trackpad/y");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/trackpad/y", this->trackpad_y_component_);
+
+		LogInfo("Creating /input/joystick/x component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/x", &this->stick_x_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		LogInputError(input_error, "/input/joystick/x");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/joystick/x", this->stick_x_component);
+
+		LogInfo("Creating /input/joystick/y component");
 		input_error = vr::VRDriverInput()->CreateScalarComponent(containerHandle_, "/input/joystick/y", &this->stick_y_component_, vr::VRScalarType_Absolute, vr::VRScalarUnits_NormalizedTwoSided);
-		LogInputError(input_error, "/input/joystick/y");
-		
-		LogInfo("Creating /input/double_tap/click component");
+		LogInputError(input_error, "/input/joystick/y", this->stick_y_component_);
+
+		LogInfo("Creating /output/haptic component");
 		input_error = vr::VRDriverInput()->CreateHapticComponent(containerHandle_, "/output/haptic", &this->haptic_component_);
-		LogInputError(input_error, "/output/haptic");
+		LogInputError(input_error, "/output/haptic", this->haptic_component_);
 	}
 
 	// Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
@@ -423,13 +423,14 @@ void SlimeVRDriver::TrackerDevice::LogInfo(const char* message) {
 	}
 }
 
-void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const char* path) {
+void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const char* path, vr::VRInputComponentHandle_t componentHandle) {
 	if (!input_log_.is_open()) return;
 
 	input_log_ << "["
 		<< (err == vr::VRInputError_None ? "Info" : "InputError")
 		<< "] "
 		<< path
+		<< componentHandle
 		<< " -> "
 		<< GetInputErrorName(err)
 		<< " (" << err << ")"
