@@ -373,7 +373,7 @@ void SlimeVRDriver::TrackerDevice::LogInputError(vr::EVRInputError err, const ch
 			<< "[InputError] "
 			<< path
 			<< " -> "
-			<< vr::VRDriverInput()->GetInputErrorName(err)
+			<< GetInputErrorName(err)
 			<< " (" << err << ")"
 			<< std::endl;
 	}
