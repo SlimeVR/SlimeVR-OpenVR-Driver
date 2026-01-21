@@ -36,7 +36,7 @@ namespace SlimeVRDriver {
         virtual void ControllerInputMessage(messages::ControllerInput& position) override;
         virtual void StatusMessage(messages::TrackerStatus &status) override;
         virtual void BatteryMessage(messages::Battery &battery) override;
-        const char* GetInputErrorName(vr::EVRInputError err) override;
+        const char* GetInputErrorName(vr::EVRInputError err)
 
         // Inherited via ITrackedDeviceServerDriver
         virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
