@@ -67,15 +67,19 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             auto serial = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_SerialNumber_String, &error);
             if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
                 logger_->Log("Failed to get HMD's Prop_SerialNumber_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-            } else {
-                logger_->Log("HMD serial number: {}", serial);
             }
+
             auto name = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_ModelNumber_String, &error);
             if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
                 logger_->Log("Failed to get HMD's Prop_ModelNumber_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-            } else {
-                logger_->Log("HMD model number: {}", name);
             }
+
+            auto manufacturer = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_ManufacturerName_String, &error);
+            if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
+                logger_->Log("Failed to get HMD's Prop_ManufacturerName_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+            }
+
+            logger_->Log("HMD props: serial='{}', model='{}', manufacturer='{}'", serial, name, manufacturer);
 
             // Send add message for HMD
             messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
@@ -84,6 +88,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             tracker_added->set_tracker_role(TrackerRole::HMD);
             tracker_added->set_tracker_serial(serial.empty() ? "HMD" : serial);
             tracker_added->set_tracker_name(name.empty() ? "HMD" : name);
+            tracker_added->set_manufacturer(manufacturer.empty() ? "OpenVR" : manufacturer);
             bridge_->SendBridgeMessage(*message);
 
             messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
