@@ -56,14 +56,34 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
 
         messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
 
-        if (!sent_hmd_add_message_) {
+        vr::TrackedDevicePose_t hmd_pose;
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, &hmd_pose, 1);
+
+        vr::PropertyContainerHandle_t hmd_prop_container =
+            vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
+
+        if (!sent_hmd_add_message_ && hmd_pose.bDeviceIsConnected) {
+            vr::ETrackedPropertyError error{};
+            auto serial = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_SerialNumber_String, &error);
+            if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
+                logger_->Log("Failed to get HMD's Prop_SerialNumber_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+            } else {
+                logger_->Log("HMD serial number: {}", serial);
+            }
+            auto name = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_ModelNumber_String, &error);
+            if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
+                logger_->Log("Failed to get HMD's Prop_ModelNumber_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+            } else {
+                logger_->Log("HMD model number: {}", name);
+            }
+
             // Send add message for HMD
             messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
             message->set_allocated_tracker_added(tracker_added);
             tracker_added->set_tracker_id(0);
             tracker_added->set_tracker_role(TrackerRole::HMD);
-            tracker_added->set_tracker_serial("HMD");
-            tracker_added->set_tracker_name("HMD");
+            tracker_added->set_tracker_serial(serial.empty() ? "HMD" : serial);
+            tracker_added->set_tracker_name(name.empty() ? "HMD" : name);
             bridge_->SendBridgeMessage(*message);
 
             messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
@@ -75,9 +95,6 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             sent_hmd_add_message_ = true;
             logger_->Log("Sent HMD hello message");
         }
-
-        vr::PropertyContainerHandle_t hmd_prop_container =
-            vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
 
         vr::ETrackedPropertyError universe_error;
         uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
@@ -97,9 +114,6 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             );
         }
         last_universe_error_ = universe_error;
-
-        vr::TrackedDevicePose_t hmd_pose;
-        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, &hmd_pose, 1);
 
         vr::HmdQuaternion_t q = GetRotation(hmd_pose.mDeviceToAbsoluteTracking);
         vr::HmdVector3_t pos = GetPosition(hmd_pose.mDeviceToAbsoluteTracking);
