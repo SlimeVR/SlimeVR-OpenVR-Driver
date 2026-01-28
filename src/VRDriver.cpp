@@ -384,31 +384,25 @@ SlimeVRDriver::UniverseTranslation SlimeVRDriver::UniverseTranslation::parse(sim
     return res;
 }
 
-std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverse(std::string path, uint64_t target) {
-    try {
-        auto json = simdjson::padded_string::load(path); // load VR Path Registry
-        simdjson::ondemand::document doc = json_parser_.iterate(json);
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverse(const simdjson::padded_string &json, uint64_t target) {
+    simdjson::ondemand::document doc = json_parser_.iterate(json);
 
-        for (simdjson::ondemand::object uni: doc["universes"]) {
-            // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
-            auto elem = uni["universeID"];
-            uint64_t parsed_universe;
+    for (simdjson::ondemand::object uni: doc["universes"]) {
+        // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
+        auto elem = uni["universeID"];
+        uint64_t parsed_universe;
 
-            auto is_integer = elem.is_integer();
-            if (!is_integer.error() && is_integer.value_unsafe()) {
-                parsed_universe = elem.get_uint64();
-            } else {
-                parsed_universe = elem.get_uint64_in_string();
-            }
-
-            if (parsed_universe == target) {
-                auto standing_uni = uni["standing"].get_object();
-                return SlimeVRDriver::UniverseTranslation::parse(standing_uni.value());
-            }
+        auto is_integer = elem.is_integer();
+        if (!is_integer.error() && is_integer.value_unsafe()) {
+            parsed_universe = elem.get_uint64();
+        } else {
+            parsed_universe = elem.get_uint64_in_string();
         }
-    } catch (simdjson::simdjson_error& e) {
-        logger_->Log("Error getting universes from {}: {}", path, e.what());
-        return std::nullopt;
+
+        if (parsed_universe == target) {
+            auto standing_uni = uni["standing"].get_object();
+            return SlimeVRDriver::UniverseTranslation::parse(standing_uni.value());
+        }
     }
 
     return std::nullopt;
@@ -417,14 +411,24 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
 std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverses(uint64_t target) {
     auto driver_chap_path = vr::VRProperties()->GetStringProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DriverProvidedChaperonePath_String);
     if (driver_chap_path != "") {
-        auto driver_res = SearchUniverse(driver_chap_path, target);
-        if (driver_res.has_value()) {
-            return driver_res.value();
+        try {
+            auto driver_res = SearchUniverse(simdjson::padded_string::load(driver_chap_path).take_value(), target);
+            if (driver_res.has_value()) {
+                return driver_res.value();
+            }
+        }
+        catch (simdjson::simdjson_error &e) {
+            logger_->Log("Error loading chaperone from driver-provided path {}: {}", driver_chap_path, e.what());
         }
     }
 
     if (default_chap_path_.has_value()) {
-        return SearchUniverse(default_chap_path_.value(), target);
+        try {
+            return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value()).take_value(), target);
+        }
+        catch (simdjson::simdjson_error &e) {
+            logger_->Log("Error loading chaperone from default path {}: {}", default_chap_path_.value(), e.what());
+        }
     }
     
     return std::nullopt;
