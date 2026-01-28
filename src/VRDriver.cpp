@@ -409,7 +409,21 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
 }
 
 std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverses(uint64_t target) {
-    auto driver_chap_path = vr::VRProperties()->GetStringProperty(vr::VRProperties()->TrackedDeviceToPropertyContainer(0), vr::Prop_DriverProvidedChaperonePath_String);
+    vr::PropertyContainerHandle_t hmd_prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
+    auto driver_chap_json = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_DriverProvidedChaperoneJson_String);
+    if (driver_chap_json != "") {
+        try {
+            auto driver_res = SearchUniverse(driver_chap_json, target);
+            if (driver_res.has_value()) {
+                return driver_res.value();
+            }
+        }
+        catch (simdjson::simdjson_error &e) {
+            logger_->Log("Error loading driver-provided chaperone JSON: {}", e.what());
+        }
+    }
+
+    auto driver_chap_path = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_DriverProvidedChaperonePath_String);
     if (driver_chap_path != "") {
         try {
             auto driver_res = SearchUniverse(simdjson::padded_string::load(driver_chap_path).take_value(), target);
