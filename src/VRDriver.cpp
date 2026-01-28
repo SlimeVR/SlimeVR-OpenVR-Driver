@@ -209,7 +209,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                 bridge_->SendBridgeMessage(*message);
 
                 device.sent_add_message = true;
-                logger_->Log("Sent add message for device {}", index);
+                logger_->Log("Sent add message for device {}: serial={}, model={}, manufacturer={}, role={}", index, serial, name, manufacturer, GetRoleName(role));
             }
 
             if (pose.bPoseIsValid || pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly) {
