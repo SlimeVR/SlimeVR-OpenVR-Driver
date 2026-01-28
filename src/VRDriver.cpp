@@ -111,6 +111,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             // If bridge not connected, assume we need to resend hmd tracker add message
             for (auto &device : devices) {
                 device.sent_add_message = false;
+                device.status = messages::TrackerStatus_Status_DISCONNECTED;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
@@ -140,11 +141,13 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
 
         auto notify_status_changed = [this](DeviceData &device, messages::ProtobufMessage *message, messages::TrackerStatus_Status status) {
             if (device.status != status) {
+                logger_->Log("Status for device {} changing {}->{}", device.index, static_cast<int>(device.status), static_cast<int>(status));
                 messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
                 message->set_allocated_tracker_status(tracker_status);
                 tracker_status->set_tracker_id(device.index);
                 tracker_status->set_status(status);
                 bridge_->SendBridgeMessage(*message);
+                device.status = status;
             }
         };
 
@@ -198,8 +201,8 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                 logger_->Log("Sent add message for device {}", index);
             }
 
-            if (pose.bPoseIsValid || pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly || pose.eTrackingResult == vr::TrackingResult_Calibrating_OutOfRange) {
-                messages::TrackerStatus_Status status = pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly || pose.eTrackingResult == vr::TrackingResult_Calibrating_OutOfRange
+            if (pose.bPoseIsValid || pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly) {
+                messages::TrackerStatus_Status status = pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly
                     ? messages::TrackerStatus_Status_OCCLUDED
                     : messages::TrackerStatus_Status_OK;
                 notify_status_changed(device, message, status);
@@ -249,6 +252,13 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                 position->set_qz((float) q.z);
                 position->set_qw((float) q.w);
                 bridge_->SendBridgeMessage(*message);
+            } else {
+                notify_status_changed(
+                    device,
+                    message,
+                    pose.eTrackingResult == vr::TrackingResult_Calibrating_OutOfRange
+                        ? messages::TrackerStatus_Status_OCCLUDED
+                        : messages::TrackerStatus_Status_DISCONNECTED);
             }
 
             auto now = std::chrono::steady_clock::now();
