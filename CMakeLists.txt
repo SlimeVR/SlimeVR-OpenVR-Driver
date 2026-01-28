@@ -56,8 +56,6 @@ elseif(APPLE)
     set(PLATFORM_NAME "osx")
 endif()
 
-find_library(OPENVR_LIB openvr_api HINTS "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr/lib/${PLATFORM_NAME}${PROCESSOR_ARCH}/" NO_DEFAULT_PATH )
-
 # Protobuf
 # Installation:
 # Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
@@ -82,7 +80,6 @@ set(DEPS_INCLUDES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/"
 )
 set(DEPS_LIBS
-    "${OPENVR_LIB}"
     protobuf::libprotoc
     protobuf::libprotobuf
     protobuf::libprotobuf-lite
