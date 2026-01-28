@@ -158,6 +158,17 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             vr::PropertyContainerHandle_t prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
             messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
 
+            {
+                vr::ETrackedPropertyError error{};
+                auto driver_name = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_TrackingSystemName_String, &error);
+                if (error != vr::TrackedProp_Success) {
+                    if (error != vr::TrackedProp_InvalidDevice && error != vr::TrackedProp_UnknownProperty)
+                        logger_->Log("Failed to get Prop_TrackingSystemName_String for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+                    continue;
+                }
+                if (driver_name == "slimevr" || driver_name == "standable") continue;
+            }
+
             if (device.sent_add_message && !pose.bDeviceIsConnected) {
                 notify_status_changed(device, message, messages::TrackerStatus_Status_DISCONNECTED);
                 continue;
