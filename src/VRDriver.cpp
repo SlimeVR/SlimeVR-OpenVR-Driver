@@ -144,9 +144,10 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             vr::PropertyContainerHandle_t prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
             messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
 
-            // Don't feed data about our own trackers, or Standable's fake ones.
             {
                 vr::ETrackedPropertyError error{};
+
+                // Don't feed data about our own trackers and Standable's fake ones
                 auto driver_name = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_TrackingSystemName_String, &error);
                 if (error != vr::TrackedProp_Success) {
                     if (error != vr::TrackedProp_InvalidDevice && error != vr::TrackedProp_UnknownProperty)
@@ -155,6 +156,17 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                     continue;
                 }
                 if (driver_name == "slimevr" || driver_name == "standable") continue;
+
+                auto device_class = (vr::ETrackedDeviceClass)vr::VRProperties()->GetInt32Property(prop_container, vr::Prop_DeviceClass_Int32, &error);
+                if (error != vr::TrackedProp_Success) {
+                    logger_->Log("Failed to get Prop_DeviceClass_Int32 for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+                    continue;
+                }
+
+                // Ignore devices that aren't HMD, controllers, or generic trackers
+                if (device_class == vr::TrackedDeviceClass_Invalid || device_class >= vr::TrackedDeviceClass_TrackingReference) {
+                    continue;
+                }
             }
 
             if (device.sent_add_message && !pose.bDeviceIsConnected) {
