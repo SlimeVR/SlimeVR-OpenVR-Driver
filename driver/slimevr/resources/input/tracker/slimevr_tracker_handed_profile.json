@@ -1,0 +1,25 @@
+{
+  "jsonid" : "input_profile",
+  "controller_type": "slimevr_tracker_handed",
+  "override_device_class" : "TrackedDeviceClass_Controller",
+  "device_class": "TrackedDeviceClass_GenericTracker",
+  "driver_name" : "slimevr",
+  "input_bindingui_mode" : "controller_handed",
+  "hand_priority" : -1,
+  "input_bindingui_left" :
+  {
+    "transform" : "scale(-1,1)",
+    "image": "{htc}/icons/vive_tracker_with_handle.svg"
+  },
+  "input_bindingui_right" :
+  {
+    "image": "{htc}/icons/vive_tracker_with_handle.svg"
+  },
+  "input_source" :
+  {
+    "/pose/raw" : {
+      "type" : "pose",
+      "binding_image_point" : [ 15, 25 ]
+    }
+  }
+}

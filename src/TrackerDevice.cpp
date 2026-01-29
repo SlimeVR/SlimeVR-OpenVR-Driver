@@ -172,11 +172,9 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{slimevr}/icons/tracker_status_standby.png");
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
 
-    // Automatically select vive tracker roles and set hints for games that need it (Beat Saber avatar mod, for example)
-    auto role_hint = GetViveRoleHint(tracker_role_);
-    if (role_hint != "") {
-       GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, role_hint.c_str());
-    }
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_tracker_profile.json");
+
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "slimevr_tracker");
 
     auto role = GetViveRole(tracker_role_);
     if (role != "") {
