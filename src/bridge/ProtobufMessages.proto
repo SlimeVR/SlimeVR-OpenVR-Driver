@@ -89,6 +89,7 @@ message TrackerAdded {
     string tracker_serial = 2;
     string tracker_name = 3;
     int32 tracker_role = 4;
+    string manufacturer = 5;
 }
 
 message TrackerStatus {
