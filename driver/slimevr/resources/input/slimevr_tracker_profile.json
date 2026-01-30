@@ -1,0 +1,36 @@
+{
+  "jsonid" : "input_profile",
+  "controller_type": "slimevr_tracker",
+  "input_bindingui_mode" : "single_device",
+  "driver_name" : "slimevr",
+  "input_bindingui_right" :
+  {
+    "image": "{htc}/icons/vive_tracker.svg"
+  },
+  "priority" :  7,
+  "tracker_types" :
+  {
+    "TrackerRole_Handed" : "{slimevr}/input/tracker/slimevr_tracker_handed_profile.json",
+  	"TrackerRole_LeftFoot" : "{slimevr}/input/tracker/slimevr_tracker_left_foot_profile.json",
+  	"TrackerRole_RightFoot" : "{slimevr}/input/tracker/slimevr_tracker_right_foot_profile.json",
+  	"TrackerRole_LeftShoulder" : "{slimevr}/input/tracker/slimevr_tracker_left_shoulder_profile.json",
+  	"TrackerRole_RightShoulder" : "{slimevr}/input/tracker/slimevr_tracker_right_shoulder_profile.json",
+  	"TrackerRole_LeftElbow" : "{slimevr}/input/tracker/slimevr_tracker_left_elbow_profile.json",
+  	"TrackerRole_RightElbow" : "{slimevr}/input/tracker/slimevr_tracker_right_elbow_profile.json",
+  	"TrackerRole_LeftKnee" : "{slimevr}/input/tracker/slimevr_tracker_left_knee_profile.json",
+  	"TrackerRole_RightKnee" : "{slimevr}/input/tracker/slimevr_tracker_right_knee_profile.json",
+    "TrackerRole_LeftWrist" : "{slimevr}/input/tracker/slimevr_tracker_left_wrist_profile.json",
+  	"TrackerRole_RightWrist" : "{slimevr}/input/tracker/slimevr_tracker_right_wrist_profile.json",
+  	"TrackerRole_LeftAnkle" : "{slimevr}/input/tracker/slimevr_tracker_left_ankle_profile.json",
+  	"TrackerRole_RightAnkle" : "{slimevr}/input/tracker/slimevr_tracker_right_ankle_profile.json",
+  	"TrackerRole_Waist" : "{slimevr}/input/tracker/slimevr_tracker_waist_profile.json",
+  	"TrackerRole_Chest" : "{slimevr}/input/tracker/slimevr_tracker_chest_profile.json"
+  },
+  "input_source" :
+  {
+    "/pose/raw" : {
+        "type" : "pose",
+        "binding_image_point" : [ 63, 148 ]
+    }
+  }
+}

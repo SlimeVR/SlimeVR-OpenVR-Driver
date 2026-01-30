@@ -1,16 +1,20 @@
 [
   {
     "language_tag": "en_US",
-    "example_controller": "Example Controller",
-    "example_tracker": "Example Tracker",
-    "example_basestation": "Example BaseStation",
-    "/input/a": "A Button",
-    "/input/b": "B Button",
-    "/input/system": "System Button",
-    "/input/trackpad": "Trackpad",
-    "/input/joystick": "Joystick",
-    "/input/skeleton": "Skeleton",
-    "/input/trigger": "Trigger",
-    "/output/haptic": "Haptic"
+    "slimevr_tracker" : "SlimeVR Tracker",
+    "slimevr_tracker_left_foot" : "SlimeVR Tracker on Left Foot",
+    "slimevr_tracker_right_foot" : "SlimeVR Tracker on Right Foot",
+    "slimevr_tracker_left_shoulder" : "SlimeVR Tracker on Left Shoulder",
+    "slimevr_tracker_right_shoulder" : "SlimeVR Tracker on Right Shoulder",
+    "slimevr_tracker_left_elbow" : "SlimeVR Tracker on Left Elbow",
+    "slimevr_tracker_right_elbow" : "SlimeVR Tracker on Right Elbow",
+    "slimevr_tracker_left_knee" : "SlimeVR Tracker on Left Knee",
+    "slimevr_tracker_right_knee" : "SlimeVR Tracker on Right Knee",
+    "slimevr_tracker_left_wrist" : "SlimeVR Tracker on Left Wrist",
+    "slimevr_tracker_right_wrist" : "SlimeVR Tracker on Right Wrist",
+    "slimevr_tracker_left_ankle" : "SlimeVR Tracker on Left Ankle",
+    "slimevr_tracker_right_ankle" : "SlimeVR Tracker on Right Ankle",
+    "slimevr_tracker_waist" : "SlimeVR Tracker on Waist",
+    "slimevr_tracker_chest" : "SlimeVR Tracker on Chest"
   }
 ]

@@ -26,6 +26,9 @@ vcpkg_installed/
 !.vscode/extensions.json
 *.code-workspace
 
+### clangd ###
+.cache
+
 # Project-specific
 build/*
 out/
