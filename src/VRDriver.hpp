@@ -20,7 +20,7 @@ namespace SlimeVRDriver {
     public:
         // Inherited via IVRDriver
         virtual std::vector<std::shared_ptr<IVRDevice>> GetDevices() override;
-        virtual std::vector<vr::VREvent_t> GetOpenVREvents() override;
+        virtual const std::vector<vr::VREvent_t>& GetOpenVREvents() override;
         virtual std::chrono::milliseconds GetLastFrameTime() override;
         virtual bool AddDevice(std::shared_ptr<IVRDevice> device) override;
         virtual SettingsValue GetSettingsValue(std::string key) override;

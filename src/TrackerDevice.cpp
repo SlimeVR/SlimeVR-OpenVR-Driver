@@ -16,8 +16,8 @@ void SlimeVRDriver::TrackerDevice::Update() {
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
 
     // Check if this device was asked to be identified
-    auto events = GetDriver()->GetOpenVREvents();
-    for (auto event : events) {
+    auto& events = GetDriver()->GetOpenVREvents();
+    for (const auto& event : events) {
         // Note here, event.trackedDeviceIndex does not necessarily equal device_index_, not sure why, but the component handle will match so we can just use that instead
         //if (event.trackedDeviceIndex == device_index_) {
         if (event.eventType == vr::EVREventType::VREvent_Input_HapticVibration) {

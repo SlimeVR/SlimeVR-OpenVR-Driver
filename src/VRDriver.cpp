@@ -266,7 +266,7 @@ std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> SlimeVRDriver::VRDriver::
     return devices;
 }
 
-std::vector<vr::VREvent_t> SlimeVRDriver::VRDriver::GetOpenVREvents() {
+const std::vector<vr::VREvent_t>& SlimeVRDriver::VRDriver::GetOpenVREvents() {
     return openvr_events_;
 }
 
