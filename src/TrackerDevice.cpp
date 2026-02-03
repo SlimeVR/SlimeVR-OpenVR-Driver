@@ -157,6 +157,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
     
     // Set up a model "number" (not needed but good to have)
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
 
     // Set up a render model path
