@@ -109,8 +109,6 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                 if (result.has_value()) {
                     current_universe_.emplace(universe, result.value());
                     logger_->Log("Found current universe");
-                } else {
-                    logger_->Log("Failed to find current universe!");
                 }
             }
         } else if (universe_error != last_universe_error_) {
@@ -455,7 +453,7 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
         }
     }
 
-    if (default_chap_path_.has_value()) {
+    if (default_chap_path_.has_value() && std::filesystem::exists(default_chap_path_.value())) {
         try {
             return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value()).take_value(), target);
         }
