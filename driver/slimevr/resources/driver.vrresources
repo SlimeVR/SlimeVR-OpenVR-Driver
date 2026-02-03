@@ -1,0 +1,15 @@
+{
+	"jsonid" : "vrresources",
+	"statusicons" : {
+		"Tracker" : {
+			"Prop_NamedIconPathDeviceOff_String": "{slimevr}/icons/tracker_status_off.png",
+			"Prop_NamedIconPathDeviceSearching_String": "{slimevr}/icons/tracker_status_ready.png",
+			"Prop_NamedIconPathDeviceSearchingAlert_String": "{slimevr}/icons/tracker_status_ready_alert.png",
+			"Prop_NamedIconPathDeviceReady_String": "{slimevr}/icons/tracker_status_ready.png",
+			"Prop_NamedIconPathDeviceReadyAlert_String": "{slimevr}/icons/tracker_status_ready_alert.png",
+			"Prop_NamedIconPathDeviceNotReady_String": "{slimevr}/icons/tracker_status_error.png",
+			"Prop_NamedIconPathDeviceStandby_String": "{slimevr}/icons/tracker_status_standby.png",
+			"Prop_NamedIconPathDeviceAlertLow_String": "{slimevr}/icons/tracker_status_ready_low.png"
+		}
+	}
+}
