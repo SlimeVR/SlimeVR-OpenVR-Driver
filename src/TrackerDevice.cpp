@@ -176,6 +176,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_tracker_profile.json");
 
+    // Doesn't apply until restart of SteamVR
     auto role = GetViveRole(tracker_role_);
     if (role != "") {
         vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial_).c_str(), role.c_str());
