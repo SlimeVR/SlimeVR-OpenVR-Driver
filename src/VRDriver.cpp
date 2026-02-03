@@ -214,6 +214,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
         messages::TrackerAdded ta = message.tracker_added();
         switch(GetDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
             case DeviceType::TRACKER:
+            case DeviceType::CONTROLLER:
                 AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
                 break;
         }
