@@ -155,17 +155,9 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
     // Get the properties handle
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
-
-    // Set some universe ID (Must be 2 or higher)
-    GetDriver()->GetProperties()->SetUint64Property(props, vr::Prop_CurrentUniverseId_Uint64, 4);
     
     // Set up a model "number" (not needed but good to have)
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
-
-    // Opt out of hand selection
-    GetDriver()->GetProperties()->SetInt32Property(props, vr::Prop_ControllerRoleHint_Int32, vr::ETrackedControllerRole::TrackedControllerRole_OptOut);
-    vr::VRProperties()->SetInt32Property(props, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
-    vr::VRProperties()->SetInt32Property(props, vr::Prop_ControllerHandSelectionPriority_Int32, -1);
 
     // Set up a render model path
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
@@ -182,8 +174,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{slimevr}/icons/tracker_status_ready_low.png");
 
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_tracker_profile.json");
-
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ControllerType_String, "slimevr_tracker");
 
     auto role = GetViveRole(tracker_role_);
     if (role != "") {
