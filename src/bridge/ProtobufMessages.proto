@@ -118,6 +118,7 @@ message Position {
 
     repeated FingerBoneRotation finger_bone_rotations = 10;
 
+    repeated Input input = 11;
     optional float vx = 10; 
     optional float vy = 11; 
     optional float vz = 12;
