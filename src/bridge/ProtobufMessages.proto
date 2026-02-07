@@ -115,6 +115,8 @@ message Position {
         FULL = 3;
     }
     optional DataSource data_source = 9;
+
+    repeated FingerBoneRotation finger_bone_rotations = 10;
 }
 
 message ControllerInput {
