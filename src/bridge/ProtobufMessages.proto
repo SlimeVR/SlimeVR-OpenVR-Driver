@@ -115,6 +115,9 @@ message Position {
         FULL = 3;
     }
     optional DataSource data_source = 9;
+
+    repeated FingerBoneRotation finger_bone_rotations = 10;
+
     optional float vx = 10; 
     optional float vy = 11; 
     optional float vz = 12;
