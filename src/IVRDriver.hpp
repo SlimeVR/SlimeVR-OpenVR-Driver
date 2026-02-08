@@ -34,7 +34,7 @@ namespace SlimeVRDriver {
          * 
          * @return A vector of current frame's OpenVR events.
          */
-        virtual std::vector<vr::VREvent_t> GetOpenVREvents() = 0;
+        virtual const std::vector<vr::VREvent_t>& GetOpenVREvents() = 0;
 
         /**
          * Returns the milliseconds between last frame and this frame.

@@ -109,8 +109,6 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                 if (result.has_value()) {
                     current_universe_.emplace(universe, result.value());
                     logger_->Log("Found current universe");
-                } else {
-                    logger_->Log("Failed to find current universe!");
                 }
             }
         } else if (universe_error != last_universe_error_) {
@@ -216,6 +214,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
         messages::TrackerAdded ta = message.tracker_added();
         switch(GetDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
             case DeviceType::TRACKER:
+            case DeviceType::CONTROLLER:
                 AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
                 break;
         }
@@ -266,7 +265,7 @@ std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> SlimeVRDriver::VRDriver::
     return devices;
 }
 
-std::vector<vr::VREvent_t> SlimeVRDriver::VRDriver::GetOpenVREvents() {
+const std::vector<vr::VREvent_t>& SlimeVRDriver::VRDriver::GetOpenVREvents() {
     return openvr_events_;
 }
 
@@ -455,7 +454,7 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
         }
     }
 
-    if (default_chap_path_.has_value()) {
+    if (default_chap_path_.has_value() && std::filesystem::exists(default_chap_path_.value())) {
         try {
             return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value()).take_value(), target);
         }

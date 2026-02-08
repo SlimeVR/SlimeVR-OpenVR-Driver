@@ -60,12 +60,14 @@ std::string GetViveRoleHint(TrackerRole role) {
 
 std::string GetViveRole(TrackerRole role) {
     switch (role) {
-        case LEFT_CONTROLLER:
-        case RIGHT_CONTROLLER:
         case GENERIC_CONTROLLER:
-        case LEFT_HAND:
-        case RIGHT_HAND:
             return "TrackerRole_Handed";
+        case LEFT_CONTROLLER:
+        case LEFT_HAND:
+            return "TrackerRole_Handed,TrackedControllerRole_LeftHand";
+        case RIGHT_CONTROLLER:
+        case RIGHT_HAND:
+            return "TrackerRole_Handed,TrackedControllerRole_RightHand";
         case LEFT_FOOT:
             return "TrackerRole_LeftFoot";
         case RIGHT_FOOT:
@@ -97,7 +99,9 @@ std::string GetViveRole(TrackerRole role) {
 DeviceType GetDeviceType(TrackerRole role) {
     switch (role) {
         case LEFT_CONTROLLER:
+        case LEFT_HAND:
         case RIGHT_CONTROLLER:
+        case RIGHT_HAND:
         case GENERIC_CONTROLLER:
             return DeviceType::CONTROLLER;
         case HMD:
