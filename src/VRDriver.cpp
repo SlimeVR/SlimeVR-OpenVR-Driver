@@ -44,62 +44,70 @@ void SlimeVRDriver::VRDriver::Cleanup() {
     bridge_->Stop();
 }
 
+struct DeviceData {
+    vr::TrackedDeviceIndex_t index{ vr::k_unTrackedDeviceIndexInvalid };
+    TrackerRole role{ TrackerRole::NONE };
+    messages::TrackerStatus_Status status { messages::TrackerStatus_Status::TrackerStatus_Status_DISCONNECTED };
+    bool sent_add_message { false };
+    std::chrono::steady_clock::time_point battery_sent_at{};
+};
+
+TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
+    vr::PropertyContainerHandle_t container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
+    auto device_class = vr::VRProperties()->GetInt32Property(container, vr::Prop_DeviceClass_Int32);
+    switch (device_class) {
+    case vr::TrackedDeviceClass_HMD:
+        return TrackerRole::HMD;
+    case vr::TrackedDeviceClass_Controller: {
+        auto controller_role_hint = vr::VRProperties()->GetInt32Property(container, vr::Prop_ControllerRoleHint_Int32);
+        if (controller_role_hint == vr::ETrackedControllerRole::TrackedControllerRole_LeftHand) {
+            return TrackerRole::LEFT_HAND;
+        } else if (controller_role_hint == vr::ETrackedControllerRole::TrackedControllerRole_RightHand) {
+            return TrackerRole::RIGHT_HAND;
+        } else {
+            logger_->Log("Unknown controller role hint {} for device {}", controller_role_hint, index);
+            return TrackerRole::NONE;
+        }
+    }
+    case vr::TrackedDeviceClass_GenericTracker: {
+        vr::ETrackedPropertyError error{ vr::TrackedProp_Success };
+        auto controller_type = vr::VRProperties()->GetStringProperty(container, vr::Prop_ControllerType_String, &error);
+        if (controller_type.empty()) {
+            logger_->Log("Unable to get controller type for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+            return TrackerRole::NONE;
+        }
+
+        for (TrackerRole role = TrackerRole::WAIST; role < TrackerRole::KEYBOARD; role = static_cast<TrackerRole>(static_cast<uint8_t>(role) + 1)) {
+            if (auto role_hint = GetViveRoleHint(role); !role_hint.empty() && role_hint == controller_type) {
+                return role;
+            }
+        }
+
+        logger_->Log("Couldn't determine role for device {} (Prop_ControllerType_String='{}')", index, controller_type);
+        return TrackerRole::NONE;
+    }
+    default:
+        return TrackerRole::NONE;
+    }
+}
+
 void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
+    std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> devices{};
     logger_->Log("Pose request thread started");
     while (!exiting_pose_request_thread_) {
         if (!bridge_->IsConnected()) {
-            // If bridge not connected, assume we need to resend hmd tracker add message
-            sent_hmd_add_message_ = false;
+            // If bridge not connected, assume we need to resend device add messages
+            for (auto &device : devices) {
+                device.sent_add_message = false;
+                device.status = messages::TrackerStatus_Status_DISCONNECTED;
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
-        messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
-
-        vr::TrackedDevicePose_t hmd_pose;
-        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, &hmd_pose, 1);
-
-        vr::PropertyContainerHandle_t hmd_prop_container =
-            vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
-
-        if (!sent_hmd_add_message_ && hmd_pose.bDeviceIsConnected) {
-            vr::ETrackedPropertyError error{};
-            auto serial = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_SerialNumber_String, &error);
-            if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
-                logger_->Log("Failed to get HMD's Prop_SerialNumber_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-            }
-
-            auto name = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_ModelNumber_String, &error);
-            if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
-                logger_->Log("Failed to get HMD's Prop_ModelNumber_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-            }
-
-            auto manufacturer = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_ManufacturerName_String, &error);
-            if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
-                logger_->Log("Failed to get HMD's Prop_ManufacturerName_String: {}", vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-            }
-
-            logger_->Log("HMD props: serial='{}', model='{}', manufacturer='{}'", serial, name, manufacturer);
-
-            // Send add message for HMD
-            messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
-            message->set_allocated_tracker_added(tracker_added);
-            tracker_added->set_tracker_id(0);
-            tracker_added->set_tracker_role(TrackerRole::HMD);
-            tracker_added->set_tracker_serial(serial.empty() ? "HMD" : serial);
-            tracker_added->set_tracker_name(name.empty() ? "HMD" : name);
-            tracker_added->set_manufacturer(manufacturer.empty() ? "OpenVR" : manufacturer);
-            bridge_->SendBridgeMessage(*message);
-
-            messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
-            message->set_allocated_tracker_status(tracker_status);
-            tracker_status->set_tracker_id(0);
-            tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-            bridge_->SendBridgeMessage(*message);
-
-            sent_hmd_add_message_ = true;
-            logger_->Log("Sent HMD hello message");
-        }
+        vr::PropertyContainerHandle_t hmd_prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
+        vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount]{};
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, poses, std::size(poses));
 
         vr::ETrackedPropertyError universe_error;
         uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
@@ -118,64 +126,169 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         }
         last_universe_error_ = universe_error;
 
-        vr::HmdQuaternion_t q = GetRotation(hmd_pose.mDeviceToAbsoluteTracking);
-        vr::HmdVector3_t pos = GetPosition(hmd_pose.mDeviceToAbsoluteTracking);
-
-        if (current_universe_.has_value()) {
-            auto trans = current_universe_.value().second;
-            pos.v[0] += trans.translation.v[0];
-            pos.v[1] += trans.translation.v[1];
-            pos.v[2] += trans.translation.v[2];
-
-            // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
-            auto tmp_w = cos(-trans.yaw / 2);
-            auto tmp_y = sin(-trans.yaw / 2);
-            auto new_w = tmp_w * q.w - tmp_y * q.y;
-            auto new_x = tmp_w * q.x + tmp_y * q.z;
-            auto new_y = tmp_w * q.y + tmp_y * q.w;
-            auto new_z = tmp_w * q.z - tmp_y * q.x;
-
-            q.w = new_w;
-            q.x = new_x;
-            q.y = new_y;
-            q.z = new_z;
-
-            // rotate point on the xz plane by -trans.yaw radians
-            // this is equivilant to the quaternion multiplication, after applying the double angle formula.
-            float tmp_sin = sin(-trans.yaw);
-            float tmp_cos = cos(-trans.yaw);
-            auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
-            auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
-
-            pos.v[0] = pos_x;
-            pos.v[2] = pos_z;
-        }
-
-        messages::Position* hmd_position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena_);
-        message->set_allocated_position(hmd_position);
-        hmd_position->set_tracker_id(0);
-        hmd_position->set_data_source(messages::Position_DataSource_FULL);
-        hmd_position->set_x(pos.v[0]);
-        hmd_position->set_y(pos.v[1]);
-        hmd_position->set_z(pos.v[2]);
-        hmd_position->set_qx((float) q.x);
-        hmd_position->set_qy((float) q.y);
-        hmd_position->set_qz((float) q.z);
-        hmd_position->set_qw((float) q.w);
-        bridge_->SendBridgeMessage(*message);
-
-        auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - battery_sent_at_).count() > 100) {
-            vr::ETrackedPropertyError err;
-            if (vr::VRProperties()->GetBoolProperty(hmd_prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool, &err)) {
-                messages::Battery* hmdBattery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
-                message->set_allocated_battery(hmdBattery);
-                hmdBattery->set_tracker_id(0);
-                hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(hmd_prop_container, vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
-                hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(hmd_prop_container, vr::Prop_DeviceIsCharging_Bool, &err));
+        auto notify_status_changed = [this](DeviceData &device, messages::ProtobufMessage *message, messages::TrackerStatus_Status status) {
+            if (device.status != status) {
+                logger_->Log("Status for device {} changing {}->{}", device.index, static_cast<int>(device.status), static_cast<int>(status));
+                messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
+                message->set_allocated_tracker_status(tracker_status);
+                tracker_status->set_tracker_id(device.index);
+                tracker_status->set_status(status);
                 bridge_->SendBridgeMessage(*message);
+                device.status = status;
             }
-            battery_sent_at_ = now;
+        };
+
+        for (uint32_t index = 0; index < vr::k_unMaxTrackedDeviceCount; index++) {
+            DeviceData &device = devices[index];
+            device.index = index;
+            vr::TrackedDevicePose_t &pose = poses[index];
+            vr::PropertyContainerHandle_t prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
+            messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
+
+            {
+                vr::ETrackedPropertyError error{};
+
+                // Don't feed data about our own trackers and Standable's fake ones
+                auto driver_name = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_TrackingSystemName_String, &error);
+                if (error != vr::TrackedProp_Success) {
+                    if (error != vr::TrackedProp_InvalidDevice && error != vr::TrackedProp_UnknownProperty)
+                        logger_->Log("Failed to get Prop_TrackingSystemName_String for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+
+                    continue;
+                }
+                if (driver_name == "slimevr" || driver_name == "standable") continue;
+
+                auto device_class = (vr::ETrackedDeviceClass)vr::VRProperties()->GetInt32Property(prop_container, vr::Prop_DeviceClass_Int32, &error);
+                if (error != vr::TrackedProp_Success) {
+                    logger_->Log("Failed to get Prop_DeviceClass_Int32 for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+                    continue;
+                }
+
+                // Ignore devices that aren't HMD, controllers, or generic trackers
+                if (device_class == vr::TrackedDeviceClass_Invalid || device_class >= vr::TrackedDeviceClass_TrackingReference) {
+                    continue;
+                }
+            }
+
+            if (device.sent_add_message && !pose.bDeviceIsConnected) {
+                notify_status_changed(device, message, messages::TrackerStatus_Status_DISCONNECTED);
+                continue;
+            } else if (!pose.bDeviceIsConnected) {
+                // ignore device as it's not connected
+                continue;
+            }
+
+            if (!device.sent_add_message) {
+                vr::ETrackedPropertyError error{};
+                auto serial = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_SerialNumber_String, &error);
+                if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_SerialNumber_String: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+                }
+                if (serial.empty())
+                    serial = std::format("Device {}", index);
+
+                auto name = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_ModelNumber_String, &error);
+                if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_ModelNumber_String: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+                }
+                if (name.empty())
+                    name = std::format("Device {}", index);
+
+                auto manufacturer = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_ManufacturerName_String, &error);
+                if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_ManufacturerName_String: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+                }
+                if (manufacturer.empty())
+                    name = "OpenVR";
+
+                TrackerRole role = GetRoleForDevice(index);
+                
+                // Send add message for device
+                messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
+                message->set_allocated_tracker_added(tracker_added);
+                tracker_added->set_tracker_id(index);
+                tracker_added->set_tracker_role(role);
+                tracker_added->set_tracker_serial(serial);
+                tracker_added->set_tracker_name(name);
+                tracker_added->set_manufacturer(manufacturer);
+                bridge_->SendBridgeMessage(*message);
+
+                device.sent_add_message = true;
+                logger_->Log("Sent add message for device {}: serial={}, model={}, manufacturer={}, role={}", index, serial, name, manufacturer, GetRoleName(role));
+            }
+
+            if (pose.bPoseIsValid || pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly) {
+                messages::TrackerStatus_Status status = pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly
+                    ? messages::TrackerStatus_Status_OCCLUDED
+                    : messages::TrackerStatus_Status_OK;
+                notify_status_changed(device, message, status);
+
+                vr::HmdQuaternion_t q = GetRotation(pose.mDeviceToAbsoluteTracking);
+                vr::HmdVector3_t pos = GetPosition(pose.mDeviceToAbsoluteTracking);
+
+                if (current_universe_.has_value()) {
+                    auto trans = current_universe_.value().second;
+                    pos.v[0] += trans.translation.v[0];
+                    pos.v[1] += trans.translation.v[1];
+                    pos.v[2] += trans.translation.v[2];
+
+                    // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
+                    auto tmp_w = cos(-trans.yaw / 2);
+                    auto tmp_y = sin(-trans.yaw / 2);
+                    auto new_w = tmp_w * q.w - tmp_y * q.y;
+                    auto new_x = tmp_w * q.x + tmp_y * q.z;
+                    auto new_y = tmp_w * q.y + tmp_y * q.w;
+                    auto new_z = tmp_w * q.z - tmp_y * q.x;
+
+                    q.w = new_w;
+                    q.x = new_x;
+                    q.y = new_y;
+                    q.z = new_z;
+
+                    // rotate point on the xz plane by -trans.yaw radians
+                    // this is equivilant to the quaternion multiplication, after applying the double angle formula.
+                    float tmp_sin = sin(-trans.yaw);
+                    float tmp_cos = cos(-trans.yaw);
+                    auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
+                    auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
+
+                    pos.v[0] = pos_x;
+                    pos.v[2] = pos_z;
+                }
+
+                messages::Position* position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena_);
+                message->set_allocated_position(position);
+                position->set_tracker_id(index);
+                position->set_data_source(status == messages::TrackerStatus_Status_OCCLUDED ? messages::Position_DataSource_IMU : messages::Position_DataSource_FULL);
+                position->set_x(pos.v[0]);
+                position->set_y(pos.v[1]);
+                position->set_z(pos.v[2]);
+                position->set_qx((float) q.x);
+                position->set_qy((float) q.y);
+                position->set_qz((float) q.z);
+                position->set_qw((float) q.w);
+                bridge_->SendBridgeMessage(*message);
+            } else {
+                notify_status_changed(
+                    device,
+                    message,
+                    pose.eTrackingResult == vr::TrackingResult_Calibrating_OutOfRange
+                        ? messages::TrackerStatus_Status_OCCLUDED
+                        : messages::TrackerStatus_Status_DISCONNECTED);
+            }
+
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - device.battery_sent_at).count() > 100) {
+                if (vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
+                    messages::Battery* battery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
+                    message->set_allocated_battery(battery);
+                    battery->set_tracker_id(index);
+                    battery->set_battery_level(vr::VRProperties()->GetFloatProperty(prop_container, vr::Prop_DeviceBatteryPercentage_Float) * 100.f);
+                    battery->set_is_charging(vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceIsCharging_Bool));
+                    bridge_->SendBridgeMessage(*message);
+                }
+                device.battery_sent_at = now;
+            }
         }
 
         arena_.Reset();
