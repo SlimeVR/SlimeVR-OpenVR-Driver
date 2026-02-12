@@ -49,6 +49,7 @@ struct DeviceData {
     TrackerRole role{ TrackerRole::NONE };
     messages::TrackerStatus_Status status { messages::TrackerStatus_Status::TrackerStatus_Status_DISCONNECTED };
     bool sent_add_message { false };
+    std::chrono::steady_clock::time_point battery_sent_at{};
 };
 
 TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
@@ -277,7 +278,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             }
 
             auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - battery_sent_at_).count() > 100) {
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - device.battery_sent_at).count() > 100) {
                 if (vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
                     messages::Battery* battery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
                     message->set_allocated_battery(battery);
@@ -286,7 +287,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                     battery->set_is_charging(vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceIsCharging_Bool));
                     bridge_->SendBridgeMessage(*message);
                 }
-                battery_sent_at_ = now;
+                device.battery_sent_at = now;
             }
         }
 
