@@ -2,6 +2,7 @@
 #include "TrackerRole.hpp"
 #include "VRPaths_openvr.hpp"
 #include <TrackerDevice.hpp>
+#include <cstring>
 #include <google/protobuf/arena.h>
 #include <simdjson.h>
 #include <unordered_set>
@@ -746,6 +747,16 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
         container, vr::Prop_ControllerRoleHint_Int32, &err);
     if (err != vr::ETrackedPropertyError::TrackedProp_Success)
       continue;
+
+    // Never use our own driver's controllers as "external" (avoids mis-identify
+    // and flicker if index-based exclusion ever misses).
+    char manufacturer[256] = {};
+    props->GetStringProperty(container, vr::Prop_ManufacturerName_String,
+                             manufacturer, sizeof(manufacturer), &err);
+    if (err == vr::ETrackedPropertyError::TrackedProp_Success &&
+        std::strcmp(manufacturer, "SlimeVR") == 0) {
+      continue;
+    }
 
     vr::DriverPose_t driver_pose = DriverPoseFromTrackedDevicePose(p);
     if (role == vr::TrackedControllerRole_LeftHand) {
