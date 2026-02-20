@@ -5,18 +5,15 @@
 #include <optional>
 #include <vector>
 
-
 #include <openvr_driver.h>
 
 #include <IVRDevice.hpp>
 #include <IVRDriver.hpp>
 
-
 #include <simdjson.h>
 
 #include "Logger.hpp"
 #include "bridge/BridgeClient.hpp"
-
 
 namespace SlimeVRDriver {
     class VRDriver : public IVRDriver {
@@ -68,8 +65,8 @@ private:
       std::chrono::steady_clock::now();
   std::string settings_key_ = "driver_slimevr";
 
-  vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);
-  vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);
+  static vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);
+  static vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);
 
   bool sent_hmd_add_message_ = false;
 
