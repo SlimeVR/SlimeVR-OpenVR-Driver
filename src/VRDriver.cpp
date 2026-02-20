@@ -722,8 +722,8 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     }
   }
 
-  bool found_left = false;
-  bool found_right = false;
+  external_left_pose_ = std::nullopt;
+  external_right_pose_ = std::nullopt;
 
   auto *props = GetProperties();
   for (uint32_t i = 1; i < vr::k_unMaxTrackedDeviceCount; i++) {
@@ -748,8 +748,7 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     if (err != vr::ETrackedPropertyError::TrackedProp_Success)
       continue;
 
-    // Never use our own driver's controllers as "external" (avoids mis-identify
-    // and flicker if index-based exclusion ever misses).
+    // Never use our own driver's controllers as "external".
     char manufacturer[256] = {};
     props->GetStringProperty(container, vr::Prop_ManufacturerName_String,
                              manufacturer, sizeof(manufacturer), &err);
@@ -761,27 +760,8 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     vr::DriverPose_t driver_pose = DriverPoseFromTrackedDevicePose(p);
     if (role == vr::TrackedControllerRole_LeftHand) {
       external_left_pose_ = driver_pose;
-      external_left_frames_missing_ = 0;
-      found_left = true;
     } else if (role == vr::TrackedControllerRole_RightHand) {
       external_right_pose_ = driver_pose;
-      external_right_frames_missing_ = 0;
-      found_right = true;
-    }
-  }
-
-  // Grace period: keep returning last valid pose for N frames when we don't
-  // see one (smooths timing/ordering dropouts).
-  if (!found_left) {
-    external_left_frames_missing_++;
-    if (external_left_frames_missing_ > kExternalPoseGraceFrames) {
-      external_left_pose_ = std::nullopt;
-    }
-  }
-  if (!found_right) {
-    external_right_frames_missing_++;
-    if (external_right_frames_missing_ > kExternalPoseGraceFrames) {
-      external_right_pose_ = std::nullopt;
     }
   }
 }

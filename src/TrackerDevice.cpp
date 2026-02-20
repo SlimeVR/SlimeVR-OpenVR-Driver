@@ -122,27 +122,12 @@ void SlimeVRDriver::TrackerDevice::Update() {
   }
 
   // For controllers: prefer external (VD/Steam Link) when in view; use
-  // SlimeVR when they disconnect or go out of view. Hysteresis avoids rapid
-  // source switching.
+  // SlimeVR when they disconnect or go out of view.
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
     bool external_valid = external.has_value() && external->poseIsValid;
-    if (external_valid) {
-      pose_source_frames_external_valid_++;
-      pose_source_frames_external_invalid_ = 0;
-    } else {
-      pose_source_frames_external_invalid_++;
-      pose_source_frames_external_valid_ = 0;
-    }
-    bool want_external =
-        (using_external_pose_ &&
-         pose_source_frames_external_invalid_ < kPoseSourceFramesToSwitch) ||
-        (pose_source_frames_external_valid_ >= kPoseSourceFramesToSwitch);
     vr::DriverPose_t slimevr_pose = last_pose_atomic_.load();
-    vr::DriverPose_t pose_to_use =
-        want_external && external_valid ? *external : slimevr_pose;
-
-    using_external_pose_ = want_external;
+    vr::DriverPose_t pose_to_use = external_valid ? *external : slimevr_pose;
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
         device_index_, pose_to_use, sizeof(vr::DriverPose_t));
   }

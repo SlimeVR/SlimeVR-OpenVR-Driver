@@ -83,9 +83,6 @@ private:
 
   std::optional<vr::DriverPose_t> external_left_pose_;
   std::optional<vr::DriverPose_t> external_right_pose_;
-  int external_left_frames_missing_ = 0;
-  int external_right_frames_missing_ = 0;
-  static constexpr int kExternalPoseGraceFrames = 15;
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
   DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
