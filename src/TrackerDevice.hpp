@@ -113,11 +113,12 @@ private:
   bool is_right_hand_;
 
   // Prefer external (VD/Steam Link) when in view, SlimeVR when not.
-  // Hysteresis: require consecutive frames before switching source.
+  // Hysteresis: require many consecutive frames before switching source to
+  // avoid flicker from timing or single-frame dropouts.
   bool using_external_pose_ = false;
   int pose_source_frames_external_valid_ = 0;
   int pose_source_frames_external_invalid_ = 0;
-  static constexpr int kPoseSourceFramesToSwitch = 3;
+  static constexpr int kPoseSourceFramesToSwitch = 12;
 
   vr::VRInputComponentHandle_t skeletal_component_handle_;
 
