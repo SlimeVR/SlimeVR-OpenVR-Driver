@@ -121,10 +121,9 @@ void SlimeVRDriver::TrackerDevice::Update() {
                                                 system_click_value, 0);
   }
 
-  /* For controllers : prefer external hand pose(e.g.Virtual Desktop / Steam
-   Link on Quest) when in view; when they disconnect or go out of view, use
-   SlimeVR positional data. Smoothly blend when swapping between sources.
-  Hysteresis avoids rapid swapping when external pose validity flickers.*/
+  // For controllers: prefer external (VD/Steam Link) when in view; use
+  // SlimeVR when they disconnect or go out of view. Hysteresis avoids rapid
+  // source switching.
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
     bool external_valid = external.has_value() && external->poseIsValid;
@@ -135,55 +134,15 @@ void SlimeVRDriver::TrackerDevice::Update() {
       pose_source_frames_external_invalid_++;
       pose_source_frames_external_valid_ = 0;
     }
-    // Only switch to external after N consecutive valid frames; only switch
-    // away after N consecutive invalid frames.
     bool want_external =
         (using_external_pose_ &&
          pose_source_frames_external_invalid_ < kPoseSourceFramesToSwitch) ||
         (pose_source_frames_external_valid_ >= kPoseSourceFramesToSwitch);
     vr::DriverPose_t slimevr_pose = last_pose_atomic_.load();
-    vr::DriverPose_t target_pose =
+    vr::DriverPose_t pose_to_use =
         want_external && external_valid ? *external : slimevr_pose;
 
-    auto now = std::chrono::steady_clock::now();
-    vr::DriverPose_t pose_to_use;
-
-    if (pose_blending_) {
-      float elapsed_ms =
-          static_cast<float>(
-              std::chrono::duration_cast<std::chrono::microseconds>(
-                  now - pose_blend_start_)
-                  .count()) /
-          1000.f;
-      float t = elapsed_ms / static_cast<float>(pose_blend_duration_.count());
-      if (t >= 1.0f) {
-        pose_blending_ = false;
-        // Use the blend target we committed to at blend start, not current
-        // want_external (which may have flickered during the blend)
-        using_external_pose_ = blending_to_external_;
-        pose_to_use = pose_blend_to_;
-      } else {
-        // Smooth step for easier-in-out
-        float s = t * t * (3.0f - 2.0f * t);
-        pose_to_use = BlendPoses(pose_blend_from_, pose_blend_to_, s);
-      }
-    } else {
-      if (want_external != using_external_pose_) {
-        pose_blending_ = true;
-        blending_to_external_ = want_external;
-        pose_blend_start_ = now;
-        pose_blend_from_ = last_output_pose_;
-        pose_blend_to_ = target_pose;
-        float s = 0.0f;
-        pose_to_use = BlendPoses(pose_blend_from_, pose_blend_to_, s);
-      } else {
-        pose_to_use = target_pose;
-        // Only sync when not blending; don't overwrite every frame
-        using_external_pose_ = want_external;
-      }
-    }
-
-    last_output_pose_ = pose_to_use;
+    using_external_pose_ = want_external;
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
         device_index_, pose_to_use, sizeof(vr::DriverPose_t));
   }
@@ -758,62 +717,6 @@ void SlimeVRDriver::TrackerDevice::DebugRequest(const char *pchRequest,
   if (unResponseBufferSize >= 1) {
     pchResponseBuffer[0] = 0;
   }
-}
-
-vr::DriverPose_t
-SlimeVRDriver::TrackerDevice::BlendPoses(const vr::DriverPose_t &from,
-                                         const vr::DriverPose_t &to, float t) {
-  vr::DriverPose_t out =
-      to; // copy world-from-driver, validity, etc. from target
-
-  out.vecPosition[0] =
-      from.vecPosition[0] + t * (to.vecPosition[0] - from.vecPosition[0]);
-  out.vecPosition[1] =
-      from.vecPosition[1] + t * (to.vecPosition[1] - from.vecPosition[1]);
-  out.vecPosition[2] =
-      from.vecPosition[2] + t * (to.vecPosition[2] - from.vecPosition[2]);
-
-  double dot =
-      from.qRotation.w * to.qRotation.w + from.qRotation.x * to.qRotation.x +
-      from.qRotation.y * to.qRotation.y + from.qRotation.z * to.qRotation.z;
-  double to_w = to.qRotation.w, to_x = to.qRotation.x, to_y = to.qRotation.y,
-         to_z = to.qRotation.z;
-  if (dot < 0.0) {
-    to_w = -to_w;
-    to_x = -to_x;
-    to_y = -to_y;
-    to_z = -to_z;
-    dot = -dot;
-  }
-  dot = (dot > 1.0) ? 1.0 : (dot < -1.0 ? -1.0 : dot);
-  double theta = std::acos(dot);
-  double sin_theta = std::sin(theta);
-  if (sin_theta > 1e-6) {
-    double a = std::sin((1.0 - static_cast<double>(t)) * theta) / sin_theta;
-    double b = std::sin(static_cast<double>(t) * theta) / sin_theta;
-    out.qRotation.w = static_cast<float>(a * from.qRotation.w + b * to_w);
-    out.qRotation.x = static_cast<float>(a * from.qRotation.x + b * to_x);
-    out.qRotation.y = static_cast<float>(a * from.qRotation.y + b * to_y);
-    out.qRotation.z = static_cast<float>(a * from.qRotation.z + b * to_z);
-  }
-
-  out.vecVelocity[0] =
-      from.vecVelocity[0] + t * (to.vecVelocity[0] - from.vecVelocity[0]);
-  out.vecVelocity[1] =
-      from.vecVelocity[1] + t * (to.vecVelocity[1] - from.vecVelocity[1]);
-  out.vecVelocity[2] =
-      from.vecVelocity[2] + t * (to.vecVelocity[2] - from.vecVelocity[2]);
-  out.vecAngularVelocity[0] =
-      from.vecAngularVelocity[0] +
-      t * (to.vecAngularVelocity[0] - from.vecAngularVelocity[0]);
-  out.vecAngularVelocity[1] =
-      from.vecAngularVelocity[1] +
-      t * (to.vecAngularVelocity[1] - from.vecAngularVelocity[1]);
-  out.vecAngularVelocity[2] =
-      from.vecAngularVelocity[2] +
-      t * (to.vecAngularVelocity[2] - from.vecAngularVelocity[2]);
-
-  return out;
 }
 
 vr::DriverPose_t SlimeVRDriver::TrackerDevice::GetPose() {

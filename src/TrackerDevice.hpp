@@ -112,21 +112,9 @@ private:
   bool is_left_hand_;
   bool is_right_hand_;
 
-  // Smooth transition when swapping between external (VD/Steam Link) and
-  // SlimeVR pose
+  // Prefer external (VD/Steam Link) when in view, SlimeVR when not.
+  // Hysteresis: require consecutive frames before switching source.
   bool using_external_pose_ = false;
-  bool pose_blending_ = false;
-  bool blending_to_external_ =
-      false; // target of current blend; used at blend end
-  std::chrono::steady_clock::time_point pose_blend_start_;
-  vr::DriverPose_t pose_blend_from_;
-  vr::DriverPose_t pose_blend_to_;
-  vr::DriverPose_t last_output_pose_ = IVRDevice::MakeDefaultPose();
-  static constexpr std::chrono::milliseconds pose_blend_duration_{200};
-  static vr::DriverPose_t BlendPoses(const vr::DriverPose_t &from,
-                                     const vr::DriverPose_t &to, float t);
-  // Hysteresis: require consecutive frames before switching source to avoid
-  // rapid flicker when external pose validity is unstable
   int pose_source_frames_external_valid_ = 0;
   int pose_source_frames_external_invalid_ = 0;
   static constexpr int kPoseSourceFramesToSwitch = 3;
