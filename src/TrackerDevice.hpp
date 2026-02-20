@@ -116,6 +116,8 @@ private:
   // SlimeVR pose
   bool using_external_pose_ = false;
   bool pose_blending_ = false;
+  bool blending_to_external_ =
+      false; // target of current blend; used at blend end
   std::chrono::steady_clock::time_point pose_blend_start_;
   vr::DriverPose_t pose_blend_from_;
   vr::DriverPose_t pose_blend_to_;

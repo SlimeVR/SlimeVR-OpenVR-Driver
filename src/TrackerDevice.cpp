@@ -158,7 +158,9 @@ void SlimeVRDriver::TrackerDevice::Update() {
       float t = elapsed_ms / static_cast<float>(pose_blend_duration_.count());
       if (t >= 1.0f) {
         pose_blending_ = false;
-        using_external_pose_ = want_external;
+        // Use the blend target we committed to at blend start, not current
+        // want_external (which may have flickered during the blend)
+        using_external_pose_ = blending_to_external_;
         pose_to_use = pose_blend_to_;
       } else {
         // Smooth step for easier-in-out
@@ -168,6 +170,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
     } else {
       if (want_external != using_external_pose_) {
         pose_blending_ = true;
+        blending_to_external_ = want_external;
         pose_blend_start_ = now;
         pose_blend_from_ = last_output_pose_;
         pose_blend_to_ = target_pose;
@@ -175,6 +178,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
         pose_to_use = BlendPoses(pose_blend_from_, pose_blend_to_, s);
       } else {
         pose_to_use = target_pose;
+        // Only sync when not blending; don't overwrite every frame
         using_external_pose_ = want_external;
       }
     }
