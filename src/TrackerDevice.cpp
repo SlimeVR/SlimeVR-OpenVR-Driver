@@ -121,14 +121,29 @@ void SlimeVRDriver::TrackerDevice::Update() {
                                                 system_click_value, 0);
   }
 
-  // For controllers: prefer external hand pose (e.g. Virtual Desktop / Steam
-  // Link on Quest) when in view; when they disconnect or go out of view, use
-  // SlimeVR positional data. Smoothly blend when swapping between sources.
+  /* For controllers : prefer external hand pose(e.g.Virtual Desktop / Steam
+   Link on Quest) when in view; when they disconnect or go out of view, use
+   SlimeVR positional data. Smoothly blend when swapping between sources.
+  Hysteresis avoids rapid swapping when external pose validity flickers.*/
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
-    bool want_external = external.has_value() && external->poseIsValid;
+    bool external_valid = external.has_value() && external->poseIsValid;
+    if (external_valid) {
+      pose_source_frames_external_valid_++;
+      pose_source_frames_external_invalid_ = 0;
+    } else {
+      pose_source_frames_external_invalid_++;
+      pose_source_frames_external_valid_ = 0;
+    }
+    // Only switch to external after N consecutive valid frames; only switch
+    // away after N consecutive invalid frames.
+    bool want_external =
+        (using_external_pose_ &&
+         pose_source_frames_external_invalid_ < kPoseSourceFramesToSwitch) ||
+        (pose_source_frames_external_valid_ >= kPoseSourceFramesToSwitch);
     vr::DriverPose_t slimevr_pose = last_pose_atomic_.load();
-    vr::DriverPose_t target_pose = want_external ? *external : slimevr_pose;
+    vr::DriverPose_t target_pose =
+        want_external && external_valid ? *external : slimevr_pose;
 
     auto now = std::chrono::steady_clock::now();
     vr::DriverPose_t pose_to_use;

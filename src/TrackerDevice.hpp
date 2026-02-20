@@ -4,12 +4,10 @@
 #include <chrono>
 #include <cmath>
 
-
 #include <linalg.h>
 
 #include <DriverFactory.hpp>
 #include <IVRDevice.hpp>
-
 
 #include <filesystem>
 #include <fstream>
@@ -18,10 +16,8 @@
 #include <string>
 #include <thread>
 
-
 #include "Logger.hpp"
 #include "TrackerRole.hpp"
-
 
 namespace SlimeVRDriver {
 class TrackerDevice : public IVRDevice {
@@ -127,6 +123,11 @@ private:
   static constexpr std::chrono::milliseconds pose_blend_duration_{200};
   static vr::DriverPose_t BlendPoses(const vr::DriverPose_t &from,
                                      const vr::DriverPose_t &to, float t);
+  // Hysteresis: require consecutive frames before switching source to avoid
+  // rapid flicker when external pose validity is unstable
+  int pose_source_frames_external_valid_ = 0;
+  int pose_source_frames_external_invalid_ = 0;
+  static constexpr int kPoseSourceFramesToSwitch = 3;
 
   vr::VRInputComponentHandle_t skeletal_component_handle_;
 
