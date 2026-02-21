@@ -97,6 +97,9 @@ public:
   virtual std::optional<vr::DriverPose_t>
   GetExternalPoseForHand(bool left_hand) = 0;
 
+  /** Pose lerp speed (0–1) for smoothing VD/SlimeVR transitions. From driver config file. */
+  virtual float GetPoseLerpSpeed() = 0;
+
   virtual inline const char *const *GetInterfaceVersions() override {
     return vr::k_InterfaceVersions;
   };

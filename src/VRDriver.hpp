@@ -87,17 +87,19 @@ private:
   std::optional<vr::DriverPose_t> last_external_right_pose_;
   int stale_external_left_frames_ = 0;
   int stale_external_right_frames_ = 0;
-  static constexpr int kStaleExternalPoseFrames = 1;
-  /// Max distance (meters) from HMD for using external hand; beyond this or behind HMD → SlimeVR. 1.7f = 170 cm.
-  static constexpr float kExternalHandMaxRadius = 1.7f;
+  // Values from slimevr_driver_config.json (fallbacks if file missing)
+  float config_external_hand_max_radius_m_ = 1.7f;
+  int config_stale_external_pose_frames_ = 1;
+  float config_pose_lerp_speed_ = 0.8f;
+  float config_frozen_pose_position_epsilon_m_ = 0.005f;
+  void LoadDriverConfig();
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
   DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
-  static bool ExternalPoseEquals(const vr::DriverPose_t &a,
-                                 const vr::DriverPose_t &b);
-  /// True if hand position is in front of HMD and within kExternalHandMaxRadius.
-  static bool
-  ExternalHandInFrontAndInRadius(const double hand_pos[3],
-                                 const vr::TrackedDevicePose_t &hmd_pose);
+  bool ExternalPoseEquals(const vr::DriverPose_t &a,
+                          const vr::DriverPose_t &b) const;
+  bool ExternalHandInFrontAndInRadius(const double hand_pos[3],
+                                     const vr::TrackedDevicePose_t &hmd_pose) const;
+  virtual float GetPoseLerpSpeed() override;
 };
 }; // namespace SlimeVRDriver

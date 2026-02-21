@@ -152,7 +152,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
   if (!smoothed_pose_.has_value())
     smoothed_pose_ = target;
   else
-    smoothed_pose_ = LerpPose(*smoothed_pose_, target, kPoseLerpSpeed);
+    smoothed_pose_ = LerpPose(*smoothed_pose_, target, GetDriver()->GetPoseLerpSpeed());
   GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
       device_index_, *smoothed_pose_, sizeof(vr::DriverPose_t));
 }

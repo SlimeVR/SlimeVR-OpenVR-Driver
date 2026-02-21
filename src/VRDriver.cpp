@@ -32,6 +32,8 @@ SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext *pDriverContext) {
 
   logger_->Log("SlimeVR Driver Loaded Successfully");
 
+  LoadDriverConfig();
+
   bridge_ = std::make_shared<BridgeClient>(
       std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
       std::bind(&SlimeVRDriver::VRDriver::OnBridgeMessage, this,
@@ -478,6 +480,32 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
   return true;
 }
 
+void SlimeVRDriver::VRDriver::LoadDriverConfig() {
+  vr::IVRResources *res = vr::VRResources();
+  if (!res) return;
+  char path[1024];
+  uint32_t len = res->GetResourceFullPath(
+      "slimevr_driver_config.json", "", path, sizeof(path));
+  if (len == 0 || len >= sizeof(path)) return;
+  path[len] = '\0';
+  try {
+    auto json = simdjson::padded_string::load(path);
+    simdjson::ondemand::document doc = json_parser_.iterate(json);
+    auto obj = doc.get_object();
+    if (auto v = obj["external_hand_max_radius_m"]; !v.error()) config_external_hand_max_radius_m_ = static_cast<float>(v.get_double());
+    if (auto v = obj["stale_external_pose_frames"]; !v.error()) config_stale_external_pose_frames_ = static_cast<int>(v.get_int64());
+    if (auto v = obj["pose_lerp_speed"]; !v.error()) config_pose_lerp_speed_ = static_cast<float>(v.get_double());
+    if (auto v = obj["frozen_pose_position_epsilon_m"]; !v.error()) config_frozen_pose_position_epsilon_m_ = static_cast<float>(v.get_double());
+    logger_->Log("Loaded driver config from {}", path);
+  } catch (const simdjson::simdjson_error &) {
+    // Use defaults; config file missing or invalid
+  }
+}
+
+float SlimeVRDriver::VRDriver::GetPoseLerpSpeed() {
+  return config_pose_lerp_speed_;
+}
+
 SlimeVRDriver::SettingsValue
 SlimeVRDriver::VRDriver::GetSettingsValue(std::string key) {
   vr::EVRSettingsError err = vr::EVRSettingsError::VRSettingsError_None;
@@ -703,9 +731,8 @@ vr::DriverPose_t SlimeVRDriver::VRDriver::DriverPoseFromTrackedDevicePose(
 }
 
 bool SlimeVRDriver::VRDriver::ExternalPoseEquals(const vr::DriverPose_t &a,
-                                                 const vr::DriverPose_t &b) {
-  // Position only; rotation ignored so small rotation jitter doesn't block frozen detection.
-  const float pos_eps = 0.005f; // ~5 mm
+                                                 const vr::DriverPose_t &b) const {
+  float pos_eps = config_frozen_pose_position_epsilon_m_;
   for (int i = 0; i < 3; i++) {
     if (std::fabs(a.vecPosition[i] - b.vecPosition[i]) > pos_eps)
       return false;
@@ -714,14 +741,15 @@ bool SlimeVRDriver::VRDriver::ExternalPoseEquals(const vr::DriverPose_t &a,
 }
 
 bool SlimeVRDriver::VRDriver::ExternalHandInFrontAndInRadius(
-    const double hand_pos[3], const vr::TrackedDevicePose_t &hmd_pose) {
+    const double hand_pos[3], const vr::TrackedDevicePose_t &hmd_pose) const {
   if (!hmd_pose.bPoseIsValid)
     return false;
+  double r = static_cast<double>(config_external_hand_max_radius_m_);
   const auto &m = hmd_pose.mDeviceToAbsoluteTracking.m;
   double hx = m[0][3], hy = m[1][3], hz = m[2][3];
   double dx = hand_pos[0] - hx, dy = hand_pos[1] - hy, dz = hand_pos[2] - hz;
   double dist_sq = dx * dx + dy * dy + dz * dz;
-  if (dist_sq > static_cast<double>(kExternalHandMaxRadius) * kExternalHandMaxRadius)
+  if (dist_sq > r * r)
     return false;
   // Forward = -Z in OpenVR (third column of rotation)
   double fx = -m[0][2], fy = -m[1][2], fz = -m[2][2];
@@ -788,7 +816,7 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
       if (last_external_left_pose_.has_value() &&
           ExternalPoseEquals(driver_pose, *last_external_left_pose_)) {
         stale_external_left_frames_++;
-        if (stale_external_left_frames_ >= kStaleExternalPoseFrames)
+        if (stale_external_left_frames_ >= config_stale_external_pose_frames_)
           external_left_pose_ = std::nullopt; // swap to SlimeVR
         else
           external_left_pose_ = driver_pose;
@@ -801,7 +829,7 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
       if (last_external_right_pose_.has_value() &&
           ExternalPoseEquals(driver_pose, *last_external_right_pose_)) {
         stale_external_right_frames_++;
-        if (stale_external_right_frames_ >= kStaleExternalPoseFrames)
+        if (stale_external_right_frames_ >= config_stale_external_pose_frames_)
           external_right_pose_ = std::nullopt; // swap to SlimeVR
         else
           external_right_pose_ = driver_pose;
