@@ -775,8 +775,7 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     }
 
     vr::DriverPose_t driver_pose = DriverPoseFromTrackedDevicePose(p);
-    // Only use external hand when it's in front of HMD and within 160 cm
-    // radius; else SlimeVR.
+    // Only use external hand when it's in front of HMD and within 170 cm radius; else SlimeVR.
     if (!ExternalHandInFrontAndInRadius(driver_pose.vecPosition, hmd_pose)) {
       if (role == vr::TrackedControllerRole_LeftHand)
         external_left_pose_ = std::nullopt;

@@ -88,8 +88,8 @@ private:
   int stale_external_left_frames_ = 0;
   int stale_external_right_frames_ = 0;
   static constexpr int kStaleExternalPoseFrames = 1;
-  /// Max distance (meters) from HMD for using external hand; beyond this or behind HMD → SlimeVR. 1.6f = 160 cm.
-  static constexpr float kExternalHandMaxRadius = 1.6f;
+  /// Max distance (meters) from HMD for using external hand; beyond this or behind HMD → SlimeVR. 1.7f = 170 cm.
+  static constexpr float kExternalHandMaxRadius = 1.7f;
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
   DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
