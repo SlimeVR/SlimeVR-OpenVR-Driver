@@ -714,34 +714,6 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
   vr::VRServerDriverHost()->GetRawTrackedDevicePoses(
       0.0f, raw_poses, vr::k_unMaxTrackedDeviceCount);
 
-  // HMD pose for hemisphere check: use external only when hand is in front
-  // (within the half-space in front of the user); behind = use SlimeVR.
-  // OpenVR: right-handed, +Y up, +X right, -Z forward.
-  float hmd_pos[3] = {0.f, 0.f, 0.f};
-  float hmd_forward[3] = {0.f, 0.f, -1.f}; // default forward -Z
-  const vr::TrackedDevicePose_t &hmd_pose =
-      raw_poses[vr::k_unTrackedDeviceIndex_Hmd];
-  if (hmd_pose.bPoseIsValid && hmd_pose.bDeviceIsConnected) {
-    const vr::HmdMatrix34_t &m = hmd_pose.mDeviceToAbsoluteTracking;
-    hmd_pos[0] = m.m[0][3];
-    hmd_pos[1] = m.m[1][3];
-    hmd_pos[2] = m.m[2][3];
-    // HMD -Z axis in world = direction user is facing
-    hmd_forward[0] = -m.m[0][2];
-    hmd_forward[1] = -m.m[1][2];
-    hmd_forward[2] = -m.m[2][2];
-  }
-  // Use external only when hand is clearly in front (in headset sensor range).
-  // Swap to SlimeVR sooner: when hand is at the edge or behind we have no
-  // headset data anyway, so we must switch before that. SlimeVR covers the
-  // range in front that's out of sensor view and everything behind.
-  // Leniency: dead zone between the two thresholds to avoid flicker.
-  const float kDotUseExternal =
-      0.45f; // dot > this: clearly in view, use external
-  const float kDotUseSlimeVR =
-      0.35f; // dot < this: edge or behind, use SlimeVR (swap sooner)
-  // 0.35 <= dot <= 0.45: keep previous (last_used_external_*)
-
   std::unordered_set<vr::TrackedDeviceIndex_t> our_indices;
   for (const auto &device : devices_) {
     vr::TrackedDeviceIndex_t idx = device->GetDeviceIndex();
@@ -758,9 +730,6 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     if (our_indices.count(i))
       continue;
     const vr::TrackedDevicePose_t &p = raw_poses[i];
-    // Don't require bPoseIsValid/bDeviceIsConnected here; use the device when
-    // it matches role/hemisphere so we don't flicker on single-frame validity
-    // drops.
 
     vr::PropertyContainerHandle_t container =
         props->TrackedDeviceToPropertyContainer(i);
@@ -787,29 +756,10 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     }
 
     vr::DriverPose_t driver_pose = DriverPoseFromTrackedDevicePose(p);
-    float to_hand[3] = {
-        static_cast<float>(driver_pose.vecPosition[0]) - hmd_pos[0],
-        static_cast<float>(driver_pose.vecPosition[1]) - hmd_pos[1],
-        static_cast<float>(driver_pose.vecPosition[2]) - hmd_pos[2],
-    };
-    float dot = to_hand[0] * hmd_forward[0] + to_hand[1] * hmd_forward[1] +
-                to_hand[2] * hmd_forward[2];
-
-    bool use_external;
     if (role == vr::TrackedControllerRole_LeftHand) {
-      use_external = (dot > kDotUseExternal)  ? true
-                     : (dot < kDotUseSlimeVR) ? false
-                                              : last_used_external_left_;
-      last_used_external_left_ = use_external;
-      if (use_external)
-        external_left_pose_ = driver_pose;
+      external_left_pose_ = driver_pose;
     } else if (role == vr::TrackedControllerRole_RightHand) {
-      use_external = (dot > kDotUseExternal)  ? true
-                     : (dot < kDotUseSlimeVR) ? false
-                                              : last_used_external_right_;
-      last_used_external_right_ = use_external;
-      if (use_external)
-        external_right_pose_ = driver_pose;
+      external_right_pose_ = driver_pose;
     }
   }
 }

@@ -83,9 +83,6 @@ private:
 
   std::optional<vr::DriverPose_t> external_left_pose_;
   std::optional<vr::DriverPose_t> external_right_pose_;
-  bool last_used_external_left_ =
-      true; // leniency at edge: keep choice in dead zone
-  bool last_used_external_right_ = true;
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
   DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
