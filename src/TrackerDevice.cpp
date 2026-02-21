@@ -20,6 +20,28 @@ SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id,
 
 std::string SlimeVRDriver::TrackerDevice::GetSerial() { return serial_; }
 
+vr::DriverPose_t
+SlimeVRDriver::TrackerDevice::LerpPose(const vr::DriverPose_t &from,
+                                       const vr::DriverPose_t &to, float t) {
+  vr::DriverPose_t out = to;
+  for (int i = 0; i < 3; i++)
+    out.vecPosition[i] =
+        from.vecPosition[i] + (to.vecPosition[i] - from.vecPosition[i]) * t;
+  // Nlerp rotation
+  float w = (1.f - t) * from.qRotation.w + t * to.qRotation.w;
+  float x = (1.f - t) * from.qRotation.x + t * to.qRotation.x;
+  float y = (1.f - t) * from.qRotation.y + t * to.qRotation.y;
+  float z = (1.f - t) * from.qRotation.z + t * to.qRotation.z;
+  float len = std::sqrt(w * w + x * x + y * y + z * z);
+  if (len > 1e-6f) {
+    out.qRotation.w = w / len;
+    out.qRotation.x = x / len;
+    out.qRotation.y = y / len;
+    out.qRotation.z = z / len;
+  }
+  return out;
+}
+
 void SlimeVRDriver::TrackerDevice::Update() {
   if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
     return;
@@ -121,16 +143,21 @@ void SlimeVRDriver::TrackerDevice::Update() {
                                                 system_click_value, 0);
   }
 
-  // Single place the pose is finally set: controllers use external (VD/Steam
-  // Link) when available else SlimeVR; trackers use last SlimeVR pose.
-  vr::DriverPose_t pose_to_use = last_pose_atomic_.load();
+  // Target pose: controllers use external (VD/Steam Link) when available else
+  // SlimeVR; trackers use last SlimeVR pose.
+  vr::DriverPose_t target = last_pose_atomic_.load();
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
     if (external.has_value())
-      pose_to_use = *external;
+      target = *external;
   }
+  // Lerp from current toward target to reduce jitter and smooth transitions.
+  if (!smoothed_pose_.has_value())
+    smoothed_pose_ = target;
+  else
+    smoothed_pose_ = LerpPose(*smoothed_pose_, target, kPoseLerpSpeed);
   GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
-      device_index_, pose_to_use, sizeof(vr::DriverPose_t));
+      device_index_, *smoothed_pose_, sizeof(vr::DriverPose_t));
 }
 
 void SlimeVRDriver::TrackerDevice::PositionMessage(

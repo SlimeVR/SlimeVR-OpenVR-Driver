@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <optional>
 
 #include <linalg.h>
 
@@ -68,6 +69,10 @@ private:
   vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
   std::atomic<vr::DriverPose_t> last_pose_atomic_ =
       IVRDevice::MakeDefaultPose();
+  std::optional<vr::DriverPose_t> smoothed_pose_;
+  static constexpr float kPoseLerpSpeed = 0.8f;
+  static vr::DriverPose_t LerpPose(const vr::DriverPose_t &from,
+                                   const vr::DriverPose_t &to, float t);
 
   bool did_vibrate_ = false;
   float vibrate_anim_state_ = 0.f;

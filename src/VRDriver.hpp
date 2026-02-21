@@ -87,7 +87,7 @@ private:
   std::optional<vr::DriverPose_t> last_external_right_pose_;
   int stale_external_left_frames_ = 0;
   int stale_external_right_frames_ = 0;
-  static constexpr int kStaleExternalPoseFrames = 30; // ~0.5s at 60 Hz
+  static constexpr int kStaleExternalPoseFrames = 1;
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
   DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
