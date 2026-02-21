@@ -49,9 +49,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
   // Check if this device was asked to be identified
   auto events = GetDriver()->GetOpenVREvents();
   for (auto event : events) {
-    // Note here, event.trackedDeviceIndex does not necessarily equal
-    // device_index_, not sure why, but the component handle will match so we
-    // can just use that instead
+    // Note here, event.trackedDeviceIndex does not necessarily equal device_index_, not sure why, but the component handle will match so we can just use that instead
     // if (event.trackedDeviceIndex == device_index_) {
     if (event.eventType == vr::EVREventType::VREvent_Input_HapticVibration) {
       if (event.data.hapticVibration.componentHandle == haptic_component_) {
@@ -143,8 +141,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
                                                 system_click_value, 0);
   }
 
-  // Target pose: controllers use external (VD/Steam Link) when available else
-  // SlimeVR; trackers use last SlimeVR pose.
+  // Target pose: controllers use external (VD/Steam Link) when available else SlimeVR; trackers use last SlimeVR pose.
   vr::DriverPose_t target = last_pose_atomic_.load();
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
@@ -206,9 +203,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(
   bool double_tap = false;
   bool triple_tap = false;
 
-  // Only push SlimeVR finger data when SlimeVR is actually reporting it.
-  // When it isn't, we skip so we don't overwrite finger data from Virtual
-  // Desktop/Steam Link
+  // Only push SlimeVR finger data when SlimeVR is actually reporting it; when it isn't, we skip so we don't overwrite finger data from Virtual Desktop/Steam Link.
   if (fingertracking_enabled_ && position.finger_bone_rotations_size() > 0) {
     vr::VRBoneTransform_t finger_skeleton_[31]{};
     for (int i = 0; i < position.finger_bone_rotations_size(); i++) {
@@ -246,8 +241,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(
     messages::ControllerInput &controllerInput) {
   if (was_activated_ && is_controller_) {
-    // Get inputs from protobuf, store them for Update which is called during
-    // RunFrame
+    // Get inputs from protobuf, store them for Update which is called during RunFrame
     trigger_value_ = controllerInput.trigger();
     trigger_value_click = controllerInput.trigger() > 0.5f;
     grip_value = controllerInput.grip();

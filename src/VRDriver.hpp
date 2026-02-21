@@ -88,10 +88,16 @@ private:
   int stale_external_left_frames_ = 0;
   int stale_external_right_frames_ = 0;
   static constexpr int kStaleExternalPoseFrames = 1;
+  /// Max distance (meters) from HMD for using external hand; beyond this or behind HMD → SlimeVR. 1.6f = 160 cm.
+  static constexpr float kExternalHandMaxRadius = 1.6f;
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
   DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
   static bool ExternalPoseEquals(const vr::DriverPose_t &a,
                                  const vr::DriverPose_t &b);
+  /// True if hand position is in front of HMD and within kExternalHandMaxRadius.
+  static bool
+  ExternalHandInFrontAndInRadius(const float hand_pos[3],
+                                 const vr::TrackedDevicePose_t &hmd_pose);
 };
 }; // namespace SlimeVRDriver

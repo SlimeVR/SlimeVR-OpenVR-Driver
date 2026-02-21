@@ -258,8 +258,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
       pos.v[1] += trans.translation.v[1];
       pos.v[2] += trans.translation.v[2];
 
-      // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw
-      // / 2), z = 0
+      // rotate by quaternion w = cos(-trans.yaw/2), x = 0, y = sin(-trans.yaw/2), z = 0
       auto tmp_w = cos(-trans.yaw / 2);
       auto tmp_y = sin(-trans.yaw / 2);
       auto new_w = tmp_w * q.w - tmp_y * q.y;
@@ -272,9 +271,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
       q.y = new_y;
       q.z = new_z;
 
-      // rotate point on the xz plane by -trans.yaw radians
-      // this is equivilant to the quaternion multiplication, after applying the
-      // double angle formula.
+      // rotate point on the xz plane by -trans.yaw radians; equivalent to the quaternion multiplication after applying the double angle formula.
       float tmp_sin = sin(-trans.yaw);
       float tmp_cos = cos(-trans.yaw);
       auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
@@ -344,9 +341,7 @@ void SlimeVRDriver::VRDriver::RunFrame() {
       now - last_frame_time_);
   last_frame_time_ = now;
 
-  // Update external controller poses (e.g. Virtual Desktop / Steam Link on
-  // Quest) so we can prefer their hand position when in view and fall back to
-  // SlimeVR when not.
+  // Update external controller poses (e.g. Virtual Desktop / Steam Link on Quest) so we can prefer their hand position when in view and fall back to SlimeVR when not.
   {
     std::lock_guard<std::mutex> lock(devices_mutex_);
     UpdateExternalControllerPoses();
@@ -528,9 +523,7 @@ vr::IVRServerDriverHost *SlimeVRDriver::VRDriver::GetDriverHost() {
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Calculates quaternion (qw,qx,qy,qz) representing the rotation
-// from:
-// https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
+// Purpose: Calculates quaternion (qw,qx,qy,qz) representing the rotation. From: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
 //-----------------------------------------------------------------------------
 
 vr::HmdQuaternion_t
@@ -569,8 +562,7 @@ SlimeVRDriver::UniverseTranslation::parse(simdjson::ondemand::object &obj) {
   int iii = 0;
   for (auto component : obj["translation"]) {
     if (iii > 2) {
-      break; // TODO: 4 components in a translation vector? should this be an
-             // error?
+      break; // TODO: 4 components in a translation vector? should this be an error?
     }
     res.translation.v[iii] = static_cast<float>(component.get_double());
     iii += 1;
@@ -712,17 +704,31 @@ vr::DriverPose_t SlimeVRDriver::VRDriver::DriverPoseFromTrackedDevicePose(
 
 bool SlimeVRDriver::VRDriver::ExternalPoseEquals(const vr::DriverPose_t &a,
                                                  const vr::DriverPose_t &b) {
-  const float eps = 1e-5f;
+  // Position only; rotation ignored so small rotation jitter doesn't block frozen detection.
+  const float pos_eps = 0.005f; // ~5 mm
   for (int i = 0; i < 3; i++) {
-    if (std::fabs(a.vecPosition[i] - b.vecPosition[i]) > eps)
+    if (std::fabs(a.vecPosition[i] - b.vecPosition[i]) > pos_eps)
       return false;
   }
-  if (std::fabs(a.qRotation.w - b.qRotation.w) > eps ||
-      std::fabs(a.qRotation.x - b.qRotation.x) > eps ||
-      std::fabs(a.qRotation.y - b.qRotation.y) > eps ||
-      std::fabs(a.qRotation.z - b.qRotation.z) > eps) {
+  return true;
+}
+
+bool SlimeVRDriver::VRDriver::ExternalHandInFrontAndInRadius(
+    const float hand_pos[3], const vr::TrackedDevicePose_t &hmd_pose) {
+  if (!hmd_pose.bPoseIsValid)
     return false;
-  }
+  const auto &m = hmd_pose.mDeviceToAbsoluteTracking.m;
+  float hx = m[0][3], hy = m[1][3], hz = m[2][3];
+  float dx = hand_pos[0] - hx;
+  float dy = hand_pos[1] - hy;
+  float dz = hand_pos[2] - hz;
+  float dist_sq = dx * dx + dy * dy + dz * dz;
+  if (dist_sq > kExternalHandMaxRadius * kExternalHandMaxRadius)
+    return false;
+  // Forward = -Z in OpenVR (third column of rotation)
+  float fx = -m[0][2], fy = -m[1][2], fz = -m[2][2];
+  if (dx * fx + dy * fy + dz * fz < 0.f)
+    return false; // behind HMD
   return true;
 }
 
@@ -739,6 +745,7 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     }
   }
 
+  const vr::TrackedDevicePose_t &hmd_pose = raw_poses[0];
   auto *props = GetProperties();
   for (uint32_t i = 1; i < vr::k_unMaxTrackedDeviceCount; i++) {
     if (our_indices.count(i))
@@ -770,6 +777,16 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     }
 
     vr::DriverPose_t driver_pose = DriverPoseFromTrackedDevicePose(p);
+    // Only use external hand when it's in front of HMD and within 160 cm
+    // radius; else SlimeVR.
+    if (!ExternalHandInFrontAndInRadius(driver_pose.vecPosition, hmd_pose)) {
+      if (role == vr::TrackedControllerRole_LeftHand)
+        external_left_pose_ = std::nullopt;
+      else if (role == vr::TrackedControllerRole_RightHand)
+        external_right_pose_ = std::nullopt;
+      // Don't update last_external_* so next frame we don't compare against a pose we rejected
+      continue;
+    }
     if (role == vr::TrackedControllerRole_LeftHand) {
       if (last_external_left_pose_.has_value() &&
           ExternalPoseEquals(driver_pose, *last_external_left_pose_)) {
