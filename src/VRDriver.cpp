@@ -714,20 +714,18 @@ bool SlimeVRDriver::VRDriver::ExternalPoseEquals(const vr::DriverPose_t &a,
 }
 
 bool SlimeVRDriver::VRDriver::ExternalHandInFrontAndInRadius(
-    const float hand_pos[3], const vr::TrackedDevicePose_t &hmd_pose) {
+    const double hand_pos[3], const vr::TrackedDevicePose_t &hmd_pose) {
   if (!hmd_pose.bPoseIsValid)
     return false;
   const auto &m = hmd_pose.mDeviceToAbsoluteTracking.m;
-  float hx = m[0][3], hy = m[1][3], hz = m[2][3];
-  float dx = hand_pos[0] - hx;
-  float dy = hand_pos[1] - hy;
-  float dz = hand_pos[2] - hz;
-  float dist_sq = dx * dx + dy * dy + dz * dz;
-  if (dist_sq > kExternalHandMaxRadius * kExternalHandMaxRadius)
+  double hx = m[0][3], hy = m[1][3], hz = m[2][3];
+  double dx = hand_pos[0] - hx, dy = hand_pos[1] - hy, dz = hand_pos[2] - hz;
+  double dist_sq = dx * dx + dy * dy + dz * dz;
+  if (dist_sq > static_cast<double>(kExternalHandMaxRadius) * kExternalHandMaxRadius)
     return false;
   // Forward = -Z in OpenVR (third column of rotation)
-  float fx = -m[0][2], fy = -m[1][2], fz = -m[2][2];
-  if (dx * fx + dy * fy + dz * fz < 0.f)
+  double fx = -m[0][2], fy = -m[1][2], fz = -m[2][2];
+  if (dx * fx + dy * fy + dz * fz < 0.0)
     return false; // behind HMD
   return true;
 }

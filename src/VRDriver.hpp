@@ -97,7 +97,7 @@ private:
                                  const vr::DriverPose_t &b);
   /// True if hand position is in front of HMD and within kExternalHandMaxRadius.
   static bool
-  ExternalHandInFrontAndInRadius(const float hand_pos[3],
+  ExternalHandInFrontAndInRadius(const double hand_pos[3],
                                  const vr::TrackedDevicePose_t &hmd_pose);
 };
 }; // namespace SlimeVRDriver

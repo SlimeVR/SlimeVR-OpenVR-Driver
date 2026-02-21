@@ -27,13 +27,13 @@ SlimeVRDriver::TrackerDevice::LerpPose(const vr::DriverPose_t &from,
   for (int i = 0; i < 3; i++)
     out.vecPosition[i] =
         from.vecPosition[i] + (to.vecPosition[i] - from.vecPosition[i]) * t;
-  // Nlerp rotation
-  float w = (1.f - t) * from.qRotation.w + t * to.qRotation.w;
-  float x = (1.f - t) * from.qRotation.x + t * to.qRotation.x;
-  float y = (1.f - t) * from.qRotation.y + t * to.qRotation.y;
-  float z = (1.f - t) * from.qRotation.z + t * to.qRotation.z;
-  float len = std::sqrt(w * w + x * x + y * y + z * z);
-  if (len > 1e-6f) {
+  // Nlerp rotation (pose quaternions are double)
+  double w = (1.0 - static_cast<double>(t)) * from.qRotation.w + static_cast<double>(t) * to.qRotation.w;
+  double x = (1.0 - static_cast<double>(t)) * from.qRotation.x + static_cast<double>(t) * to.qRotation.x;
+  double y = (1.0 - static_cast<double>(t)) * from.qRotation.y + static_cast<double>(t) * to.qRotation.y;
+  double z = (1.0 - static_cast<double>(t)) * from.qRotation.z + static_cast<double>(t) * to.qRotation.z;
+  double len = std::sqrt(w * w + x * x + y * y + z * z);
+  if (len > 1e-6) {
     out.qRotation.w = w / len;
     out.qRotation.x = x / len;
     out.qRotation.y = y / len;
