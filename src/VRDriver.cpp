@@ -2,6 +2,7 @@
 #include "TrackerRole.hpp"
 #include "VRPaths_openvr.hpp"
 #include <TrackerDevice.hpp>
+#include <cmath>
 #include <cstring>
 #include <google/protobuf/arena.h>
 #include <simdjson.h>
@@ -709,6 +710,22 @@ vr::DriverPose_t SlimeVRDriver::VRDriver::DriverPoseFromTrackedDevicePose(
   return pose;
 }
 
+bool SlimeVRDriver::VRDriver::ExternalPoseEquals(const vr::DriverPose_t &a,
+                                                 const vr::DriverPose_t &b) {
+  const float eps = 1e-5f;
+  for (int i = 0; i < 3; i++) {
+    if (std::fabs(a.vecPosition[i] - b.vecPosition[i]) > eps)
+      return false;
+  }
+  if (std::fabs(a.qRotation.w - b.qRotation.w) > eps ||
+      std::fabs(a.qRotation.x - b.qRotation.x) > eps ||
+      std::fabs(a.qRotation.y - b.qRotation.y) > eps ||
+      std::fabs(a.qRotation.z - b.qRotation.z) > eps) {
+    return false;
+  }
+  return true;
+}
+
 void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
   vr::TrackedDevicePose_t raw_poses[vr::k_unMaxTrackedDeviceCount];
   vr::VRServerDriverHost()->GetRawTrackedDevicePoses(
@@ -754,9 +771,31 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
 
     vr::DriverPose_t driver_pose = DriverPoseFromTrackedDevicePose(p);
     if (role == vr::TrackedControllerRole_LeftHand) {
-      external_left_pose_ = driver_pose;
+      if (last_external_left_pose_.has_value() &&
+          ExternalPoseEquals(driver_pose, *last_external_left_pose_)) {
+        stale_external_left_frames_++;
+        if (stale_external_left_frames_ >= kStaleExternalPoseFrames)
+          external_left_pose_ = std::nullopt; // swap to SlimeVR
+        else
+          external_left_pose_ = driver_pose;
+      } else {
+        stale_external_left_frames_ = 0;
+        external_left_pose_ = driver_pose;
+      }
+      last_external_left_pose_ = driver_pose;
     } else if (role == vr::TrackedControllerRole_RightHand) {
-      external_right_pose_ = driver_pose;
+      if (last_external_right_pose_.has_value() &&
+          ExternalPoseEquals(driver_pose, *last_external_right_pose_)) {
+        stale_external_right_frames_++;
+        if (stale_external_right_frames_ >= kStaleExternalPoseFrames)
+          external_right_pose_ = std::nullopt; // swap to SlimeVR
+        else
+          external_right_pose_ = driver_pose;
+      } else {
+        stale_external_right_frames_ = 0;
+        external_right_pose_ = driver_pose;
+      }
+      last_external_right_pose_ = driver_pose;
     }
   }
 }
