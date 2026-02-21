@@ -121,16 +121,16 @@ void SlimeVRDriver::TrackerDevice::Update() {
                                                 system_click_value, 0);
   }
 
-  // For controllers: prefer external (VD/Steam Link) when in view; use
-  // SlimeVR when they disconnect or go out of view.
+  // Single place the pose is finally set: controllers use external (VD/Steam
+  // Link) when available else SlimeVR; trackers use last SlimeVR pose.
+  vr::DriverPose_t pose_to_use = last_pose_atomic_.load();
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
-    vr::DriverPose_t slimevr_pose = last_pose_atomic_.load();
-    vr::DriverPose_t pose_to_use =
-        external.has_value() ? *external : slimevr_pose;
-    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
-        device_index_, pose_to_use, sizeof(vr::DriverPose_t));
+    if (external.has_value())
+      pose_to_use = *external;
   }
+  GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
+      device_index_, pose_to_use, sizeof(vr::DriverPose_t));
 }
 
 void SlimeVRDriver::TrackerDevice::PositionMessage(
@@ -215,11 +215,8 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(
                                                 triple_tap, 0);
   }
 
-  // Notify SteamVR that pose was updated
+  // Store for Update(); pose is submitted only there.
   last_pose_atomic_ = (last_pose_ = pose);
-
-  GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
-      device_index_, pose, sizeof(vr::DriverPose_t));
 }
 void SlimeVRDriver::TrackerDevice::ControllerInputMessage(
     messages::ControllerInput &controllerInput) {
@@ -298,9 +295,8 @@ void SlimeVRDriver::TrackerDevice::StatusMessage(
 
   // TODO: send position/rotation of 0 instead of last pose?
 
+  // Store for Update(); pose is submitted only there.
   last_pose_atomic_ = (last_pose_ = pose);
-  GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
-      device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
 DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType() {

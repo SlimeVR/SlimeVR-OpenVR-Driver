@@ -722,9 +722,6 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     }
   }
 
-  external_left_pose_ = std::nullopt;
-  external_right_pose_ = std::nullopt;
-
   auto *props = GetProperties();
   for (uint32_t i = 1; i < vr::k_unMaxTrackedDeviceCount; i++) {
     if (our_indices.count(i))
