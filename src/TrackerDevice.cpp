@@ -143,16 +143,22 @@ void SlimeVRDriver::TrackerDevice::Update() {
 
   // Target pose: controllers use external (VD/Steam Link) when available else SlimeVR; trackers use last SlimeVR pose.
   vr::DriverPose_t target = last_pose_atomic_.load();
+  bool have_external = false;
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
-    if (external.has_value())
+    have_external = external.has_value();
+    if (have_external)
       target = *external;
   }
-  // Lerp from current toward target to reduce jitter and smooth transitions.
+  // Use slower lerp when swapping VD ↔ SlimeVR to smooth the transition.
+  float lerp_t = GetDriver()->GetPoseLerpSpeed();
+  if (is_controller_ && (have_external != last_frame_had_external_))
+    lerp_t = GetDriver()->GetPoseLerpSpeedOnSwap();
+  last_frame_had_external_ = have_external;
   if (!smoothed_pose_.has_value())
     smoothed_pose_ = target;
   else
-    smoothed_pose_ = LerpPose(*smoothed_pose_, target, GetDriver()->GetPoseLerpSpeed());
+    smoothed_pose_ = LerpPose(*smoothed_pose_, target, lerp_t);
   GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(
       device_index_, *smoothed_pose_, sizeof(vr::DriverPose_t));
 }

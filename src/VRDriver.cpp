@@ -495,6 +495,7 @@ void SlimeVRDriver::VRDriver::LoadDriverConfig() {
     if (auto v = obj["external_hand_max_radius_m"]; !v.error()) config_external_hand_max_radius_m_ = static_cast<float>(v.get_double());
     if (auto v = obj["stale_external_pose_frames"]; !v.error()) config_stale_external_pose_frames_ = static_cast<int>(v.get_int64());
     if (auto v = obj["pose_lerp_speed"]; !v.error()) config_pose_lerp_speed_ = static_cast<float>(v.get_double());
+    if (auto v = obj["pose_lerp_speed_on_swap"]; !v.error()) config_pose_lerp_speed_on_swap_ = static_cast<float>(v.get_double());
     if (auto v = obj["frozen_pose_position_epsilon_m"]; !v.error()) config_frozen_pose_position_epsilon_m_ = static_cast<float>(v.get_double());
     logger_->Log("Loaded driver config from {}", path);
   } catch (const simdjson::simdjson_error &) {
@@ -504,6 +505,10 @@ void SlimeVRDriver::VRDriver::LoadDriverConfig() {
 
 float SlimeVRDriver::VRDriver::GetPoseLerpSpeed() {
   return config_pose_lerp_speed_;
+}
+
+float SlimeVRDriver::VRDriver::GetPoseLerpSpeedOnSwap() {
+  return config_pose_lerp_speed_on_swap_;
 }
 
 SlimeVRDriver::SettingsValue

@@ -70,6 +70,7 @@ private:
   std::atomic<vr::DriverPose_t> last_pose_atomic_ =
       IVRDevice::MakeDefaultPose();
   std::optional<vr::DriverPose_t> smoothed_pose_;
+  bool last_frame_had_external_ = false;
   static vr::DriverPose_t LerpPose(const vr::DriverPose_t &from,
                                    const vr::DriverPose_t &to, float t);
 

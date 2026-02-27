@@ -91,6 +91,7 @@ private:
   float config_external_hand_max_radius_m_ = 1.7f;
   int config_stale_external_pose_frames_ = 1;
   float config_pose_lerp_speed_ = 0.8f;
+  float config_pose_lerp_speed_on_swap_ = 0.25f;
   float config_frozen_pose_position_epsilon_m_ = 0.005f;
   void LoadDriverConfig();
   void UpdateExternalControllerPoses();
@@ -101,5 +102,6 @@ private:
   bool ExternalHandInFrontAndInRadius(const double hand_pos[3],
                                      const vr::TrackedDevicePose_t &hmd_pose) const;
   virtual float GetPoseLerpSpeed() override;
+  virtual float GetPoseLerpSpeedOnSwap() override;
 };
 }; // namespace SlimeVRDriver
