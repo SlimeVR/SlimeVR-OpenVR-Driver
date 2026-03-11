@@ -162,7 +162,9 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
     // Some device properties will be derived at runtime by SteamVR
     // using the profile, such as the device class and controller type
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, "{slimevr}/input/slimevr_tracker_profile.json");
+    bool emulate_vives = vr::VRSettings()->GetBool("driver_slimevr", "emulateVives");
+    std::string input_profile_path = emulate_vives ? "{htc}/input/vive_tracker_profile.json" : "{slimevr}/input/slimevr_tracker_profile.json";
+    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, input_profile_path.c_str());
 
     // Doesn't apply until restart of SteamVR
     auto role = GetViveRole(tracker_role_);
