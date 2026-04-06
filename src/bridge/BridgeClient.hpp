@@ -28,7 +28,7 @@
 
 #include "BridgeTransport.hpp"
 
-#define PROTOCOL_VERSION 1
+#define PROTOCOL_VERSION 2
 
 /**
  * @brief Client implementation for communication with SlimeVR Server using pipes or unix sockets.
