@@ -64,7 +64,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             continue;
         }
 
-        messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
+        messages::ProtobufMessage* message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena_);
 
         vr::TrackedDevicePose_t hmd_pose;
         vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, &hmd_pose, 1);
@@ -92,7 +92,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             logger_->Log("HMD props: serial='{}', model='{}', manufacturer='{}'", serial, name, manufacturer);
 
             // Send add message for HMD
-            messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
+            messages::TrackerAdded* tracker_added = google::protobuf::Arena::Create<messages::TrackerAdded>(&arena_);
             message->set_allocated_tracker_added(tracker_added);
             tracker_added->set_tracker_id(0);
             tracker_added->set_tracker_role(TrackerRole::HMD);
@@ -101,7 +101,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             tracker_added->set_manufacturer(manufacturer.empty() ? "OpenVR" : manufacturer);
             bridge_->SendBridgeMessage(*message);
 
-            messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
+            messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena_);
             message->set_allocated_tracker_status(tracker_status);
             tracker_status->set_tracker_id(0);
             tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
@@ -161,7 +161,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             pos.v[2] = pos_z;
         }
 
-        messages::Position* hmd_position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena_);
+        messages::Position* hmd_position = google::protobuf::Arena::Create<messages::Position>(&arena_);
         message->set_allocated_position(hmd_position);
         hmd_position->set_tracker_id(0);
         hmd_position->set_data_source(messages::Position_DataSource_FULL);
@@ -178,7 +178,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - battery_sent_at_).count() > 100) {
             vr::ETrackedPropertyError err;
             if (vr::VRProperties()->GetBoolProperty(hmd_prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool, &err)) {
-                messages::Battery* hmdBattery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
+                messages::Battery* hmdBattery = google::protobuf::Arena::Create<messages::Battery>(&arena_);
                 message->set_allocated_battery(hmdBattery);
                 hmdBattery->set_tracker_id(0);
                 hmdBattery->set_battery_level(vr::VRProperties()->GetFloatProperty(hmd_prop_container, vr::Prop_DeviceBatteryPercentage_Float, &err) * 100);
@@ -192,140 +192,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-
-    messages::ProtobufMessage *message =
-        google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(
-            &arena_);
-
-    if (!sent_hmd_add_message_) {
-      // Send add message for HMD
-      messages::TrackerAdded *tracker_added =
-          google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(
-              &arena_);
-      message->set_allocated_tracker_added(tracker_added);
-      tracker_added->set_tracker_id(0);
-      tracker_added->set_tracker_role(TrackerRole::HMD);
-      tracker_added->set_tracker_serial("HMD");
-      tracker_added->set_tracker_name("HMD");
-      bridge_->SendBridgeMessage(*message);
-
-      messages::TrackerStatus *tracker_status =
-          google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(
-              &arena_);
-      message->set_allocated_tracker_status(tracker_status);
-      tracker_status->set_tracker_id(0);
-      tracker_status->set_status(
-          messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-      bridge_->SendBridgeMessage(*message);
-
-      sent_hmd_add_message_ = true;
-      logger_->Log("Sent HMD hello message");
-    }
-
-    vr::PropertyContainerHandle_t hmd_prop_container =
-        vr::VRProperties()->TrackedDeviceToPropertyContainer(
-            vr::k_unTrackedDeviceIndex_Hmd);
-
-    vr::ETrackedPropertyError universe_error;
-    uint64_t universe = vr::VRProperties()->GetUint64Property(
-        hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
-    if (universe_error == vr::ETrackedPropertyError::TrackedProp_Success) {
-      if (!current_universe_.has_value() ||
-          current_universe_.value().first != universe) {
-        auto result = SearchUniverses(universe);
-        if (result.has_value()) {
-          current_universe_.emplace(universe, result.value());
-          logger_->Log("Found current universe");
-        } else {
-          logger_->Log("Failed to find current universe!");
-        }
-      }
-    } else if (universe_error != last_universe_error_) {
-      logger_->Log(
-          "Failed to find current universe: Prop_CurrentUniverseId_Uint64 "
-          "error = {}",
-          vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(universe_error));
-    }
-    last_universe_error_ = universe_error;
-
-    vr::TrackedDevicePose_t hmd_pose;
-    vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, &hmd_pose, 1);
-
-    vr::HmdQuaternion_t q = GetRotation(hmd_pose.mDeviceToAbsoluteTracking);
-    vr::HmdVector3_t pos = GetPosition(hmd_pose.mDeviceToAbsoluteTracking);
-
-    if (current_universe_.has_value()) {
-      auto trans = current_universe_.value().second;
-      pos.v[0] += trans.translation.v[0];
-      pos.v[1] += trans.translation.v[1];
-      pos.v[2] += trans.translation.v[2];
-
-      // rotate by quaternion w = cos(-trans.yaw/2), x = 0, y = sin(-trans.yaw/2), z = 0
-      auto tmp_w = cos(-trans.yaw / 2);
-      auto tmp_y = sin(-trans.yaw / 2);
-      auto new_w = tmp_w * q.w - tmp_y * q.y;
-      auto new_x = tmp_w * q.x + tmp_y * q.z;
-      auto new_y = tmp_w * q.y + tmp_y * q.w;
-      auto new_z = tmp_w * q.z - tmp_y * q.x;
-
-      q.w = new_w;
-      q.x = new_x;
-      q.y = new_y;
-      q.z = new_z;
-
-      // rotate point on the xz plane by -trans.yaw radians; equivalent to the quaternion multiplication after applying the double angle formula.
-      float tmp_sin = sin(-trans.yaw);
-      float tmp_cos = cos(-trans.yaw);
-      auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
-      auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
-
-      pos.v[0] = pos_x;
-      pos.v[2] = pos_z;
-    }
-
-    messages::Position *hmd_position =
-        google::protobuf::Arena::CreateMessage<messages::Position>(&arena_);
-    message->set_allocated_position(hmd_position);
-    hmd_position->set_tracker_id(0);
-    hmd_position->set_data_source(messages::Position_DataSource_FULL);
-    hmd_position->set_x(pos.v[0]);
-    hmd_position->set_y(pos.v[1]);
-    hmd_position->set_z(pos.v[2]);
-    hmd_position->set_qx((float)q.x);
-    hmd_position->set_qy((float)q.y);
-    hmd_position->set_qz((float)q.z);
-    hmd_position->set_qw((float)q.w);
-    bridge_->SendBridgeMessage(*message);
-
-    auto now = std::chrono::steady_clock::now();
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(now -
-                                                              battery_sent_at_)
-            .count() > 100) {
-      vr::ETrackedPropertyError err;
-      if (vr::VRProperties()->GetBoolProperty(
-              hmd_prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool,
-              &err)) {
-        messages::Battery *hmdBattery =
-            google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
-        message->set_allocated_battery(hmdBattery);
-        hmdBattery->set_tracker_id(0);
-        hmdBattery->set_battery_level(
-            vr::VRProperties()->GetFloatProperty(
-                hmd_prop_container, vr::Prop_DeviceBatteryPercentage_Float,
-                &err) *
-            100);
-        hmdBattery->set_is_charging(vr::VRProperties()->GetBoolProperty(
-            hmd_prop_container, vr::Prop_DeviceIsCharging_Bool, &err));
-        bridge_->SendBridgeMessage(*message);
-      }
-      battery_sent_at_ = now;
-    }
-
-    arena_.Reset();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
-  }
-  logger_->Log("Pose request thread exited");
+    logger_->Log("Pose request thread exited");
 }
 
 void SlimeVRDriver::VRDriver::RunFrame() {
@@ -605,32 +472,39 @@ SlimeVRDriver::UniverseTranslation::parse(simdjson::ondemand::object &obj) {
   return res;
 }
 
-std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverse(const simdjson::padded_string &json, uint64_t target) {
-    simdjson::ondemand::document doc = json_parser_.iterate(json);
-
-    for (simdjson::ondemand::object uni: doc["universes"]) {
-        // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
-        auto elem = uni["universeID"];
-        uint64_t parsed_universe;
-
-        auto is_integer = elem.is_integer();
-        if (!is_integer.error() && is_integer.value_unsafe()) {
-            parsed_universe = elem.get_uint64();
+std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverse(std::string path_or_json, uint64_t target) {
+    try {
+        simdjson::padded_string json;
+        if (path_or_json.find('{') != std::string::npos) {
+            json = simdjson::padded_string(path_or_json);
         } else {
-            parsed_universe = elem.get_uint64_in_string();
+            json = simdjson::padded_string::load(path_or_json);
         }
+        simdjson::ondemand::document doc = json_parser_.iterate(json);
 
-        if (parsed_universe == target) {
-            auto standing_uni = uni["standing"].get_object();
-            return SlimeVRDriver::UniverseTranslation::parse(standing_uni.value());
+        for (simdjson::ondemand::object uni : doc["universes"]) {
+            // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
+            auto elem = uni["universeID"];
+            uint64_t parsed_universe;
+
+            auto is_integer = elem.is_integer();
+            if (!is_integer.error() && is_integer.value_unsafe()) {
+                parsed_universe = elem.get_uint64();
+            } else {
+                parsed_universe = elem.get_uint64_in_string();
+            }
+
+            if (parsed_universe == target) {
+                auto standing_uni = uni["standing"].get_object();
+                return SlimeVRDriver::UniverseTranslation::parse(standing_uni.value());
+            }
         }
+    } catch (simdjson::simdjson_error &e) {
+        logger_->Log("Error getting universes from {}: {}", path_or_json, e.what());
+        return std::nullopt;
     }
-  } catch (simdjson::simdjson_error &e) {
-    logger_->Log("Error getting universes from {}: {}", path, e.what());
-    return std::nullopt;
-  }
 
-  return std::nullopt;
+    return std::nullopt;
 }
 
 std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverses(uint64_t target) {
@@ -647,7 +521,6 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
             logger_->Log("Error loading driver-provided chaperone JSON: {}", e.what());
         }
     }
-  }
 
     auto driver_chap_path = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_DriverProvidedChaperonePath_String);
     if (driver_chap_path != "") {
