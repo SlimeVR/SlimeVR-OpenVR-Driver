@@ -119,9 +119,9 @@ message Position {
     repeated FingerBoneRotation finger_bone_rotations = 10;
 
     repeated Input input = 11;
-    optional float vx = 10; 
-    optional float vy = 11; 
-    optional float vz = 12;
+    optional float vx = 12; 
+    optional float vy = 13; 
+    optional float vz = 14;
 }
 
 message ControllerInput {
