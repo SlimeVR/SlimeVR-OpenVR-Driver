@@ -525,7 +525,7 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
     auto driver_chap_path = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_DriverProvidedChaperonePath_String);
     if (driver_chap_path != "") {
         try {
-            auto driver_res = SearchUniverse(simdjson::padded_string::load(driver_chap_path).take_value(), target);
+            auto driver_res = SearchUniverse(driver_chap_path, target);
             if (driver_res.has_value()) {
                 return driver_res.value();
             }
@@ -537,7 +537,7 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
 
     if (default_chap_path_.has_value() && std::filesystem::exists(default_chap_path_.value())) {
         try {
-            return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value()).take_value(), target);
+            return SearchUniverse(default_chap_path_.value(), target);
         }
         catch (simdjson::simdjson_error &e) {
             logger_->Log("Error loading chaperone from default path {}: {}", default_chap_path_.value(), e.what());
