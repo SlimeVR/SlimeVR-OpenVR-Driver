@@ -93,6 +93,8 @@ private:
   float config_pose_lerp_speed_ = 0.8f;
   float config_pose_lerp_speed_on_swap_ = 0.25f;
   float config_frozen_pose_position_epsilon_m_ = 0.005f;
+  int config_controller_priority_ = 2147483647;
+  bool config_input_passthrough_ = false;
   void LoadDriverConfig();
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
@@ -103,5 +105,14 @@ private:
                                      const vr::TrackedDevicePose_t &hmd_pose) const;
   virtual float GetPoseLerpSpeed() override;
   virtual float GetPoseLerpSpeedOnSwap() override;
+  virtual int GetControllerPriority() override;
+  virtual bool GetInputPassthrough() override;
+  virtual uint64_t GetExternalButtonsForHand(bool left_hand) override;
+
+  // External controller event spying
+  vr::TrackedDeviceIndex_t external_left_index_ = vr::k_unTrackedDeviceIndexInvalid;
+  vr::TrackedDeviceIndex_t external_right_index_ = vr::k_unTrackedDeviceIndexInvalid;
+  uint64_t external_left_buttons_ = 0;
+  uint64_t external_right_buttons_ = 0;
 };
 }; // namespace SlimeVRDriver

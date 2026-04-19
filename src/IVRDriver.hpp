@@ -102,6 +102,14 @@ public:
   /** Slower lerp speed used when swapping VD ↔ SlimeVR to smooth the transition. */
   virtual float GetPoseLerpSpeedOnSwap() = 0;
 
+  /** Priority for the controller hand role. */
+  virtual int GetControllerPriority() = 0;
+  /** Whether to avoid overwriting input when no data is received. */
+  virtual bool GetInputPassthrough() = 0;
+
+  /** Gets external controller buttons for the hand. */
+  virtual uint64_t GetExternalButtonsForHand(bool left_hand) = 0;
+
   virtual inline const char *const *GetInterfaceVersions() override {
     return vr::k_InterfaceVersions;
   };

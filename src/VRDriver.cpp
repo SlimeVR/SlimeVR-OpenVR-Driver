@@ -201,6 +201,20 @@ void SlimeVRDriver::VRDriver::RunFrame() {
   std::vector<vr::VREvent_t> events;
   while (vr::VRServerDriverHost()->PollNextEvent(&event, sizeof(event))) {
     events.push_back(event);
+
+    if (event.eventType == vr::EVREventType::VREvent_ButtonPress ||
+        event.eventType == vr::EVREventType::VREvent_ButtonUnpress) {
+      uint64_t mask = 1ULL << event.data.controller.button;
+      if (event.trackedDeviceIndex != vr::k_unTrackedDeviceIndexInvalid) {
+        if (event.trackedDeviceIndex == external_left_index_) {
+          if (event.eventType == vr::EVREventType::VREvent_ButtonPress) external_left_buttons_ |= mask;
+          else external_left_buttons_ &= ~mask;
+        } else if (event.trackedDeviceIndex == external_right_index_) {
+          if (event.eventType == vr::EVREventType::VREvent_ButtonPress) external_right_buttons_ |= mask;
+          else external_right_buttons_ &= ~mask;
+        }
+      }
+    }
   }
   openvr_events_ = std::move(events);
 
@@ -364,6 +378,8 @@ void SlimeVRDriver::VRDriver::LoadDriverConfig() {
     if (auto v = obj["pose_lerp_speed"]; !v.error()) config_pose_lerp_speed_ = static_cast<float>(v.get_double());
     if (auto v = obj["pose_lerp_speed_on_swap"]; !v.error()) config_pose_lerp_speed_on_swap_ = static_cast<float>(v.get_double());
     if (auto v = obj["frozen_pose_position_epsilon_m"]; !v.error()) config_frozen_pose_position_epsilon_m_ = static_cast<float>(v.get_double());
+    if (auto v = obj["controller_priority"]; !v.error()) config_controller_priority_ = static_cast<int>(v.get_int64());
+    if (auto v = obj["input_passthrough"]; !v.error()) config_input_passthrough_ = v.get_bool().value_or(false);
     logger_->Log("Loaded driver config from {}", path);
   } catch (const simdjson::simdjson_error &) {
     // Use defaults; config file missing or invalid
@@ -376,6 +392,14 @@ float SlimeVRDriver::VRDriver::GetPoseLerpSpeed() {
 
 float SlimeVRDriver::VRDriver::GetPoseLerpSpeedOnSwap() {
   return config_pose_lerp_speed_on_swap_;
+}
+
+int SlimeVRDriver::VRDriver::GetControllerPriority() {
+  return config_controller_priority_;
+}
+
+bool SlimeVRDriver::VRDriver::GetInputPassthrough() {
+  return config_input_passthrough_;
 }
 
 SlimeVRDriver::SettingsValue
@@ -637,6 +661,9 @@ bool SlimeVRDriver::VRDriver::ExternalHandInFrontAndInRadius(
 }
 
 void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
+  external_left_index_ = vr::k_unTrackedDeviceIndexInvalid;
+  external_right_index_ = vr::k_unTrackedDeviceIndexInvalid;
+
   vr::TrackedDevicePose_t raw_poses[vr::k_unMaxTrackedDeviceCount];
   vr::VRServerDriverHost()->GetRawTrackedDevicePoses(
       0.0f, raw_poses, vr::k_unMaxTrackedDeviceCount);
@@ -691,6 +718,7 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
       continue;
     }
     if (role == vr::TrackedControllerRole_LeftHand) {
+      external_left_index_ = i;
       if (last_external_left_pose_.has_value() &&
           ExternalPoseEquals(driver_pose, *last_external_left_pose_)) {
         stale_external_left_frames_++;
@@ -704,6 +732,7 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
       }
       last_external_left_pose_ = driver_pose;
     } else if (role == vr::TrackedControllerRole_RightHand) {
+      external_right_index_ = i;
       if (last_external_right_pose_.has_value() &&
           ExternalPoseEquals(driver_pose, *last_external_right_pose_)) {
         stale_external_right_frames_++;
@@ -718,4 +747,8 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
       last_external_right_pose_ = driver_pose;
     }
   }
+}
+
+uint64_t SlimeVRDriver::VRDriver::GetExternalButtonsForHand(bool left_hand) {
+  return left_hand ? external_left_buttons_ : external_right_buttons_;
 }

@@ -68,86 +68,68 @@ void SlimeVRDriver::TrackerDevice::Update() {
     }
   }
 
-  if (was_activated_ && is_controller_) {
-    // Get inputs from protobuf
-    LogInput(("Check handle for trigger before update. Value is " +
-              std::to_string(trigger_value_))
-                 .c_str(),
-             this->trigger_component_);
-    vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_,
-                                               trigger_value_, 0);
-
-    LogInput(("Check handle for trigger touch before update. Value is " +
-              std::to_string(trigger_value_click))
-                 .c_str(),
-             this->trigger_component_touch_);
-    vr::VRDriverInput()->UpdateBooleanComponent(this->trigger_component_touch_,
-                                                trigger_value_click, 0);
-
-    LogInput(("Check handle for grip before update. Value is " +
-              std::to_string(grip_value))
-                 .c_str(),
-             this->grip_value_component_);
-    vr::VRDriverInput()->UpdateScalarComponent(this->grip_value_component_,
-                                               grip_value, 0);
-
-    LogInput(("Check handle for stick x before update. Value is " +
-              std::to_string(thumbstick_x_value))
-                 .c_str(),
-             this->stick_x_component_);
-    vr::VRDriverInput()->UpdateScalarComponent(this->stick_x_component_,
-                                               thumbstick_x_value, 0);
-
-    LogInput(("Check handle for stick y before update. Value is " +
-              std::to_string(thumbstick_y_value))
-                 .c_str(),
-             this->stick_y_component_);
-    vr::VRDriverInput()->UpdateScalarComponent(this->stick_y_component_,
-                                               thumbstick_y_value, 0);
-
-    LogInput(("Check handle for button a before update. Value is " +
-              std::to_string(button_1_value))
-                 .c_str(),
-             this->button_a_component_);
-    vr::VRDriverInput()->UpdateBooleanComponent(this->button_a_component_,
-                                                button_1_value, 0);
-
-    LogInput(("Check handle for button b before update. Value is " +
-              std::to_string(button_2_value))
-                 .c_str(),
-             this->button_b_component_);
-    vr::VRDriverInput()->UpdateBooleanComponent(this->button_b_component_,
-                                                button_2_value, 0);
-
-    LogInput(("Check handle for stick click before update. Value is " +
-              std::to_string(stick_click_value))
-                 .c_str(),
-             this->stick_click_component_);
-    vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_,
-                                                stick_click_value, 0);
-
-    LogInput(("Check handle for system before update. Value is " +
-              std::to_string(system_click_value))
-                 .c_str(),
-             this->system_component);
-    vr::VRDriverInput()->UpdateBooleanComponent(this->system_component,
-                                                system_click_value, 0);
-
-    LogInput(("Check handle for system touch before update. Value is " +
-              std::to_string(system_click_value))
-                 .c_str(),
-             this->system_component_touch);
-    vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch,
-                                                system_click_value, 0);
-  }
-
-  // Target pose: controllers use external (VD/Steam Link) when available else SlimeVR; trackers use last SlimeVR pose.
-  vr::DriverPose_t target = last_pose_atomic_.load();
   bool have_external = false;
   if (is_controller_) {
     auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
     have_external = external.has_value();
-    if (have_external)
+  }
+
+  if (was_activated_ && is_controller_) {
+    bool send_input = true;
+    if (GetDriver()->GetInputPassthrough() && have_external) {
+      send_input = false;
+    }
+
+    // Merge external button state (from VD/Steam Link) with SlimeVR's own state.
+    // For digital buttons we OR them together so either source can trigger.
+    uint64_t ext_buttons = GetDriver()->GetExternalButtonsForHand(is_left_hand_);
+    bool ext_a      = (ext_buttons & (1ULL << vr::k_EButton_A)) != 0;
+    bool ext_b      = (ext_buttons & (1ULL << vr::k_EButton_ApplicationMenu)) != 0;
+    bool ext_stick  = (ext_buttons & (1ULL << vr::k_EButton_IndexController_JoystickClick)) != 0;
+    bool ext_system = (ext_buttons & (1ULL << vr::k_EButton_System)) != 0;
+    bool ext_grip   = (ext_buttons & (1ULL << vr::k_EButton_Grip)) != 0;
+    bool ext_trigger= (ext_buttons & (1ULL << vr::k_EButton_SteamVR_Trigger)) != 0;
+
+    // Merged digital states: local SlimeVR OR external VD
+    bool merged_a      = button_1_value    || ext_a;
+    bool merged_b      = button_2_value    || ext_b;
+    bool merged_stick  = stick_click_value || ext_stick;
+    bool merged_system = system_click_value|| ext_system;
+    bool merged_trigger_click = trigger_value_click || ext_trigger;
+
+    if (send_input) {
+      // Analog inputs from SlimeVR (no external analog source available)
+      vr::VRDriverInput()->UpdateScalarComponent(this->trigger_component_,
+                                                 trigger_value_, 0);
+      vr::VRDriverInput()->UpdateScalarComponent(this->grip_value_component_,
+                                                 grip_value, 0);
+      vr::VRDriverInput()->UpdateScalarComponent(this->stick_x_component_,
+                                                 thumbstick_x_value, 0);
+      vr::VRDriverInput()->UpdateScalarComponent(this->stick_y_component_,
+                                                 thumbstick_y_value, 0);
+    }
+
+    // Digital buttons are always merged regardless of send_input,
+    // so VD button presses always come through.
+    vr::VRDriverInput()->UpdateBooleanComponent(this->button_a_component_,
+                                                merged_a, 0);
+    vr::VRDriverInput()->UpdateBooleanComponent(this->button_b_component_,
+                                                merged_b, 0);
+    vr::VRDriverInput()->UpdateBooleanComponent(this->stick_click_component_,
+                                                merged_stick, 0);
+    vr::VRDriverInput()->UpdateBooleanComponent(this->system_component,
+                                                merged_system, 0);
+    vr::VRDriverInput()->UpdateBooleanComponent(this->system_component_touch,
+                                                merged_system, 0);
+    vr::VRDriverInput()->UpdateBooleanComponent(this->trigger_component_touch_,
+                                                merged_trigger_click, 0);
+  }
+
+  // Target pose: controllers use external (VD/Steam Link) when available else SlimeVR; trackers use last SlimeVR pose.
+  vr::DriverPose_t target = last_pose_atomic_.load();
+  if (is_controller_) {
+    auto external = GetDriver()->GetExternalPoseForHand(is_left_hand_);
+    if (external.has_value())
       target = *external;
   }
   // Use slower lerp when swapping VD ↔ SlimeVR to smooth the transition.
@@ -406,7 +388,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
                                           "slimevr_virtual_controller");
     vr::VRProperties()->SetInt32Property(
         containerHandle_, vr::Prop_ControllerHandSelectionPriority_Int32,
-        2147483647); // Prioritizes our controller over whatever else.
+        GetDriver()->GetControllerPriority());
   } else {
     vr::VRProperties()->SetInt32Property(containerHandle_,
                                          vr::Prop_DeviceClass_Int32,
@@ -643,15 +625,11 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
         NULL, // Fist
         31, &skeletal_component_handle_);
 
-    // Update the skeleton so steamvr knows we have an active skeletal input
-    // device
-    vr::VRBoneTransform_t finger_skeleton_[31]{};
-    vr::VRDriverInput()->UpdateSkeletonComponent(
-        skeletal_component_handle_, vr::VRSkeletalMotionRange_WithController,
-        finger_skeleton_, 31);
-    vr::VRDriverInput()->UpdateSkeletonComponent(
-        skeletal_component_handle_, vr::VRSkeletalMotionRange_WithoutController,
-        finger_skeleton_, 31);
+    // NOTE: We intentionally do NOT send a zeroed-out skeleton here.
+    // Sending an empty skeleton on activation would override finger data
+    // from other sources (e.g. Virtual Desktop hand tracking).
+    // The first real skeleton update will come via PositionMessage when
+    // SlimeVR Server actually has finger tracking data to send.
   }
   was_activated_ = true;
   return vr::EVRInitError::VRInitError_None;
