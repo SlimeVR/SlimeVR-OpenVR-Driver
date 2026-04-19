@@ -1,0 +1,303 @@
+{
+  "action_manifest_version": 1,
+  "controller_type": "slimevr_virtual_controller",
+  "interaction_profile": "/interaction_profiles/valve/index_controller",
+  "description": "SlimeVR virtual controller",
+  "app_key": "openvr.component.vrcompositor",
+  "bindings": {
+    "/actions/lasermouse": {
+      "poses": [
+        {
+          "output": "/actions/lasermouse/in/Pointer",
+          "path": "/user/hand/left/pose/tip"
+        },
+        {
+          "output": "/actions/lasermouse/in/Pointer",
+          "path": "/user/hand/right/pose/tip"
+        }
+      ],
+      "haptics": [
+        {
+          "output": "/actions/lasermouse/out/Haptic",
+          "path": "/user/hand/left/output/haptic"
+        },
+        {
+          "output": "/actions/lasermouse/out/Haptic",
+          "path": "/user/hand/right/output/haptic"
+        }
+      ],
+      "sources": [
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/LeftClick" } },
+          "mode": "button",
+          "parameters": {
+            "click_activate_threshold": "0.65",
+            "click_deactivate_threshold": "0.6"
+          },
+          "path": "/user/hand/left/input/trigger"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/LeftClick" } },
+          "mode": "button",
+          "parameters": {
+            "click_activate_threshold": "0.65",
+            "click_deactivate_threshold": "0.6"
+          },
+          "path": "/user/hand/right/input/trigger"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/Back" } },
+          "mode": "button",
+          "path": "/user/hand/left/input/b"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/Back" } },
+          "mode": "button",
+          "path": "/user/hand/right/input/b"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/Home" } },
+          "mode": "button",
+          "path": "/user/hand/left/input/a"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/Home" } },
+          "mode": "button",
+          "path": "/user/hand/right/input/a"
+        },
+        {
+          "inputs": {
+            "position": { "output": "/actions/lasermouse/in/TrackpadValue" },
+            "touch": { "output": "/actions/lasermouse/in/TrackpadTouch" }
+          },
+          "mode": "trackpad",
+          "path": "/user/hand/left/input/trackpad"
+        },
+        {
+          "inputs": {
+            "position": { "output": "/actions/lasermouse/in/TrackpadValue" },
+            "touch": { "output": "/actions/lasermouse/in/TrackpadTouch" }
+          },
+          "mode": "trackpad",
+          "path": "/user/hand/right/input/trackpad"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/MiddleClick" } },
+          "mode": "joystick",
+          "path": "/user/hand/left/input/joystick"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse/in/MiddleClick" } },
+          "mode": "joystick",
+          "path": "/user/hand/right/input/joystick"
+        }
+      ]
+    },
+    "/actions/lasermouse_secondary": {
+      "sources": [
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse_secondary/in/SwitchLaserHand" } },
+          "mode": "button",
+          "path": "/user/hand/left/input/trigger"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/lasermouse_secondary/in/SwitchLaserHand" } },
+          "mode": "button",
+          "path": "/user/hand/right/input/trigger"
+        }
+      ]
+    },
+    "/actions/scroll_discrete": {
+      "sources": [
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_discrete/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": { "scroll_mode": "discrete" },
+          "path": "/user/hand/left/input/joystick"
+        },
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_discrete/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": { "scroll_mode": "discrete" },
+          "path": "/user/hand/right/input/joystick"
+        },
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_discrete/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": {
+            "scroll_mode": "discrete",
+            "discrete_scroll_trackpad_accumthreshold_onmove": "0.28",
+            "discrete_scroll_trackpad_accumthreshold_onreversal": "0.84",
+            "discrete_scroll_trackpad_accumthreshold_ontouch": "0.78",
+            "discrete_scroll_trackpad_noisethreshold_onmove": "0.01",
+            "discrete_scroll_trackpad_noisethreshold_onreversal": "0.045",
+            "discrete_scroll_trackpad_noisethreshold_ontouch": "0.15",
+            "discrete_scroll_trackpad_slideandhold_borderbottom": "-0.65",
+            "discrete_scroll_trackpad_slideandhold_bordertop": "0.55"
+          },
+          "path": "/user/hand/left/input/trackpad"
+        },
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_discrete/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": {
+            "scroll_mode": "discrete",
+            "discrete_scroll_trackpad_accumthreshold_onmove": "0.28",
+            "discrete_scroll_trackpad_accumthreshold_onreversal": "0.84",
+            "discrete_scroll_trackpad_accumthreshold_ontouch": "0.78",
+            "discrete_scroll_trackpad_noisethreshold_onmove": "0.01",
+            "discrete_scroll_trackpad_noisethreshold_onreversal": "0.045",
+            "discrete_scroll_trackpad_noisethreshold_ontouch": "0.15",
+            "discrete_scroll_trackpad_slideandhold_borderbottom": "-0.65",
+            "discrete_scroll_trackpad_slideandhold_bordertop": "0.55"
+          },
+          "path": "/user/hand/right/input/trackpad"
+        }
+      ]
+    },
+    "/actions/scroll_smooth": {
+      "sources": [
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_smooth/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": { "scroll_mode": "smooth" },
+          "path": "/user/hand/left/input/joystick"
+        },
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_smooth/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": { "scroll_mode": "smooth" },
+          "path": "/user/hand/right/input/joystick"
+        },
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_smooth/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": { "scroll_mode": "smooth" },
+          "path": "/user/hand/left/input/trackpad"
+        },
+        {
+          "inputs": { "scroll": { "output": "/actions/scroll_smooth/in/Scroll" } },
+          "mode": "scroll",
+          "parameters": { "scroll_mode": "smooth" },
+          "path": "/user/hand/right/input/trackpad"
+        }
+      ]
+    },
+    "/actions/system": {
+      "chords": [
+        {
+          "inputs": [
+            [ "/user/hand/left/input/system", "click" ],
+            [ "/user/hand/left/input/trigger", "click" ]
+          ],
+          "output": "/actions/system/in/TakeScreenshot"
+        },
+        {
+          "inputs": [
+            [ "/user/hand/right/input/system", "click" ],
+            [ "/user/hand/right/input/trigger", "click" ]
+          ],
+          "output": "/actions/system/in/TakeScreenshot"
+        }
+      ],
+      "sources": [
+        {
+          "inputs": {
+            "click": { "output": "/actions/system/in/ToggleDashboard" },
+            "double": { "output": "/actions/system/in/ToggleRoomView" },
+            "held": { "output": "/actions/system/in/SystemButtonChord" }
+          },
+          "mode": "button",
+          "path": "/user/hand/left/input/system"
+        },
+        {
+          "inputs": {
+            "click": { "output": "/actions/system/in/ToggleDashboard" },
+            "double": { "output": "/actions/system/in/ToggleRoomView" },
+            "held": { "output": "/actions/system/in/SystemButtonChord" }
+          },
+          "mode": "button",
+          "path": "/user/hand/right/input/system"
+        }
+      ]
+    },
+    "/actions/quickrecenter": {
+      "sources": [
+        {
+          "inputs": { "long": { "output": "/actions/quickrecenter/in/Recenter" } },
+          "parameters": {
+            "long_press_delay": 1.0,
+            "long_press_expiry": 3.0
+          },
+          "mode": "button",
+          "path": "/user/hand/left/input/system"
+        },
+        {
+          "inputs": { "long": { "output": "/actions/quickrecenter/in/Recenter" } },
+          "parameters": {
+            "long_press_delay": 1.0,
+            "long_press_expiry": 3.0
+          },
+          "mode": "button",
+          "path": "/user/hand/right/input/system"
+        }
+      ]
+    },
+    "/actions/roomsetup_floor": {
+      "sources": [
+        {
+          "inputs": { "position": { "output": "/actions/roomsetup_floor/in/FloorFineAdjust" } },
+          "mode": "joystick",
+          "path": "/user/hand/left/input/joystick"
+        },
+        {
+          "inputs": { "position": { "output": "/actions/roomsetup_floor/in/FloorFineAdjust" } },
+          "mode": "joystick",
+          "path": "/user/hand/right/input/joystick"
+        }
+      ]
+    },
+    "/actions/dualanalog": {
+      "sources": [
+        {
+          "inputs": { "click": { "output": "/actions/dualanalog/in/ModeSwitch1" } },
+          "mode": "button",
+          "path": "/user/hand/left/input/a"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/dualanalog/in/ModeSwitch2" } },
+          "mode": "button",
+          "path": "/user/hand/right/input/a"
+        },
+        {
+          "inputs": {
+            "click": { "output": "/actions/dualanalog/in/LeftClick" },
+            "position": { "output": "/actions/dualanalog/in/LeftValue" },
+            "touch": { "output": "/actions/dualanalog/in/LeftTouch" }
+          },
+          "mode": "joystick",
+          "path": "/user/hand/left/input/joystick"
+        },
+        {
+          "inputs": {
+            "click": { "output": "/actions/dualanalog/in/RightClick" },
+            "position": { "output": "/actions/dualanalog/in/RightValue" },
+            "touch": { "output": "/actions/dualanalog/in/RightTouch" }
+          },
+          "mode": "joystick",
+          "path": "/user/hand/right/input/joystick"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/dualanalog/in/LeftClick" } },
+          "mode": "button",
+          "path": "/user/hand/left/input/trigger"
+        },
+        {
+          "inputs": { "click": { "output": "/actions/dualanalog/in/RightClick" } },
+          "mode": "button",
+          "path": "/user/hand/right/input/trigger"
+        }
+      ]
+    }
+  }
+}

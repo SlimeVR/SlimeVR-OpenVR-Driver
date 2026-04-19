@@ -1,19 +1,19 @@
 #pragma once
 #define NOMINMAX
 
-#include <vector>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include <openvr_driver.h>
 
-#include <IVRDriver.hpp>
 #include <IVRDevice.hpp>
+#include <IVRDriver.hpp>
 
 #include <simdjson.h>
 
-#include "bridge/BridgeClient.hpp"
 #include "Logger.hpp"
+#include "bridge/BridgeClient.hpp"
 
 namespace SlimeVRDriver {
     class VRDriver : public IVRDriver {
@@ -25,53 +25,94 @@ namespace SlimeVRDriver {
         virtual bool AddDevice(std::shared_ptr<IVRDevice> device) override;
         virtual SettingsValue GetSettingsValue(std::string key) override;
 
-        virtual vr::IVRDriverInput* GetInput() override;
-        virtual vr::CVRPropertyHelpers* GetProperties() override;
-        virtual vr::IVRServerDriverHost* GetDriverHost() override;
+  virtual vr::IVRDriverInput *GetInput() override;
+  virtual vr::CVRPropertyHelpers *GetProperties() override;
+  virtual vr::IVRServerDriverHost *GetDriverHost() override;
 
-        // Inherited via IServerTrackedDeviceProvider
-        virtual vr::EVRInitError Init(vr::IVRDriverContext* pDriverContext) override;
-        virtual void Cleanup() override;
-        virtual void RunFrame() override;
-        virtual bool ShouldBlockStandbyMode() override;
-        virtual void EnterStandby() override;
-        virtual void LeaveStandby() override;
-        virtual ~VRDriver() = default;
+  // Inherited via IServerTrackedDeviceProvider
+  virtual vr::EVRInitError Init(vr::IVRDriverContext *pDriverContext) override;
+  virtual void Cleanup() override;
+  virtual void RunFrame() override;
+  virtual bool ShouldBlockStandbyMode() override;
+  virtual void EnterStandby() override;
+  virtual void LeaveStandby() override;
+  virtual ~VRDriver() = default;
 
-        virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
+  virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
 
-        void OnBridgeMessage(const messages::ProtobufMessage& message);
-        void RunPoseRequestThread();
+  virtual std::optional<vr::DriverPose_t>
+  GetExternalPoseForHand(bool left_hand) override;
 
-    private:
-        std::unique_ptr<std::thread> pose_request_thread_ = nullptr;
-        std::atomic<bool> exiting_pose_request_thread_ = false;
-        
-        std::shared_ptr<BridgeClient> bridge_ = nullptr;
-        google::protobuf::Arena arena_;
-        std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
-        std::mutex devices_mutex_;
-        std::vector<std::shared_ptr<IVRDevice>> devices_;
-        std::vector<vr::VREvent_t> openvr_events_;
-        std::map<int, std::shared_ptr<IVRDevice>> devices_by_id_;
-        std::map<std::string, std::shared_ptr<IVRDevice>> devices_by_serial_;
-        std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
-        std::chrono::steady_clock::time_point last_frame_time_ = std::chrono::steady_clock::now();
-        std::chrono::steady_clock::time_point battery_sent_at_ = std::chrono::steady_clock::now();
-        std::string settings_key_ = "driver_slimevr";
+  void OnBridgeMessage(const messages::ProtobufMessage &message);
+  void RunPoseRequestThread();
 
-        vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);
-        vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);
+private:
+  std::unique_ptr<std::thread> pose_request_thread_ = nullptr;
+  std::atomic<bool> exiting_pose_request_thread_ = false;
 
-        bool sent_hmd_add_message_ = false;
+  std::shared_ptr<BridgeClient> bridge_ = nullptr;
+  google::protobuf::Arena arena_;
+  std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
+  std::mutex devices_mutex_;
+  std::vector<std::shared_ptr<IVRDevice>> devices_;
+  std::vector<vr::VREvent_t> openvr_events_;
+  std::map<int, std::shared_ptr<IVRDevice>> devices_by_id_;
+  std::map<std::string, std::shared_ptr<IVRDevice>> devices_by_serial_;
+  std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
+  std::chrono::steady_clock::time_point last_frame_time_ =
+      std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point battery_sent_at_ =
+      std::chrono::steady_clock::now();
+  std::string settings_key_ = "driver_slimevr";
 
-        simdjson::ondemand::parser json_parser_;
-        std::optional<std::string> default_chap_path_ = std::nullopt;
-        //std::map<int, UniverseTranslation> universes;
+  static vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t &matrix);
+  static vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t &matrix);
 
-        vr::ETrackedPropertyError last_universe_error_;
-        std::optional<std::pair<uint64_t, UniverseTranslation>> current_universe_ = std::nullopt;
-        std::optional<UniverseTranslation> SearchUniverse(const simdjson::padded_string &json, uint64_t target);
-        std::optional<UniverseTranslation> SearchUniverses(uint64_t target);
-    };
+  bool sent_hmd_add_message_ = false;
+
+  simdjson::ondemand::parser json_parser_;
+  std::optional<std::string> default_chap_path_ = std::nullopt;
+  // std::map<int, UniverseTranslation> universes;
+
+  vr::ETrackedPropertyError last_universe_error_;
+  std::optional<std::pair<uint64_t, UniverseTranslation>> current_universe_ =
+      std::nullopt;
+  std::optional<UniverseTranslation> SearchUniverse(std::string path,
+                                                    uint64_t target);
+  std::optional<UniverseTranslation> SearchUniverses(uint64_t target);
+
+  std::optional<vr::DriverPose_t> external_left_pose_;
+  std::optional<vr::DriverPose_t> external_right_pose_;
+  std::optional<vr::DriverPose_t> last_external_left_pose_;
+  std::optional<vr::DriverPose_t> last_external_right_pose_;
+  int stale_external_left_frames_ = 0;
+  int stale_external_right_frames_ = 0;
+  // Values from slimevr_driver_config.json (fallbacks if file missing)
+  float config_external_hand_max_radius_m_ = 1.7f;
+  int config_stale_external_pose_frames_ = 1;
+  float config_pose_lerp_speed_ = 0.8f;
+  float config_pose_lerp_speed_on_swap_ = 0.25f;
+  float config_frozen_pose_position_epsilon_m_ = 0.005f;
+  int config_controller_priority_ = 2147483647;
+  bool config_input_passthrough_ = false;
+  void LoadDriverConfig();
+  void UpdateExternalControllerPoses();
+  static vr::DriverPose_t
+  DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
+  bool ExternalPoseEquals(const vr::DriverPose_t &a,
+                          const vr::DriverPose_t &b) const;
+  bool ExternalHandInFrontAndInRadius(const double hand_pos[3],
+                                     const vr::TrackedDevicePose_t &hmd_pose) const;
+  virtual float GetPoseLerpSpeed() override;
+  virtual float GetPoseLerpSpeedOnSwap() override;
+  virtual int GetControllerPriority() override;
+  virtual bool GetInputPassthrough() override;
+  virtual uint64_t GetExternalButtonsForHand(bool left_hand) override;
+
+  // External controller event spying
+  vr::TrackedDeviceIndex_t external_left_index_ = vr::k_unTrackedDeviceIndexInvalid;
+  vr::TrackedDeviceIndex_t external_right_index_ = vr::k_unTrackedDeviceIndexInvalid;
+  uint64_t external_left_buttons_ = 0;
+  uint64_t external_right_buttons_ = 0;
 };
+}; // namespace SlimeVRDriver
