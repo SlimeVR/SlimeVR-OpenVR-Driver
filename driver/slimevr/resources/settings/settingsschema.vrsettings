@@ -1,0 +1,17 @@
+[
+    {
+        "title": "SlimeVR",
+        "show_without_hmd": true,
+        "values": [
+            {
+                "name": "/settings/driver_slimevr/emulateVives",
+                "control": "toggle",
+                "label": "Compatibility Mode",
+                "on_label": "Enabled",
+                "off_label": "Disabled",
+                "advanced_only": true,
+                "requires_restart": true
+            }
+        ]
+    }
+]
