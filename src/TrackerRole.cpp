@@ -22,6 +22,55 @@
 */
 #include "TrackerRole.hpp"
 
+std::string GetRoleName(TrackerRole role) {
+    switch (role) {
+    case NONE:
+        return "NONE";
+    case WAIST:
+        return "WAIST";
+    case LEFT_FOOT:
+        return "LEFT_FOOT";
+    case RIGHT_FOOT:
+        return "RIGHT_FOOT";
+    case CHEST:
+        return "CHEST";
+    case LEFT_KNEE:
+        return "LEFT_KNEE";
+    case RIGHT_KNEE:
+        return "RIGHT_KNEE";
+    case LEFT_ELBOW:
+        return "LEFT_ELBOW";
+    case RIGHT_ELBOW:
+        return "RIGHT_ELBOW";
+    case LEFT_SHOULDER:
+        return "LEFT_SHOULDER";
+    case RIGHT_SHOULDER:
+        return "RIGHT_SHOULDER";
+    case LEFT_HAND:
+        return "LEFT_HAND";
+    case RIGHT_HAND:
+        return "RIGHT_HAND";
+    case LEFT_CONTROLLER:
+        return "LEFT_CONTROLLER";
+    case RIGHT_CONTROLLER:
+        return "RIGHT_CONTROLLER";
+    case HEAD:
+        return "HEAD";
+    case NECK:
+        return "NECK";
+    case CAMERA:
+        return "CAMERA";
+    case KEYBOARD:
+        return "KEYBOARD";
+    case HMD:
+        return "HMD";
+    case BEACON:
+        return "BEACON";
+    case GENERIC_CONTROLLER:
+        return "GENERIC_CONTROLLER";
+    }
+}
+
 std::string GetViveRoleHint(TrackerRole role) {
     switch (role) {
         case LEFT_CONTROLLER:
