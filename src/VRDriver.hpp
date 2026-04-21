@@ -83,24 +83,16 @@ private:
 
   std::optional<vr::DriverPose_t> external_left_pose_;
   std::optional<vr::DriverPose_t> external_right_pose_;
-  std::optional<vr::DriverPose_t> last_external_left_pose_;
-  std::optional<vr::DriverPose_t> last_external_right_pose_;
-  int stale_external_left_frames_ = 0;
-  int stale_external_right_frames_ = 0;
   // Values from slimevr_driver_config.json (fallbacks if file missing)
   float config_external_hand_max_radius_m_ = 1.7f;
-  int config_stale_external_pose_frames_ = 1;
   float config_pose_lerp_speed_ = 0.8f;
   float config_pose_lerp_speed_on_swap_ = 0.25f;
-  float config_frozen_pose_position_epsilon_m_ = 0.005f;
   int config_controller_priority_ = 2147483647;
   bool config_input_passthrough_ = false;
   void LoadDriverConfig();
   void UpdateExternalControllerPoses();
   static vr::DriverPose_t
   DriverPoseFromTrackedDevicePose(const vr::TrackedDevicePose_t &raw);
-  bool ExternalPoseEquals(const vr::DriverPose_t &a,
-                          const vr::DriverPose_t &b) const;
   bool ExternalHandInFrontAndInRadius(const double hand_pos[3],
                                      const vr::TrackedDevicePose_t &hmd_pose) const;
   virtual float GetPoseLerpSpeed() override;

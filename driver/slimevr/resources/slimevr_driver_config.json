@@ -1,6 +1,4 @@
 {
   "external_hand_max_radius_m": 1.7,
-  "stale_external_pose_frames": 1,
-  "pose_lerp_speed": 0.8,
-  "frozen_pose_position_epsilon_m": 0.005
+  "pose_lerp_speed": 0.8
 }

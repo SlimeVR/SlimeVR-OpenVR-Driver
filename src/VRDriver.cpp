@@ -374,10 +374,8 @@ void SlimeVRDriver::VRDriver::LoadDriverConfig() {
     simdjson::ondemand::document doc = json_parser_.iterate(json);
     auto obj = doc.get_object();
     if (auto v = obj["external_hand_max_radius_m"]; !v.error()) config_external_hand_max_radius_m_ = static_cast<float>(v.get_double());
-    if (auto v = obj["stale_external_pose_frames"]; !v.error()) config_stale_external_pose_frames_ = static_cast<int>(v.get_int64());
     if (auto v = obj["pose_lerp_speed"]; !v.error()) config_pose_lerp_speed_ = static_cast<float>(v.get_double());
     if (auto v = obj["pose_lerp_speed_on_swap"]; !v.error()) config_pose_lerp_speed_on_swap_ = static_cast<float>(v.get_double());
-    if (auto v = obj["frozen_pose_position_epsilon_m"]; !v.error()) config_frozen_pose_position_epsilon_m_ = static_cast<float>(v.get_double());
     if (auto v = obj["controller_priority"]; !v.error()) config_controller_priority_ = static_cast<int>(v.get_int64());
 	if (auto v = obj["input_passthrough"]; !v.error()) {
 		bool val = false;
@@ -637,16 +635,6 @@ vr::DriverPose_t SlimeVRDriver::VRDriver::DriverPoseFromTrackedDevicePose(
   return pose;
 }
 
-bool SlimeVRDriver::VRDriver::ExternalPoseEquals(const vr::DriverPose_t &a,
-                                                 const vr::DriverPose_t &b) const {
-  float pos_eps = config_frozen_pose_position_epsilon_m_;
-  for (int i = 0; i < 3; i++) {
-    if (std::fabs(a.vecPosition[i] - b.vecPosition[i]) > pos_eps)
-      return false;
-  }
-  return true;
-}
-
 bool SlimeVRDriver::VRDriver::ExternalHandInFrontAndInRadius(
     const double hand_pos[3], const vr::TrackedDevicePose_t &hmd_pose) const {
   if (!hmd_pose.bPoseIsValid)
@@ -715,41 +703,19 @@ void SlimeVRDriver::VRDriver::UpdateExternalControllerPoses() {
     vr::DriverPose_t driver_pose = DriverPoseFromTrackedDevicePose(p);
     // Only use external hand when it's in front of HMD and within 170 cm radius; else SlimeVR.
     if (!ExternalHandInFrontAndInRadius(driver_pose.vecPosition, hmd_pose)) {
-      if (role == vr::TrackedControllerRole_LeftHand)
+      if (role == vr::TrackedControllerRole_LeftHand) {
         external_left_pose_ = std::nullopt;
-      else if (role == vr::TrackedControllerRole_RightHand)
+      } else if (role == vr::TrackedControllerRole_RightHand) {
         external_right_pose_ = std::nullopt;
-      // Don't update last_external_* so next frame we don't compare against a pose we rejected
+      }
       continue;
     }
     if (role == vr::TrackedControllerRole_LeftHand) {
       external_left_index_ = i;
-      if (last_external_left_pose_.has_value() &&
-          ExternalPoseEquals(driver_pose, *last_external_left_pose_)) {
-        stale_external_left_frames_++;
-        if (stale_external_left_frames_ >= config_stale_external_pose_frames_)
-          external_left_pose_ = std::nullopt; // swap to SlimeVR
-        else
-          external_left_pose_ = driver_pose;
-      } else {
-        stale_external_left_frames_ = 0;
-        external_left_pose_ = driver_pose;
-      }
-      last_external_left_pose_ = driver_pose;
+      external_left_pose_ = driver_pose;
     } else if (role == vr::TrackedControllerRole_RightHand) {
       external_right_index_ = i;
-      if (last_external_right_pose_.has_value() &&
-          ExternalPoseEquals(driver_pose, *last_external_right_pose_)) {
-        stale_external_right_frames_++;
-        if (stale_external_right_frames_ >= config_stale_external_pose_frames_)
-          external_right_pose_ = std::nullopt; // swap to SlimeVR
-        else
-          external_right_pose_ = driver_pose;
-      } else {
-        stale_external_right_frames_ = 0;
-        external_right_pose_ = driver_pose;
-      }
-      last_external_right_pose_ = driver_pose;
+      external_right_pose_ = driver_pose;
     }
   }
 }
