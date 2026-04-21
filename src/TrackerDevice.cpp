@@ -85,7 +85,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
     uint64_t ext_buttons = GetDriver()->GetExternalButtonsForHand(is_left_hand_);
     bool ext_a      = (ext_buttons & (1ULL << vr::k_EButton_A)) != 0;
     bool ext_b      = (ext_buttons & (1ULL << vr::k_EButton_ApplicationMenu)) != 0;
-    bool ext_stick  = (ext_buttons & (1ULL << vr::k_EButton_IndexController_JoystickClick)) != 0;
+    bool ext_stick = (ext_buttons & (1ULL << vr::k_EButton_SteamVR_Touchpad)) != 0;
     bool ext_system = (ext_buttons & (1ULL << vr::k_EButton_System)) != 0;
     bool ext_grip   = (ext_buttons & (1ULL << vr::k_EButton_Grip)) != 0;
     bool ext_trigger= (ext_buttons & (1ULL << vr::k_EButton_SteamVR_Trigger)) != 0;

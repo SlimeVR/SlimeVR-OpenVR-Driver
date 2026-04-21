@@ -379,7 +379,7 @@ void SlimeVRDriver::VRDriver::LoadDriverConfig() {
     if (auto v = obj["pose_lerp_speed_on_swap"]; !v.error()) config_pose_lerp_speed_on_swap_ = static_cast<float>(v.get_double());
     if (auto v = obj["frozen_pose_position_epsilon_m"]; !v.error()) config_frozen_pose_position_epsilon_m_ = static_cast<float>(v.get_double());
     if (auto v = obj["controller_priority"]; !v.error()) config_controller_priority_ = static_cast<int>(v.get_int64());
-    if (auto v = obj["input_passthrough"]; !v.error()) config_input_passthrough_ = v.get_bool().value_or(false);
+    if (auto v = obj["input_passthrough"]; !v.error()) config_input_passthrough_ = v.get_bool().get(false);
     logger_->Log("Loaded driver config from {}", path);
   } catch (const simdjson::simdjson_error &) {
     // Use defaults; config file missing or invalid
