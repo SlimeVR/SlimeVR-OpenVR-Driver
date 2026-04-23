@@ -14,10 +14,12 @@ jobs:
         include:
           - os: windows-latest
             triplet: x64-windows-static-md
+            name: win64
             target: ALL_BUILD
             release_dir: Release # dir of driver binaries within env.CMAKE_BUILD_DIR, VS multi-config uses <CONFIG>/ subfolder
           - os: ubuntu-latest
             triplet: x64-linux
+            name: x64-linux
             target: all
             release_dir: "" # makefile single config won't have subfolder
     env:
@@ -82,7 +84,7 @@ jobs:
     - name: Zip
       if: startsWith(github.ref, 'refs/tags/')
       working-directory: ${{env.CMAKE_BUILD_DIR}}/${{ matrix.release_dir }}/driver
-      run: cmake -E tar "cf" "${{env.CMAKE_BUILD_DIR}}/slimevr-openvr-driver-${{ matrix.triplet }}.zip" --format=zip -- ${{env.CMAKE_BUILD_DIR}}/${{ matrix.release_dir }}/driver/slimevr
+      run: cmake -E tar "cf" "${{env.CMAKE_BUILD_DIR}}/slimevr-openvr-driver-${{ matrix.name }}.zip" --format=zip -- ${{env.CMAKE_BUILD_DIR}}/${{ matrix.release_dir }}/driver/slimevr
 
     - name: Upload to draft release
       uses: softprops/action-gh-release@v3
@@ -90,7 +92,7 @@ jobs:
       with:
         draft: true
         generate_release_notes: true
-        files: "${{env.CMAKE_BUILD_DIR}}/slimevr-openvr-driver-${{ matrix.triplet }}.zip"
+        files: "${{env.CMAKE_BUILD_DIR}}/slimevr-openvr-driver-${{ matrix.name }}.zip"
   
   test:
     name: Run tests
