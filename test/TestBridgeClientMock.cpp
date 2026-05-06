@@ -38,11 +38,11 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                 last_logged_position = true;
                 positions++;
 
-                messages::ProtobufMessage* server_message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
+                messages::ProtobufMessage* server_message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena);
 
                 if (!trackers_sent) {
                     for (int32_t id = 3; id <= 7; id++) {
-                        messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
+                        messages::TrackerAdded* tracker_added = google::protobuf::Arena::Create<messages::TrackerAdded>(&arena);
                         server_message->set_allocated_tracker_added(tracker_added);
                         tracker_added->set_tracker_id(id);
                         tracker_added->set_tracker_role(serials[id].first);
@@ -50,7 +50,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                         tracker_added->set_tracker_name(serials[id].second);
                         server_mock->SendBridgeMessage(*server_message);
 
-                        messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
+                        messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena);
                         server_message->set_allocated_tracker_status(tracker_status);
                         tracker_status->set_tracker_id(id);
                         tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
@@ -61,7 +61,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                 }
                 
                 for (int32_t id = 3; id <= 7; id++) {
-                    messages::Position* tracker_position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
+                    messages::Position* tracker_position = google::protobuf::Arena::Create<messages::Position>(&arena);
                     server_message->set_allocated_position(tracker_position);
                     tracker_position->set_tracker_id(id);
                     tracker_position->set_data_source(messages::Position_DataSource_FULL);

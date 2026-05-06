@@ -129,7 +129,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
         auto notify_status_changed = [this](DeviceData &device, messages::ProtobufMessage *message, messages::TrackerStatus_Status status) {
             if (device.status != status) {
                 logger_->Log("Status for device {} changing {}->{}", device.index, static_cast<int>(device.status), static_cast<int>(status));
-                messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena_);
+                messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena_);
                 message->set_allocated_tracker_status(tracker_status);
                 tracker_status->set_tracker_id(device.index);
                 tracker_status->set_status(status);
@@ -143,7 +143,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             device.index = index;
             vr::TrackedDevicePose_t &pose = poses[index];
             vr::PropertyContainerHandle_t prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
-            messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena_);
+            messages::ProtobufMessage* message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena_);
 
             {
                 vr::ETrackedPropertyError error{};
@@ -204,7 +204,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                 TrackerRole role = GetRoleForDevice(index);
                 
                 // Send add message for device
-                messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena_);
+                messages::TrackerAdded* tracker_added = google::protobuf::Arena::Create<messages::TrackerAdded>(&arena_);
                 message->set_allocated_tracker_added(tracker_added);
                 tracker_added->set_tracker_id(index);
                 tracker_added->set_tracker_role(role);
@@ -256,7 +256,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
                     pos.v[2] = pos_z;
                 }
 
-                messages::Position* position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena_);
+                messages::Position* position = google::protobuf::Arena::Create<messages::Position>(&arena_);
                 message->set_allocated_position(position);
                 position->set_tracker_id(index);
                 position->set_data_source(status == messages::TrackerStatus_Status_OCCLUDED ? messages::Position_DataSource_IMU : messages::Position_DataSource_FULL);
@@ -280,7 +280,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
             auto now = std::chrono::steady_clock::now();
             if (std::chrono::duration_cast<std::chrono::milliseconds>(now - device.battery_sent_at).count() > 100) {
                 if (vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
-                    messages::Battery* battery = google::protobuf::Arena::CreateMessage<messages::Battery>(&arena_);
+                    messages::Battery* battery = google::protobuf::Arena::Create<messages::Battery>(&arena_);
                     message->set_allocated_battery(battery);
                     battery->set_tracker_id(index);
                     battery->set_battery_level(vr::VRProperties()->GetFloatProperty(prop_container, vr::Prop_DeviceBatteryPercentage_Float) * 100.f);

@@ -92,9 +92,9 @@ void TestBridgeClient() {
     }
 
     google::protobuf::Arena arena;
-    messages::ProtobufMessage* message = google::protobuf::Arena::CreateMessage<messages::ProtobufMessage>(&arena);
+    messages::ProtobufMessage* message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena);
 
-    messages::TrackerAdded* tracker_added = google::protobuf::Arena::CreateMessage<messages::TrackerAdded>(&arena);
+    messages::TrackerAdded* tracker_added = google::protobuf::Arena::Create<messages::TrackerAdded>(&arena);
     message->set_allocated_tracker_added(tracker_added);
     tracker_added->set_tracker_id(0);
     tracker_added->set_tracker_role(TrackerRole::HMD);
@@ -102,7 +102,7 @@ void TestBridgeClient() {
     tracker_added->set_tracker_name("HMD");
     bridge->SendBridgeMessage(*message);
 
-    messages::TrackerStatus* tracker_status = google::protobuf::Arena::CreateMessage<messages::TrackerStatus>(&arena);
+    messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena);
     message->set_allocated_tracker_status(tracker_status);
     tracker_status->set_tracker_id(0);
     tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
@@ -111,7 +111,7 @@ void TestBridgeClient() {
     ready_to_bench = true;
 
     for (int i = 0; i < 50; i++) {
-        messages::Position* hmd_position = google::protobuf::Arena::CreateMessage<messages::Position>(&arena);
+        messages::Position* hmd_position = google::protobuf::Arena::Create<messages::Position>(&arena);
         message->set_allocated_position(hmd_position);
         hmd_position->set_tracker_id(0);
         hmd_position->set_data_source(messages::Position_DataSource_FULL);
