@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "common/TestBridgeClient.hpp"
 #include "BridgeServerMock.hpp"
+#include "common/TestBridgeClient.hpp"
 
 TEST_CASE("IO with a mock server", "[Bridge]") {
     using namespace std::chrono;
@@ -23,7 +23,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
     google::protobuf::Arena arena;
 
     auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>("ServerMock"));
-    
+
     std::shared_ptr<BridgeServerMock> server_mock;
     server_mock = std::make_shared<BridgeServerMock>(
         logger,
@@ -34,7 +34,8 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                 TestLogTrackerStatus(logger, message);
             } else if (message.has_position()) {
                 messages::Position pos = message.position();
-                if (!last_logged_position) logger->Log("... tracker positions response");
+                if (!last_logged_position)
+                    logger->Log("... tracker positions response");
                 last_logged_position = true;
                 positions++;
 
@@ -59,7 +60,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
 
                     trackers_sent = true;
                 }
-                
+
                 for (int32_t id = 3; id <= 7; id++) {
                     messages::Position* tracker_position = google::protobuf::Arena::Create<messages::Position>(&arena);
                     server_message->set_allocated_position(tracker_position);
@@ -74,23 +75,22 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                     tracker_position->set_qw(0);
                     server_mock->SendBridgeMessage(*server_message);
                 }
-            } else if(message.has_version()) {
+            } else if (message.has_version()) {
                 TestLogVersion(logger, message);
-            }
-            else {
+            } else {
                 invalid_messages++;
             }
 
             if (!message.has_position()) {
                 last_logged_position = false;
             }
-        }
-    );
+        });
 
     server_mock->Start();
     std::this_thread::sleep_for(10ms);
     TestBridgeClient();
     server_mock->Stop();
 
-    if (invalid_messages) FAIL("Invalid messages received");
+    if (invalid_messages)
+        FAIL("Invalid messages received");
 }

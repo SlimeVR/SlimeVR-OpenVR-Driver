@@ -22,8 +22,8 @@
 */
 #pragma once
 
-#include <string>
 #include "DeviceType.hpp"
+#include <string>
 
 enum TrackerRole {
     NONE = 0,

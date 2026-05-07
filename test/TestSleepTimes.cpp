@@ -1,12 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <thread>
+#include <Logger.hpp>
+#include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <vector>
-#include <algorithm>
 #include <numeric>
-#include <Logger.hpp>
+#include <thread>
+#include <vector>
 
 TEST_CASE("Sleep times") {
     const int sleep_duration_ms = 2;

@@ -1,63 +1,65 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
-#include <atomic>
 
 #include <linalg.h>
 
-#include <IVRDevice.hpp>
 #include <DriverFactory.hpp>
+#include <IVRDevice.hpp>
 
-#include <thread>
-#include <sstream>
-#include <iostream>
-#include <string>
-#include "TrackerRole.hpp"
 #include "Logger.hpp"
+#include "TrackerRole.hpp"
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <thread>
 
 namespace SlimeVRDriver {
-    class TrackerDevice : public IVRDevice {
-    public:
-        TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
-        ~TrackerDevice() = default;
 
-        // Inherited via IVRDevice
-        virtual std::string GetSerial() override;
-        virtual void Update() override;
-        virtual vr::TrackedDeviceIndex_t GetDeviceIndex() override;
-        virtual DeviceType GetDeviceType() override;
-        virtual int GetDeviceId() override;
-        virtual void SetDeviceId(int device_id) override;
-        virtual void PositionMessage(messages::Position &position) override;
-        virtual void StatusMessage(messages::TrackerStatus &status) override;
-        virtual void BatteryMessage(messages::Battery &battery) override;
+class TrackerDevice : public IVRDevice {
+public:
+    TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
+    ~TrackerDevice() = default;
 
-        // Inherited via ITrackedDeviceServerDriver
-        virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
-        virtual void Deactivate() override;
-        virtual void EnterStandby() override;
-        virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
-        virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
-        virtual vr::DriverPose_t GetPose() override;
+    // Inherited via IVRDevice
+    virtual std::string GetSerial() override;
+    virtual void Update() override;
+    virtual vr::TrackedDeviceIndex_t GetDeviceIndex() override;
+    virtual DeviceType GetDeviceType() override;
+    virtual int GetDeviceId() override;
+    virtual void SetDeviceId(int device_id) override;
+    virtual void PositionMessage(messages::Position& position) override;
+    virtual void StatusMessage(messages::TrackerStatus& status) override;
+    virtual void BatteryMessage(messages::Battery& battery) override;
 
-    private:
-        std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
+    // Inherited via ITrackedDeviceServerDriver
+    virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
+    virtual void Deactivate() override;
+    virtual void EnterStandby() override;
+    virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
+    virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
+    virtual vr::DriverPose_t GetPose() override;
 
-        std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
-        std::string serial_;
+private:
+    std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
 
-        int device_id_;
-        TrackerRole tracker_role_;
+    std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
+    std::string serial_;
 
-        vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
-        std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
+    int device_id_;
+    TrackerRole tracker_role_;
 
-        bool did_vibrate_ = false;
-        float vibrate_anim_state_ = 0.f;
+    vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
+    std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
 
-        vr::VRInputComponentHandle_t haptic_component_ = 0;
-        vr::VRInputComponentHandle_t system_click_component_ = 0;
-        vr::VRInputComponentHandle_t system_touch_component_ = 0;
-    };
+    bool did_vibrate_ = false;
+    float vibrate_anim_state_ = 0.f;
+
+    vr::VRInputComponentHandle_t haptic_component_ = 0;
+    vr::VRInputComponentHandle_t system_click_component_ = 0;
+    vr::VRInputComponentHandle_t system_touch_component_ = 0;
 };
+
+} // namespace SlimeVRDriver

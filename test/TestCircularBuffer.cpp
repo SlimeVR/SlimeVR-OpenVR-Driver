@@ -12,7 +12,7 @@ TEST_CASE("Push/Pop", "[CircularBuffer]") {
     REQUIRE(buffer.Pop(data, 2)); // [34]
     REQUIRE(buffer.BytesAvailable() == 2);
     REQUIRE(std::string(data, 2) == "12");
-    
+
     // test wraparound
     REQUIRE(buffer.Push("56", 2)); // [3456]
     REQUIRE(buffer.BytesAvailable() == 4);
@@ -50,7 +50,8 @@ void consumer(int n, CircularBuffer& buf, int& sum1) {
     char k;
     int i = 0;
     while (i != n) {
-        if (!buf.Pop(&k, 1)) continue;
+        if (!buf.Pop(&k, 1))
+            continue;
         sum1 += k;
         i++;
     }
@@ -62,10 +63,11 @@ void threading(int size) {
 
     int sum0 = 0, sum1 = 0;
     char v = 1;
-    std::thread t { [&]() { consumer(n, buf, sum1); } };
+    std::thread t{ [&]() { consumer(n, buf, sum1); } };
     int i = 0;
     while (i != n) {
-        if (!buf.Push(&v, 1)) continue;
+        if (!buf.Push(&v, 1))
+            continue;
         sum0 += v;
         v = 3 + 2 * v;
         i++;

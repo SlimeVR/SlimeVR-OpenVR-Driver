@@ -1,25 +1,25 @@
 #include "TrackerDevice.hpp"
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role):
-    serial_(serial),
-    tracker_role_(tracker_role),
-    device_id_(device_id),
-    last_pose_(MakeDefaultPose()),
-    last_pose_atomic_(MakeDefaultPose())
-{ }
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role)
+    : serial_(serial)
+    , device_id_(device_id)
+    , tracker_role_(tracker_role)
+    , last_pose_(MakeDefaultPose())
+    , last_pose_atomic_(MakeDefaultPose()) { }
 
 std::string SlimeVRDriver::TrackerDevice::GetSerial() {
     return serial_;
 }
 
 void SlimeVRDriver::TrackerDevice::Update() {
-    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
+    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
+        return;
 
     // Check if this device was asked to be identified
     auto& events = GetDriver()->GetOpenVREvents();
     for (const auto& event : events) {
         // Note here, event.trackedDeviceIndex does not necessarily equal device_index_, not sure why, but the component handle will match so we can just use that instead
-        //if (event.trackedDeviceIndex == device_index_) {
+        // if (event.trackedDeviceIndex == device_index_) {
         if (event.eventType == vr::EVREventType::VREvent_Input_HapticVibration) {
             if (event.data.hapticVibration.componentHandle == haptic_component_) {
                 did_vibrate_ = true;
@@ -38,12 +38,13 @@ void SlimeVRDriver::TrackerDevice::Update() {
     }
 }
 
-void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position) {
-    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
+void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position) {
+    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
+        return;
 
     // Setup pose for this frame
     auto pose = last_pose_;
-    //send the new position and rotation from the pipe to the tracker object
+    // send the new position and rotation from the pipe to the tracker object
     if (position.has_x()) {
         pose.vecPosition[0] = position.x();
         pose.vecPosition[1] = position.y();
@@ -55,13 +56,14 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     pose.qRotation.y = position.qy();
     pose.qRotation.z = position.qz();
 
-    if (position.has_vx()) { 
-        pose.vecVelocity[0] = position.vx(); 
-        pose.vecVelocity[1] = position.vy(); 
-        pose.vecVelocity[2] = position.vz(); 
-    }
-    else { // If velocity isn't being sent, don't keep stale values 
-        pose.vecVelocity[0] = 0.0f; pose.vecVelocity[1] = 0.0f; pose.vecVelocity[2] = 0.0f; 
+    if (position.has_vx()) {
+        pose.vecVelocity[0] = position.vx();
+        pose.vecVelocity[1] = position.vy();
+        pose.vecVelocity[2] = position.vz();
+    } else { // If velocity isn't being sent, don't keep stale values
+        pose.vecVelocity[0] = 0.0f;
+        pose.vecVelocity[1] = 0.0f;
+        pose.vecVelocity[2] = 0.0f;
     }
 
     auto current_universe = GetDriver()->GetCurrentUniverse();
@@ -88,7 +90,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position &position)
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
-void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery &battery) {
+void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
     if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
@@ -107,35 +109,36 @@ void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery &battery) {
         vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, true);
     } else {
         vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, false);
-    } 
-    
+    }
+
     // Set the battery Level; 0 = 0%, 1 = 100%
     vr::VRProperties()->SetFloatProperty(props, vr::Prop_DeviceBatteryPercentage_Float, battery.battery_level());
 }
 
-void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus &status) {
-    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid) return;
-    
+void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus& status) {
+    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
+        return;
+
     vr::DriverPose_t pose = last_pose_;
     switch (status.status()) {
-        case messages::TrackerStatus_Status_OK:
-            pose.deviceIsConnected = true;
-            pose.poseIsValid = true;
-            break;
-        case messages::TrackerStatus_Status_DISCONNECTED:
-            pose.deviceIsConnected = false;
-            pose.poseIsValid = false;
-            break;
-        case messages::TrackerStatus_Status_ERROR:
-        case messages::TrackerStatus_Status_BUSY:
-        default:
-            pose.deviceIsConnected = true;
-            pose.poseIsValid = false;
-            break;
+    case messages::TrackerStatus_Status_OK:
+        pose.deviceIsConnected = true;
+        pose.poseIsValid = true;
+        break;
+    case messages::TrackerStatus_Status_DISCONNECTED:
+        pose.deviceIsConnected = false;
+        pose.poseIsValid = false;
+        break;
+    case messages::TrackerStatus_Status_ERROR:
+    case messages::TrackerStatus_Status_BUSY:
+    default:
+        pose.deviceIsConnected = true;
+        pose.poseIsValid = false;
+        break;
     }
 
     // TODO: send position/rotation of 0 instead of last pose?
-    
+
     last_pose_atomic_ = (last_pose_ = pose);
     GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
@@ -154,7 +157,7 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     logger_->Log("Activating tracker {}", serial_);
 
     auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
-    
+
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
     GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
 

@@ -76,8 +76,10 @@ void BridgeClient::Reconnect() {
 }
 
 void BridgeClient::CloseConnectionHandles() {
-    if (connection_handle_) connection_handle_->close();
-    if (reconnect_timeout_) reconnect_timeout_->close();
+    if (connection_handle_)
+        connection_handle_->close();
+    if (reconnect_timeout_)
+        reconnect_timeout_->close();
     connected_ = false;
 }
 

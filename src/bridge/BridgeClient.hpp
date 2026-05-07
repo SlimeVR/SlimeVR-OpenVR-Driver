@@ -23,8 +23,8 @@
 #pragma once
 
 #include <optional>
-#include <uvw.hpp>
 #include <stdint.h>
+#include <uvw.hpp>
 
 #include "BridgeTransport.hpp"
 
@@ -32,17 +32,17 @@
 
 /**
  * @brief Client implementation for communication with SlimeVR Server using pipes or unix sockets.
- * 
+ *
  * This class provides a set of methods to start, stop an IO thread, send messages over a named pipe or unix socket
  * and is abstracted through `libuv`.
- * 
+ *
  * When a message is received and parsed from the pipe, the messageCallback function passed in the constructor is called
  * from the event loop thread with the message as a parameter.
- * 
+ *
  * @param logger A shared pointer to an Logger object to log messages from the transport.
  * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
  */
-class BridgeClient: public BridgeTransport {
+class BridgeClient : public BridgeTransport {
 public:
     using BridgeTransport::BridgeTransport;
 

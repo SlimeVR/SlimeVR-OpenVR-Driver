@@ -1,18 +1,19 @@
 #include "TestBridgeClient.hpp"
 
 void TestLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
-    if (!message.has_tracker_added()) return;
+    if (!message.has_tracker_added())
+        return;
     messages::TrackerAdded tracker_added = message.tracker_added();
     logger->Log("tracker added id {} name {} role {} serial {}",
-        tracker_added.tracker_id(),
-        tracker_added.tracker_name(),
-        tracker_added.tracker_role(),
-        tracker_added.tracker_serial()
-    );
+                tracker_added.tracker_id(),
+                tracker_added.tracker_name(),
+                tracker_added.tracker_role(),
+                tracker_added.tracker_serial());
 }
 
 void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
-    if (!message.has_tracker_status()) return;
+    if (!message.has_tracker_status())
+        return;
     messages::TrackerStatus status = message.tracker_status();
     static const std::unordered_map<messages::TrackerStatus_Status, std::string> status_map = {
         { messages::TrackerStatus_Status_OK, "OK" },
@@ -26,7 +27,8 @@ void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::Protob
 }
 
 void TestLogVersion(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
-    if (!message.has_version()) return;
+    if (!message.has_version())
+        return;
     messages::Version version = message.version();
     logger->Log("protocol version {}", version.protocol_version());
 }
@@ -58,11 +60,13 @@ void TestBridgeClient() {
                 TestLogTrackerStatus(logger, message);
             } else if (message.has_position()) {
                 messages::Position pos = message.position();
-                if (!last_logged_position) logger->Log("... tracker positions");
+                if (!last_logged_position)
+                    logger->Log("... tracker positions");
                 last_logged_position = true;
                 positions++;
 
-                if (!ready_to_bench) return;
+                if (!ready_to_bench)
+                    return;
 
                 auto id = pos.tracker_id();
                 auto dt = duration_cast<nanoseconds>(steady_clock::now() - position_requested_at.load());
@@ -75,13 +79,13 @@ void TestBridgeClient() {
             if (!message.has_position()) {
                 last_logged_position = false;
             }
-        }
-    );
+        });
 
     bridge->Start();
 
     for (int i = 0; i < 20; i++) {
-        if (bridge->IsConnected()) break;
+        if (bridge->IsConnected())
+            break;
         std::this_thread::sleep_for(milliseconds(100));
     }
 
@@ -136,7 +140,10 @@ void TestBridgeClient() {
         logger->Log("avg latency for tracker {}: {:.3f}ms", id, avg_latency_ms.count());
     }
 
-    if (invalid_messages) FAIL("Invalid messages received");
-    if (!trackers) FAIL("No trackers received");
-    if (!positions) FAIL("No tracker positions received");
+    if (invalid_messages)
+        FAIL("Invalid messages received");
+    if (!trackers)
+        FAIL("No trackers received");
+    if (!positions)
+        FAIL("No tracker positions received");
 }
