@@ -1,4 +1,5 @@
 #include "TrackerDevice.hpp"
+#include <cmath>
 
 SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role)
     : serial_(serial)
@@ -42,6 +43,18 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
+#ifdef _DEBUG
+#define CHECK_CLASSIFICATION(D)                                                                    \
+    if (auto classification = std::fpclassify((D)); classification == FP_NAN) {                    \
+        logger_->Log("Uh oh! fpclassify(" #D ") returned FP_NAN for {}: {}, zeroing", D, serial_); \
+        D = 0.0;                                                                                   \
+    }
+#else
+#define CHECK_CLASSIFICATION(D)                                               \
+    if (auto classification = std::fpclassify((D)); classification == FP_NAN) \
+        D = 0.0;
+#endif
+
     // Setup pose for this frame
     auto pose = last_pose_;
     // send the new position and rotation from the pipe to the tracker object
@@ -49,17 +62,27 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
         pose.vecPosition[0] = position.x();
         pose.vecPosition[1] = position.y();
         pose.vecPosition[2] = position.z();
+        CHECK_CLASSIFICATION(pose.vecPosition[0]);
+        CHECK_CLASSIFICATION(pose.vecPosition[1]);
+        CHECK_CLASSIFICATION(pose.vecPosition[2]);
     }
 
     pose.qRotation.w = position.qw();
     pose.qRotation.x = position.qx();
     pose.qRotation.y = position.qy();
     pose.qRotation.z = position.qz();
+    CHECK_CLASSIFICATION(pose.qRotation.w);
+    CHECK_CLASSIFICATION(pose.qRotation.x);
+    CHECK_CLASSIFICATION(pose.qRotation.y);
+    CHECK_CLASSIFICATION(pose.qRotation.z);
 
     if (position.has_vx()) {
         pose.vecVelocity[0] = position.vx();
         pose.vecVelocity[1] = position.vy();
         pose.vecVelocity[2] = position.vz();
+        CHECK_CLASSIFICATION(pose.vecVelocity[0]);
+        CHECK_CLASSIFICATION(pose.vecVelocity[1]);
+        CHECK_CLASSIFICATION(pose.vecVelocity[2]);
     } else { // If velocity isn't being sent, don't keep stale values
         pose.vecVelocity[0] = 0.0f;
         pose.vecVelocity[1] = 0.0f;
@@ -74,11 +97,16 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
         pose.vecWorldFromDriverTranslation[0] = -trans.translation.v[0];
         pose.vecWorldFromDriverTranslation[1] = -trans.translation.v[1];
         pose.vecWorldFromDriverTranslation[2] = -trans.translation.v[2];
+        CHECK_CLASSIFICATION(pose.vecWorldFromDriverTranslation[0]);
+        CHECK_CLASSIFICATION(pose.vecWorldFromDriverTranslation[1]);
+        CHECK_CLASSIFICATION(pose.vecWorldFromDriverTranslation[2]);
 
         pose.qWorldFromDriverRotation.w = cos(trans.yaw / 2);
-        pose.qWorldFromDriverRotation.x = 0;
+        pose.qWorldFromDriverRotation.x = 0.0;
         pose.qWorldFromDriverRotation.y = sin(trans.yaw / 2);
-        pose.qWorldFromDriverRotation.z = 0;
+        pose.qWorldFromDriverRotation.z = 0.0;
+        CHECK_CLASSIFICATION(pose.qWorldFromDriverRotation.w);
+        CHECK_CLASSIFICATION(pose.qWorldFromDriverRotation.y);
     }
 
     pose.deviceIsConnected = true;
