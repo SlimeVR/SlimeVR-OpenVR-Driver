@@ -103,6 +103,8 @@ std::string GetViveRoleHint(TrackerRole role) {
         return "vive_tracker_camera";
     case KEYBOARD:
         return "vive_tracker_keyboard";
+    default:
+        break;
     }
     return "";
 }
@@ -141,6 +143,8 @@ std::string GetViveRole(TrackerRole role) {
         return "TrackerRole_Camera";
     case KEYBOARD:
         return "TrackerRole_Keyboard";
+    default:
+        break;
     }
     return "";
 }
@@ -157,6 +161,8 @@ DeviceType GetDeviceType(TrackerRole role) {
         return DeviceType::HMD;
     case BEACON:
         return DeviceType::TRACKING_REFERENCE;
+    default:
+        break;
     }
     return DeviceType::TRACKER;
 }

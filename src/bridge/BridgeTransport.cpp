@@ -77,7 +77,7 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
     }
 
     size_t available;
-    while (available = recv_buf_.BytesAvailable()) {
+    while ((available = recv_buf_.BytesAvailable())) {
         if (available < 4)
             return;
 
