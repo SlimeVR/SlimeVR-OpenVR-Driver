@@ -1,6 +1,6 @@
 #include "VRDriver.hpp"
+#include "Paths.hpp"
 #include "TrackerRole.hpp"
-#include "VRPaths_openvr.hpp"
 #include <TrackerDevice.hpp>
 #include <google/protobuf/arena.h>
 #include <simdjson.h>
@@ -14,12 +14,20 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     logger_->Log("Activating SlimeVR Driver...");
 
     try {
-        auto json = simdjson::padded_string::load(GetVRPathRegistryFilename()); // load VR Path Registry
+        auto config_path = Paths::GetOpenVRConfigPath().string();
+        logger_->Log("Found OpenVR config at {}", config_path);
+
+        auto json = simdjson::padded_string::load(config_path).value();
         simdjson::ondemand::document doc = json_parser_.iterate(json);
-        auto path = std::string{ doc.get_object()["config"].at(0).get_string().value() };
-        default_chap_path_ = GetDefaultChaperoneFromConfigPath(path);
+        auto path = std::filesystem::path(doc.get_object()["config"].at(0).get_string().value()) / "chaperone_info.vrchap";
+        if (std::filesystem::exists(path)) {
+            default_chap_path_ = path;
+            logger_->Log("Found chaperone info file at {}", path.string());
+        } else {
+            logger_->Log("Couldn't find chaperone info file");
+        }
     } catch (simdjson::simdjson_error& e) {
-        logger_->Log("Error getting VR Config path, continuing (error code {})", std::to_string(e.error()));
+        logger_->Log("Error getting OpenVR config path: {}", e.what());
     }
 
     logger_->Log("SlimeVR Driver Loaded Successfully");
@@ -565,9 +573,9 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
 
     if (default_chap_path_.has_value() && std::filesystem::exists(default_chap_path_.value())) {
         try {
-            return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value()).take_value(), target);
+            return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value().string()).take_value(), target);
         } catch (simdjson::simdjson_error& e) {
-            logger_->Log("Error loading chaperone from default path {}: {}", default_chap_path_.value(), e.what());
+            logger_->Log("Error loading chaperone from default path: {}", e.what());
         }
     }
 

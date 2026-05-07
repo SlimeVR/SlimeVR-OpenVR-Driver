@@ -70,7 +70,7 @@ private:
     bool sent_hmd_add_message_ = false;
 
     simdjson::ondemand::parser json_parser_;
-    std::optional<std::string> default_chap_path_ = std::nullopt;
+    std::optional<std::filesystem::path> default_chap_path_ = std::nullopt;
     // std::map<int, UniverseTranslation> universes;
 
     vr::ETrackedPropertyError last_universe_error_;
