@@ -5,6 +5,7 @@
 #include <TrackerDevice.hpp>
 #include <google/protobuf/arena.h>
 #include <simdjson.h>
+#include <utility>
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext) {
     // Perform driver context initialisation
@@ -146,7 +147,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
 
         auto notify_status_changed = [this](DeviceData& device, messages::ProtobufMessage* message, messages::TrackerStatus_Status status) {
             if (device.status != status) {
-                logger_->Log("Status for device {} changing {}->{}", device.index, static_cast<int>(device.status), static_cast<int>(status));
+                logger_->Log("Status for device {} changing {}->{}", device.index, std::to_underlying(device.status), std::to_underlying(status));
                 messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena_);
                 message->set_allocated_tracker_status(tracker_status);
                 tracker_status->set_tracker_id(device.index);
@@ -398,7 +399,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
             AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), role));
             break;
         default:
-            logger_->Log("Got tracker added message for unhandled device type {} (role {})", static_cast<unsigned>(GetDeviceType(role)), static_cast<unsigned>(role));
+            logger_->Log("Got tracker added message for unhandled device type {} (role {})", std::to_underlying(GetDeviceType(role)), std::to_underlying(role));
             break;
         }
     } else if (message.has_position()) {
