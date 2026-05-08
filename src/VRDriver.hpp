@@ -27,10 +27,6 @@ public:
     virtual bool AddDevice(std::shared_ptr<IVRDevice> device) override;
     virtual SettingsValue GetSettingsValue(std::string key) override;
 
-    virtual vr::IVRDriverInput* GetInput() override;
-    virtual vr::CVRPropertyHelpers* GetProperties() override;
-    virtual vr::IVRServerDriverHost* GetDriverHost() override;
-
     // Inherited via IServerTrackedDeviceProvider
     virtual vr::EVRInitError Init(vr::IVRDriverContext* pDriverContext) override;
     virtual void Cleanup() override;

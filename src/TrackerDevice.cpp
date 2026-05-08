@@ -115,7 +115,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 
     // Notify SteamVR that pose was updated
     last_pose_atomic_ = (last_pose_ = pose);
-    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
+    vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
 void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
@@ -123,7 +123,7 @@ void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
         return;
 
     // Get the properties handle
-    auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
+    auto props = vr::VRProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
 
     vr::ETrackedPropertyError err;
 
@@ -168,7 +168,7 @@ void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus& status
     // TODO: send position/rotation of 0 instead of last pose?
 
     last_pose_atomic_ = (last_pose_ = pose);
-    GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
+    vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
 DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType() {
@@ -184,18 +184,18 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
 
     logger_->Log("Activating tracker {}", serial_);
 
-    auto props = GetDriver()->GetProperties()->TrackedDeviceToPropertyContainer(device_index_);
+    auto props = vr::VRProperties()->TrackedDeviceToPropertyContainer(device_index_);
 
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
+    vr::VRProperties()->SetStringProperty(props, vr::Prop_ManufacturerName_String, "SlimeVR");
+    vr::VRProperties()->SetStringProperty(props, vr::Prop_ModelNumber_String, "SlimeVR Virtual Tracker");
 
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
+    vr::VRProperties()->SetStringProperty(props, vr::Prop_RenderModelName_String, "{htc}/rendermodels/vr_tracker_vive_1_0");
 
     // Some device properties will be derived at runtime by SteamVR
     // using the profile, such as the device class and controller type
     bool emulate_vives = vr::VRSettings()->GetBool("driver_slimevr", "emulateVives");
     std::string input_profile_path = emulate_vives ? "{htc}/input/vive_tracker_profile.json" : "{slimevr}/input/slimevr_tracker_profile.json";
-    GetDriver()->GetProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, input_profile_path.c_str());
+    vr::VRProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, input_profile_path.c_str());
 
     // Doesn't apply until restart of SteamVR
     auto role = GetViveRole(tracker_role_);
