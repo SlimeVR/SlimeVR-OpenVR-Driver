@@ -1,7 +1,7 @@
 #include "DriverFactory.hpp"
-#include <thread>
 #include <VRDriver.hpp>
 #include <sstream>
+#include <thread>
 
 static std::shared_ptr<SlimeVRDriver::IVRDriver> driver;
 

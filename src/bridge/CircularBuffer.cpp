@@ -23,7 +23,8 @@
 #include "CircularBuffer.hpp"
 
 bool CircularBuffer::Push(const char* data, size_t size) {
-    if (size > BytesFree()) return false;
+    if (size > BytesFree())
+        return false;
     size_t size1 = std::min<size_t>(size, size_ - (head_ % size_));
     size_t size2 = size - size1;
     std::memcpy(buffer_.get() + (head_ % size_), data, size1);
@@ -34,10 +35,11 @@ bool CircularBuffer::Push(const char* data, size_t size) {
 }
 
 bool CircularBuffer::Pop(char* data, size_t size) {
-    if (size > BytesAvailable()) return false;
+    if (size > BytesAvailable())
+        return false;
     size_t size1 = std::min<size_t>(size, size_ - (tail_ % size_));
     size_t size2 = size - size1;
-    std::memcpy(data, buffer_.get() + (tail_ % size_ ), size1);
+    std::memcpy(data, buffer_.get() + (tail_ % size_), size1);
     std::memcpy(data + size1, buffer_.get(), size2);
     tail_ += size;
     count_ -= size;
@@ -46,7 +48,8 @@ bool CircularBuffer::Pop(char* data, size_t size) {
 
 size_t CircularBuffer::Peek(char* data, size_t size) {
     size_t available = BytesAvailable();
-    if (size > available) return 0;
+    if (size > available)
+        return 0;
     size_t size1 = std::min<size_t>(size, size_ - (tail_ % size_));
     size_t size2 = std::min<size_t>(size - size1, available - size1);
     std::memcpy(data, buffer_.get() + (tail_ % size_), size1);
@@ -55,7 +58,8 @@ size_t CircularBuffer::Peek(char* data, size_t size) {
 }
 
 bool CircularBuffer::Skip(size_t n) {
-    if (n > BytesAvailable()) return false;
+    if (n > BytesAvailable())
+        return false;
     tail_ += n;
     count_ -= n;
     return true;

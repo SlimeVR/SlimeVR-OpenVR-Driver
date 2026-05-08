@@ -24,31 +24,30 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <memory>
 #include <mutex>
-#include <cstring>
 
 /**
  * A fixed-size queue using contiguous memory ONLY for a single producer and a single consumer (SPSC).
- * 
+ *
  * @param size Size of the queue in bytes.
  */
 class CircularBuffer {
 public:
     /**
      * Constructs a fixed-size queue using contiguous memory.
-     * 
+     *
      * @param size Size of the queue in bytes.
      */
-    CircularBuffer(size_t size) :
-        size_(size),
-        buffer_(std::make_unique<char[]>(size))
-        { }
+    CircularBuffer(size_t size)
+        : size_(size)
+        , buffer_(std::make_unique<char[]>(size)) { }
     ~CircularBuffer() = default;
 
     /**
      * Pushes data into the queue.
-     * 
+     *
      * @param data A pointer to the data to be pushed.
      * @param size Number of bytes to push.
      * @return True if the data was successfully pushed, false if the queue is full.
@@ -57,7 +56,7 @@ public:
 
     /**
      * Pops data from the queue.
-     * 
+     *
      * @param data A pointer to the location where the data should be stored.
      * @param size Number of bytes to pop.
      * @return True if the data was successfully popped, false if there is not enough data.
@@ -66,7 +65,7 @@ public:
 
     /**
      * Copies data from the queue into the given data pointer, without removing it.
-     * 
+     *
      * @param data A pointer to the location where the data should be copied to.
      * @param size Number of bytes to peek.
      * @return Number of bytes actually copied, 0 if there is not enough data.
@@ -75,7 +74,7 @@ public:
 
     /**
      * Skips n bytes in the queue.
-     * 
+     *
      * @param n Number of bytes to skip.
      * @return True if n bytes were successfully skipped, false if n is greater than the number of bytes available in the queue.
      */
@@ -88,14 +87,14 @@ public:
 
     /**
      * Returns the number of bytes available in the queue.
-     * 
+     *
      * @return Number of bytes available in the queue.
      */
     size_t BytesAvailable() const;
 
     /**
      * Returns the number of free bytes in the queue.
-     * 
+     *
      * @return Number of free bytes in the queue.
      */
     size_t BytesFree() const;

@@ -22,12 +22,12 @@
 */
 #pragma once
 
-#include <uvw.hpp>
 #include <stdint.h>
+#include <uvw.hpp>
 
 #include "bridge/BridgeTransport.hpp"
 
-class BridgeServerMock: public BridgeTransport {
+class BridgeServerMock : public BridgeTransport {
 public:
     using BridgeTransport::BridgeTransport;
 

@@ -14,5 +14,5 @@ extern "C" void* HmdDriverFactory(const char* interface_name, int* return_code);
 #endif
 
 namespace SlimeVRDriver {
-    std::shared_ptr<SlimeVRDriver::IVRDriver> GetDriver();
+std::shared_ptr<SlimeVRDriver::IVRDriver> GetDriver();
 }

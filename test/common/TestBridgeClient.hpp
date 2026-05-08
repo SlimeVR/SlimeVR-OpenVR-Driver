@@ -3,8 +3,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "DriverFactory.hpp"
-#include "bridge/BridgeClient.hpp"
 #include "TrackerRole.hpp"
+#include "bridge/BridgeClient.hpp"
 
 void TestLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);
 void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message);

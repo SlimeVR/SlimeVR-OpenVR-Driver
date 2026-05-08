@@ -27,7 +27,8 @@ void BridgeTransport::Start() {
 }
 
 void BridgeTransport::Stop() {
-    if (!thread_ || !thread_->joinable()) return;
+    if (!thread_ || !thread_->joinable())
+        return;
     StopAsync();
     logger_->Log("stopping");
     thread_->join();
@@ -35,7 +36,8 @@ void BridgeTransport::Stop() {
 }
 
 void BridgeTransport::StopAsync() {
-    if (!stop_signal_handle_ || stop_signal_handle_->closing()) return;
+    if (!stop_signal_handle_ || stop_signal_handle_->closing())
+        return;
     stop_signal_handle_->send();
 }
 
@@ -51,11 +53,11 @@ void BridgeTransport::RunThread() {
         write_signal_handle_->close();
         stop_signal_handle_->close();
     });
-    
+
     write_signal_handle_->on<uvw::async_event>([this](const uvw::async_event&, uvw::async_handle& handle) {
         SendWrites();
     });
-    
+
     CreateConnection();
     GetLoop()->run();
     GetLoop()->close();
@@ -75,28 +77,29 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
     }
 
     size_t available;
-    while (available = recv_buf_.BytesAvailable()) {
-        if (available < 4) return;
+    while ((available = recv_buf_.BytesAvailable())) {
+        if (available < 4)
+            return;
 
         char len_buf[4];
         recv_buf_.Peek(len_buf, 4);
         uint32_t size = 0;
-        size = static_cast<uint32_t>(static_cast<uint8_t>(len_buf[0])) |
-              (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[1])) << 8) |
-              (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[2])) << 16) |
-              (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[3])) << 24);
+        size = static_cast<uint32_t>(static_cast<uint8_t>(len_buf[0])) |      //
+            (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[1])) << 8) |  //
+            (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[2])) << 16) | //
+            (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[3])) << 24);
 
         if (size > VRBRIDGE_MAX_MESSAGE_SIZE) {
             logger_->Log(
                 "message size overflow: {} > {}",
-                size, VRBRIDGE_MAX_MESSAGE_SIZE
-            );
+                size, VRBRIDGE_MAX_MESSAGE_SIZE);
             ResetConnection();
             return;
         }
 
         auto unwrapped_size = size - 4;
-        if (available < unwrapped_size) return;
+        if (available < unwrapped_size)
+            return;
 
         auto message_buf = std::make_unique<char[]>(size);
         if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf.get(), unwrapped_size)) {
@@ -117,11 +120,12 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 }
 
 void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message) {
-    if (!IsConnected()) return;
+    if (!IsConnected())
+        return;
 
     uint32_t size = static_cast<uint32_t>(message.ByteSizeLong());
     uint32_t wrapped_size = size + 4;
-    
+
     auto message_buf = std::make_unique<char[]>(wrapped_size);
     message_buf.get()[0] = (wrapped_size >> 0) & 0xFF;
     message_buf.get()[1] = (wrapped_size >> 8) & 0xFF;
@@ -138,11 +142,13 @@ void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message
 }
 
 void BridgeTransport::SendWrites() {
-    if (!IsConnected()) return;
-    
+    if (!IsConnected())
+        return;
+
     auto available = send_buf_.BytesAvailable();
-    if (!available) return;
-    
+    if (!available)
+        return;
+
     auto write_buf = std::make_unique<char[]>(available);
     send_buf_.Pop(write_buf.get(), available);
     connection_handle_->write(write_buf.get(), static_cast<unsigned int>(available));

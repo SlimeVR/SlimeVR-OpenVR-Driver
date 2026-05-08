@@ -23,12 +23,12 @@
 #pragma once
 
 #include <filesystem>
-#include <uvw.hpp>
-#include <thread>
 #include <stdint.h>
+#include <thread>
+#include <uvw.hpp>
 
-#include "Logger.hpp"
 #include "CircularBuffer.hpp"
+#include "Logger.hpp"
 #include "ProtobufMessages.pb.h"
 
 #define VRBRIDGE_MAX_MESSAGE_SIZE 1024
@@ -44,26 +44,25 @@ namespace fs = std::filesystem;
 
 /**
  * @brief Passes messages between SlimeVR Server and SteamVR Driver using pipes or unix sockets.
- * 
+ *
  * Client or Server connection handling is implemented by extending this class.
- * 
+ *
  * This class provides a set of methods to start, stop an IO thread, send messages over a named pipe or unix socket
  * and is abstracted through `libuv`.
- * 
+ *
  * When a message is received and parsed from the pipe, the messageCallback function passed in the constructor is called
  * from the libuv event loop thread with the message as a parameter.
- * 
+ *
  * @param logger A shared pointer to an Logger object to log messages from the transport.
  * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
  */
 class BridgeTransport {
 public:
-    BridgeTransport(std::shared_ptr<Logger> logger, std::function<void(const messages::ProtobufMessage&)> on_message_received) :
-        logger_(logger),
-        message_callback_(on_message_received),
-        send_buf_(VRBRIDGE_BUFFERS_SIZE),
-        recv_buf_(VRBRIDGE_BUFFERS_SIZE)
-        { }
+    BridgeTransport(std::shared_ptr<Logger> logger, std::function<void(const messages::ProtobufMessage&)> on_message_received)
+        : logger_(logger)
+        , message_callback_(on_message_received)
+        , send_buf_(VRBRIDGE_BUFFERS_SIZE)
+        , recv_buf_(VRBRIDGE_BUFFERS_SIZE) { }
 
     ~BridgeTransport() {
         Stop();
@@ -71,37 +70,37 @@ public:
 
     /**
      * @brief Starts the channel by creating a thread with an libuv event loop.
-     * 
+     *
      * Connects and automatic reconnects with a timeout are implemented internally.
      */
     void Start();
-    
+
     /**
      * @brief Stops the channel by stopping the libuv event loop and closing the connection handles.
-     * 
+     *
      * Blocks until the event loop is stopped and the connection handles are closed.
      */
     void Stop();
 
     /**
      * @brief Stops the channel asynchronously by sending a signal to the libuv event loop to stop and returning immediately.
-     * 
+     *
      * The `Stop()` function calls this method.
      */
     void StopAsync();
 
     /**
      * @brief Sends a message over the channel.
-     * 
+     *
      * Queues the message to the send buffer to be sent over the pipe.
-     * 
+     *
      * @param message The message to send.
      */
     void SendBridgeMessage(const messages::ProtobufMessage& message);
 
     /**
      * @brief Checks if the channel is connected.
-     * 
+     *
      * @return true if the channel is connected, false otherwise.
      */
     bool IsConnected() {
@@ -120,7 +119,7 @@ protected:
 
     static std::string GetBridgePath() {
 #ifdef __linux__
-        std::vector<std::string> paths = { };
+        std::vector<std::string> paths = {};
         if (const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
             const fs::path xdg_runtime = ptr;
             paths.push_back((xdg_runtime / UNIX_SOCKET_NAME).string());
@@ -151,7 +150,7 @@ protected:
     std::shared_ptr<Logger> logger_;
     std::atomic<bool> connected_ = false;
     std::shared_ptr<uvw::pipe_handle> connection_handle_ = nullptr;
-    
+
 private:
     void RunThread();
     void SendWrites();
