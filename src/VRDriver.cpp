@@ -389,10 +389,14 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& m
     std::lock_guard<std::mutex> lock(devices_mutex_);
     if (message.has_tracker_added()) {
         messages::TrackerAdded ta = message.tracker_added();
-        switch (GetDeviceType(static_cast<TrackerRole>(ta.tracker_role()))) {
+        auto role = static_cast<TrackerRole>(ta.tracker_role());
+        switch (GetDeviceType(role)) {
         case DeviceType::TRACKER:
         case DeviceType::CONTROLLER:
-            AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), static_cast<TrackerRole>(ta.tracker_role())));
+            AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), role));
+            break;
+        default:
+            logger_->Log("Got tracker added message for unhandled device type {} (role {})", static_cast<unsigned>(GetDeviceType(role)), static_cast<unsigned>(role));
             break;
         }
     } else if (message.has_position()) {
