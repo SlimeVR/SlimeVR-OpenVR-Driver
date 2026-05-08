@@ -38,20 +38,19 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         std::bind(&SlimeVRDriver::VRDriver::OnBridgeConnect, this));
     bridge_->Start();
 
-    pose_request_thread_ = std::make_unique<std::thread>(&SlimeVRDriver::VRDriver::RunPoseRequestThread, this);
+    pose_request_thread_ = std::jthread([this](std::stop_token stop) { return RunPoseRequestThread(stop); });
 
     return vr::VRInitError_None;
 }
 
 void SlimeVRDriver::VRDriver::Cleanup() {
-    exiting_.store(true);
     // Wake up all threads waiting on init, if SteamVR exits before an HMD is connected
+    pose_request_thread_.request_stop();
     steamvr_init_guard_.store(true);
     steamvr_init_guard_.notify_all();
 
     logger_->Log("Waiting for pose request thread to exit");
-    pose_request_thread_->join();
-    pose_request_thread_.reset();
+    pose_request_thread_ = std::jthread();
     logger_->Log("Stopping bridge");
     bridge_->Stop();
 }
@@ -103,7 +102,7 @@ TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t i
     }
 }
 
-void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
+void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> devices{};
     logger_->Log("Pose request thread started");
     steamvr_init_guard_.wait(false);
@@ -111,7 +110,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
     // skip past the loop body on the first iteration anyway
 
     logger_->Log("Entering pose request loop");
-    while (!exiting_) {
+    while (!stop.stop_requested()) {
         if (!bridge_->IsConnected()) {
             // If bridge not connected, assume we need to resend device add messages
             for (auto& device : devices) {
@@ -375,7 +374,7 @@ void SlimeVRDriver::VRDriver::OnBridgeConnect() {
     std::thread t{ [this]() {
         steamvr_init_guard_.wait(false);
         // We woke up because SteamVR exited before initialisation.
-        if (exiting_) {
+        if (pose_request_thread_.get_stop_token().stop_requested()) {
             logger_->Log("Exiting OnBridgeConnect early");
             return;
         }

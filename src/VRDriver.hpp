@@ -42,16 +42,14 @@ public:
 
     void OnBridgeConnect();
     void OnBridgeMessage(const messages::ProtobufMessage& message);
-    void RunPoseRequestThread();
 
 private:
     // set to true if initialisation is done, or we're exiting
-    // if we're exiting, this will be true AND exiting_ will be true
+    // if we're exiting, this will be true and stop tokens will be signaled
     std::atomic<bool> steamvr_init_guard_ = false;
 
-    std::atomic<bool> exiting_ = false;
-
-    std::unique_ptr<std::thread> pose_request_thread_ = nullptr;
+    std::jthread pose_request_thread_;
+    void RunPoseRequestThread(std::stop_token stop);
 
     TrackerRole GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
 
