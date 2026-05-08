@@ -54,6 +54,10 @@ void SlimeVRDriver::VRDriver::Cleanup() {
     bridge_->Stop();
 }
 
+const char* const* SlimeVRDriver::VRDriver::GetInterfaceVersions() {
+    return vr::k_InterfaceVersions;
+}
+
 struct DeviceData {
     vr::TrackedDeviceIndex_t index{ vr::k_unTrackedDeviceIndexInvalid };
     TrackerRole role{ TrackerRole::NONE };

@@ -10,7 +10,6 @@
 #include <openvr_driver.h>
 
 #include <IVRDevice.hpp>
-#include <IVRDriver.hpp>
 
 #include <simdjson.h>
 
@@ -20,25 +19,36 @@
 
 namespace SlimeVRDriver {
 
-class VRDriver : public IVRDriver {
+class UniverseTranslation {
 public:
-    // Inherited via IVRDriver
-    virtual std::vector<std::shared_ptr<IVRDevice>> GetDevices() override;
-    virtual const std::vector<vr::VREvent_t>& GetOpenVREvents() override;
-    virtual std::chrono::milliseconds GetLastFrameTime() override;
-    virtual bool AddDevice(std::shared_ptr<IVRDevice> device) override;
-    virtual SettingsValue GetSettingsValue(std::string key) override;
+    // TODO: do we want to store this differently?
+    vr::HmdVector3_t translation;
+    float yaw;
 
+    static UniverseTranslation parse(simdjson::ondemand::object& obj);
+};
+
+typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
+
+class VRDriver : protected vr::IServerTrackedDeviceProvider {
+public:
     // Inherited via IServerTrackedDeviceProvider
     virtual vr::EVRInitError Init(vr::IVRDriverContext* pDriverContext) override;
     virtual void Cleanup() override;
+    virtual const char* const* GetInterfaceVersions() override;
     virtual void RunFrame() override;
     virtual bool ShouldBlockStandbyMode() override;
     virtual void EnterStandby() override;
     virtual void LeaveStandby() override;
     virtual ~VRDriver() = default;
 
-    virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
+    std::vector<std::shared_ptr<IVRDevice>> GetDevices();
+    const std::vector<vr::VREvent_t>& GetOpenVREvents();
+    std::chrono::milliseconds GetLastFrameTime();
+    bool AddDevice(std::shared_ptr<IVRDevice> device);
+    SettingsValue GetSettingsValue(std::string key);
+
+    std::optional<UniverseTranslation> GetCurrentUniverse();
 
     void OnBridgeConnect();
     void OnBridgeMessage(const messages::ProtobufMessage& message);
