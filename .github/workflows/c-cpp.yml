@@ -32,6 +32,14 @@ jobs:
       with:
         submodules: true
 
+    - if: matrix.os == 'ubuntu-latest'
+      name: Install GCC 16
+      uses: awalsh128/cache-apt-pkgs-action@v1.6.0
+      with:
+        add-repository: 'ppa:ubuntu-toolchain-r/test'
+        packages: g++-16
+        version: 1.0
+
     - uses: lukka/get-cmake@latest
 
     - name: Get submodule commit hashes
