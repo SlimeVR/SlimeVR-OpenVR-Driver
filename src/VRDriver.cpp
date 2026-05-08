@@ -1,4 +1,5 @@
 #include "VRDriver.hpp"
+#include "Consts.hpp"
 #include "Paths.hpp"
 #include "TrackerRole.hpp"
 #include <TrackerDevice.hpp>
@@ -11,7 +12,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         return init_error;
     }
 
-    logger_->Log("Activating SlimeVR Driver...");
+    logger_->Log("version " GIT_DESC);
 
     try {
         auto config_path = Paths::GetOpenVRConfigPath().string();
@@ -29,8 +30,6 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     } catch (simdjson::simdjson_error& e) {
         logger_->Log("Error getting OpenVR config path: {}", e.what());
     }
-
-    logger_->Log("SlimeVR Driver Loaded Successfully");
 
     bridge_ = std::make_shared<BridgeClient>(
         std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
