@@ -58,9 +58,9 @@ class BridgeTransport {
 public:
     BridgeTransport(std::shared_ptr<Logger> logger, std::function<void(const messages::ProtobufMessage&)> on_message_received)
         : logger_(logger)
-        , message_callback_(on_message_received)
         , send_buf_(VRBRIDGE_BUFFERS_SIZE)
-        , recv_buf_(VRBRIDGE_BUFFERS_SIZE) { }
+        , recv_buf_(VRBRIDGE_BUFFERS_SIZE)
+        , message_callback_(on_message_received) { }
 
     ~BridgeTransport() {
         Stop();
