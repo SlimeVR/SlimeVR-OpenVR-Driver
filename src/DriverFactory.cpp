@@ -1,9 +1,6 @@
 #include "DriverFactory.hpp"
-#include <VRDriver.hpp>
-#include <sstream>
-#include <thread>
 
-static std::shared_ptr<SlimeVRDriver::IVRDriver> driver;
+static std::shared_ptr<SlimeVRDriver::VRDriver> driver;
 
 void* HmdDriverFactory(const char* interface_name, int* return_code) {
     if (std::strcmp(interface_name, vr::IServerTrackedDeviceProvider_Version) == 0) {
@@ -22,6 +19,6 @@ void* HmdDriverFactory(const char* interface_name, int* return_code) {
     return nullptr;
 }
 
-std::shared_ptr<SlimeVRDriver::IVRDriver> SlimeVRDriver::GetDriver() {
+std::shared_ptr<SlimeVRDriver::VRDriver> SlimeVRDriver::GetDriver() {
     return driver;
 }
