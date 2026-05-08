@@ -21,6 +21,7 @@
     THE SOFTWARE.
 */
 #include "BridgeTransport.hpp"
+#include <bit>
 
 void BridgeTransport::Start() {
     thread_ = std::make_unique<std::thread>(&BridgeTransport::RunThread, this);
@@ -87,11 +88,10 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 
         char len_buf[4];
         recv_buf_.Peek(len_buf, 4);
-        uint32_t size = 0;
-        size = static_cast<uint32_t>(static_cast<uint8_t>(len_buf[0])) |      //
-            (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[1])) << 8) |  //
-            (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[2])) << 16) | //
-            (static_cast<uint32_t>(static_cast<uint8_t>(len_buf[3])) << 24);
+        uint32_t size = *reinterpret_cast<uint32_t*>(&len_buf[0]);
+        if constexpr (std::endian::native != std::endian::little) {
+            size = std::byteswap(size);
+        }
 
         if (size > VRBRIDGE_MAX_MESSAGE_SIZE) {
             logger_->Log(
@@ -131,10 +131,12 @@ void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message
     uint32_t wrapped_size = size + 4;
 
     auto message_buf = std::make_unique<char[]>(wrapped_size);
-    message_buf.get()[0] = (wrapped_size >> 0) & 0xFF;
-    message_buf.get()[1] = (wrapped_size >> 8) & 0xFF;
-    message_buf.get()[2] = (wrapped_size >> 16) & 0xFF;
-    message_buf.get()[3] = (wrapped_size >> 24) & 0xFF;
+    uint32_t* out_size = reinterpret_cast<uint32_t*>(&message_buf.get()[0]);
+    if constexpr (std::endian::native != std::endian::little) {
+        *out_size = std::byteswap(wrapped_size);
+    } else {
+        *out_size = wrapped_size;
+    }
     message.SerializeToArray(message_buf.get() + 4, size);
 
     if (!send_buf_.Push(message_buf.get(), wrapped_size)) {
