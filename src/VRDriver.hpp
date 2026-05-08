@@ -2,6 +2,7 @@
 #define NOMINMAX
 
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <optional>
