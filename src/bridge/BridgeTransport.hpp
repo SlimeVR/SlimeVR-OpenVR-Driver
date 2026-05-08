@@ -35,8 +35,6 @@
 #define VRBRIDGE_MAX_MESSAGE_SIZE 1024
 #define VRBRIDGE_BUFFERS_SIZE 8192
 
-namespace fs = std::filesystem;
-
 #define WINDOWS_PIPE_NAME "\\\\.\\pipe\\SlimeVRDriver"
 #define UNIX_XDG_DATA_HOME_DEFAULT ".local/share/"
 #define UNIX_SLIMEVR_DIR "dev.slimevr.SlimeVR"
@@ -121,7 +119,9 @@ protected:
     }
 
     static std::string GetBridgePath() {
-#ifdef __linux__
+#if defined(__linux__)
+        namespace fs = std::filesystem;
+
         std::vector<std::string> paths = {};
         if (const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
             const fs::path xdg_runtime = ptr;
@@ -145,8 +145,10 @@ protected:
         }
 
         return (fs::path(UNIX_TMP_DIR) / UNIX_SOCKET_NAME).string();
-#else
+#elif defined(_WIN32)
         return WINDOWS_PIPE_NAME;
+#else
+#error "Unsupported platform"
 #endif
     }
 
