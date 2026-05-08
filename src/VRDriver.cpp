@@ -99,6 +99,8 @@ TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t i
 }
 
 void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
+    using namespace std::chrono_literals;
+
     std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> devices{};
     logger_->Log("Pose request thread started");
     while (!stop.stop_requested()) {
@@ -108,7 +110,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                 device.sent_add_message = false;
                 device.status = messages::TrackerStatus_Status_DISCONNECTED;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(100ms);
             continue;
         }
 
@@ -285,7 +287,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
             }
 
             auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - device.battery_sent_at).count() > 100) {
+            if (now - device.battery_sent_at > 100ms) {
                 if (vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
                     messages::Battery* battery = google::protobuf::Arena::Create<messages::Battery>(&arena_);
                     message->set_allocated_battery(battery);
@@ -300,7 +302,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
 
         arena_.Reset();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        std::this_thread::sleep_for(2ms);
     }
     logger_->Log("Pose request thread exited");
 }

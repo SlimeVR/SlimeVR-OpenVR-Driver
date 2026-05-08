@@ -1,6 +1,7 @@
 #pragma once
 #define NOMINMAX
 
+#include <chrono>
 #include <memory>
 #include <optional>
 #include <vector>
