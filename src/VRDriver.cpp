@@ -37,16 +37,13 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         std::bind(&SlimeVRDriver::VRDriver::OnBridgeMessage, this, std::placeholders::_1));
     bridge_->Start();
 
-    exiting_pose_request_thread_ = false;
-    pose_request_thread_ = std::make_unique<std::thread>(&SlimeVRDriver::VRDriver::RunPoseRequestThread, this);
+    pose_request_thread_ = std::jthread([this](std::stop_token stop) { return RunPoseRequestThread(stop); });
 
     return vr::VRInitError_None;
 }
 
 void SlimeVRDriver::VRDriver::Cleanup() {
-    exiting_pose_request_thread_ = true;
-    pose_request_thread_->join();
-    pose_request_thread_.reset();
+    pose_request_thread_ = std::jthread();
     bridge_->Stop();
 }
 
@@ -97,10 +94,10 @@ TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t i
     }
 }
 
-void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
+void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> devices{};
     logger_->Log("Pose request thread started");
-    while (!exiting_pose_request_thread_) {
+    while (!stop.stop_requested()) {
         if (!bridge_->IsConnected()) {
             // If bridge not connected, assume we need to resend device add messages
             for (auto& device : devices) {

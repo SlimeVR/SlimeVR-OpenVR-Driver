@@ -39,11 +39,10 @@ public:
     virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
 
     void OnBridgeMessage(const messages::ProtobufMessage& message);
-    void RunPoseRequestThread();
 
 private:
-    std::unique_ptr<std::thread> pose_request_thread_ = nullptr;
-    std::atomic<bool> exiting_pose_request_thread_ = false;
+    std::jthread pose_request_thread_;
+    void RunPoseRequestThread(std::stop_token stop);
 
     TrackerRole GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
 
