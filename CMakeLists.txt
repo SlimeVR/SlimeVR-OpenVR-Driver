@@ -56,10 +56,7 @@ elseif(APPLE)
     set(PLATFORM_NAME "osx")
 endif()
 
-# Protobuf
-# Installation:
 # Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
-# WARNING: CLang has an arror building protobuf messages, use MSVC 2019
 set(protobuf_MODULE_COMPATIBLE ON CACHE BOOL "")
 find_package(Protobuf CONFIG REQUIRED)
 protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
@@ -67,11 +64,28 @@ SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE
 
 find_package(simdjson CONFIG REQUIRED)
 
-# libuv
 find_package(uvw CONFIG REQUIRED)
 
-# Catch2
 find_package(Catch2 3 REQUIRED)
+
+find_package(Git)
+
+if (NOT GIT_DESC)
+	execute_process(
+		COMMAND ${GIT_EXECUTABLE} describe --tags --always
+		OUTPUT_VARIABLE GIT_DESC
+		ERROR_QUIET
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+	string(STRIP "${GIT_DESC}" GIT_DESC)
+else()
+	message(STATUS "Using GIT_DESC ${GIT_DESC} from explicit build flag")
+endif()
+
+if (GIT_DESC)
+    message(STATUS "GIT_DESC: ${GIT_DESC}")
+else()
+    message(FATAL_ERROR "Could not set GIT_DESC")
+endif()
 
 # Project
 set(DEPS_INCLUDES
@@ -87,13 +101,15 @@ set(DEPS_LIBS
     uvw::uvw
 )
 
+configure_file(src/Consts.hpp.in src/Consts.hpp @ONLY)
+
 # compile into a static lib
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} ${PROTO_HEADER} ${PROTO_SRC})
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
 set_property(TARGET "${PROJECT_NAME}_static" PROPERTY CXX_STANDARD 20)
-include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} "${CMAKE_CURRENT_BINARY_DIR}/src")
 if(UNIX)
     target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
     target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)
