@@ -88,32 +88,32 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 
         char len_buf[4];
         recv_buf_.Peek(len_buf, 4);
-        uint32_t size = *reinterpret_cast<uint32_t*>(&len_buf[0]);
+        uint32_t msg_len = *reinterpret_cast<uint32_t*>(&len_buf[0]);
         if constexpr (std::endian::native != std::endian::little) {
-            size = std::byteswap(size);
+            msg_len = std::byteswap(msg_len);
         }
 
-        if (size > VRBRIDGE_MAX_MESSAGE_SIZE) {
+        if (available < msg_len)
+            return;
+
+        char message_buf[VRBRIDGE_MAX_MESSAGE_SIZE];
+        if (msg_len > std::size(message_buf)) {
             logger_->Log(
                 "message size overflow: {} > {}",
-                size, VRBRIDGE_MAX_MESSAGE_SIZE);
+                msg_len, VRBRIDGE_MAX_MESSAGE_SIZE);
             ResetConnection();
             return;
         }
 
-        auto unwrapped_size = size - 4;
-        if (available < unwrapped_size)
-            return;
-
-        auto message_buf = std::make_unique<char[]>(size);
-        if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf.get(), unwrapped_size)) {
-            logger_->Log("recv_buf_.Pop({}) failed", size);
+        auto unwrapped_size = msg_len - 4;
+        if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf, unwrapped_size)) {
+            logger_->Log("recv_buf_.Pop({}) failed", msg_len - 4);
             ResetConnection();
             return;
         }
 
         messages::ProtobufMessage message;
-        if (message.ParseFromArray(message_buf.get(), unwrapped_size)) {
+        if (message.ParseFromArray(message_buf, unwrapped_size)) {
             message_callback_(message);
         } else {
             logger_->Log("receivedMessage.ParseFromArray failed");
@@ -130,16 +130,24 @@ void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message
     uint32_t size = static_cast<uint32_t>(message.ByteSizeLong());
     uint32_t wrapped_size = size + 4;
 
-    auto message_buf = std::make_unique<char[]>(wrapped_size);
-    uint32_t* out_size = reinterpret_cast<uint32_t*>(&message_buf.get()[0]);
+    char message_buf[VRBRIDGE_MAX_MESSAGE_SIZE];
+    if (wrapped_size > std::size(message_buf)) {
+        logger_->Log("Skipping protobuf message send because it's too large ({} > {})", wrapped_size, std::size(message_buf));
+        return;
+    }
+
+    uint32_t* out_size = reinterpret_cast<uint32_t*>(&message_buf[0]);
     if constexpr (std::endian::native != std::endian::little) {
         *out_size = std::byteswap(wrapped_size);
     } else {
         *out_size = wrapped_size;
     }
-    message.SerializeToArray(message_buf.get() + 4, size);
+    if (!message.SerializeToArray(&message_buf[4], std::size(message_buf) - 4)) {
+        logger_->Log("Failed to serialise protobuf message");
+        return;
+    }
 
-    if (!send_buf_.Push(message_buf.get(), wrapped_size)) {
+    if (!send_buf_.Push(message_buf, wrapped_size)) {
         ResetConnection();
         return;
     }
@@ -155,7 +163,7 @@ void BridgeTransport::SendWrites() {
     if (!available)
         return;
 
-    auto write_buf = std::make_unique<char[]>(available);
-    send_buf_.Pop(write_buf.get(), available);
-    connection_handle_->write(write_buf.get(), static_cast<unsigned int>(available));
+    char write_buf[VRBRIDGE_BUFFERS_SIZE];
+    send_buf_.Pop(write_buf, available);
+    connection_handle_->write(write_buf, static_cast<unsigned int>(available));
 }
