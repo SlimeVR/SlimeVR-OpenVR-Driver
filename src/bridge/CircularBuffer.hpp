@@ -22,11 +22,8 @@
 */
 #pragma once
 
-#include <algorithm>
 #include <atomic>
-#include <cstring>
 #include <memory>
-#include <mutex>
 
 /**
  * A fixed-size queue using contiguous memory ONLY for a single producer and a single consumer (SPSC).

@@ -20,7 +20,10 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
 */
+
 #include "CircularBuffer.hpp"
+#include <algorithm>
+#include <cstring>
 
 bool CircularBuffer::Push(const char* data, size_t size) {
     if (size > BytesFree())
