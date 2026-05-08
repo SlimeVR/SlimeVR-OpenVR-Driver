@@ -520,18 +520,6 @@ SlimeVRDriver::SettingsValue SlimeVRDriver::VRDriver::GetSettingsValue(std::stri
     return SettingsValue();
 }
 
-vr::IVRDriverInput* SlimeVRDriver::VRDriver::GetInput() {
-    return vr::VRDriverInput();
-}
-
-vr::CVRPropertyHelpers* SlimeVRDriver::VRDriver::GetProperties() {
-    return vr::VRProperties();
-}
-
-vr::IVRServerDriverHost* SlimeVRDriver::VRDriver::GetDriverHost() {
-    return vr::VRServerDriverHost();
-}
-
 //-----------------------------------------------------------------------------
 // Purpose: Calculates quaternion (qw,qx,qy,qz) representing the rotation
 // from: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp

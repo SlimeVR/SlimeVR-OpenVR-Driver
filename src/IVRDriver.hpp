@@ -61,27 +61,6 @@ public:
     virtual SettingsValue GetSettingsValue(std::string key) = 0;
 
     /**
-     * Gets the OpenVR VRDriverInput pointer.
-     *
-     * @return OpenVR VRDriverInput pointer.
-     */
-    virtual vr::IVRDriverInput* GetInput() = 0;
-
-    /**
-     * Gets the OpenVR VRDriverProperties pointer.
-     *
-     * @return OpenVR VRDriverProperties pointer.
-     */
-    virtual vr::CVRPropertyHelpers* GetProperties() = 0;
-
-    /**
-     * Gets the OpenVR VRServerDriverHost pointer.
-     *
-     * @return OpenVR VRServerDriverHost pointer.
-     */
-    virtual vr::IVRServerDriverHost* GetDriverHost() = 0;
-
-    /**
      * Gets the current UniverseTranslation.
      */
     virtual std::optional<UniverseTranslation> GetCurrentUniverse() = 0;
