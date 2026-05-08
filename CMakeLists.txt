@@ -62,6 +62,25 @@ protobuf_generate(
     OUT_VAR PROTO_GENERATED_FILES
 )
 
+find_package(Git)
+
+if (NOT GIT_DESC)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --always
+        OUTPUT_VARIABLE GIT_DESC
+        ERROR_QUIET
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    string(STRIP "${GIT_DESC}" GIT_DESC)
+else()
+    message(STATUS "Using GIT_DESC ${GIT_DESC} from explicit build flag")
+endif()
+
+if (GIT_DESC)
+    message(STATUS "GIT_DESC: ${GIT_DESC}")
+else()
+    message(FATAL_ERROR "Could not set GIT_DESC")
+endif()
+
 # Project
 set(DEPS_INCLUDES
     "${OPENVR_INCLUDE_DIR}"
@@ -77,13 +96,15 @@ set(DEPS_LIBS
     uvw::uvw
 )
 
+configure_file(src/Consts.hpp.in src/Consts.hpp @ONLY)
+
 # compile into a static lib
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} ${PROTO_GENERATED_FILES})
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
 set_target_properties("${PROJECT_NAME}_static" PROPERTIES CXX_STANDARD 20)
-target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} "${CMAKE_CURRENT_BINARY_DIR}/src")
 if(UNIX)
     target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
     target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)

@@ -4,7 +4,6 @@
 #include <mutex>
 #include <openvr_driver.h>
 #include <string>
-#include <thread>
 
 class Logger {
 public:
@@ -12,6 +11,13 @@ public:
         : name_("") { }
     Logger(const std::string& name)
         : name_(name) { }
+
+    void Log(const std::string& str) {
+        std::string prefixed = name_.length() ? std::format("{}: {}", name_, str) : str;
+        std::lock_guard<std::mutex> lock(mutex_);
+        LogImpl(prefixed.c_str());
+    }
+
     template <typename... Args>
     void Log(const std::format_string<Args...> format_str, Args&&... args) {
         std::string message = std::vformat(format_str.get(), std::make_format_args(args...));
