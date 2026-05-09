@@ -1,20 +1,16 @@
 #pragma once
 
 #include <atomic>
-#include <chrono>
-#include <cmath>
+#include <memory>
+#include <string>
 
 #include <linalg.h>
 
-#include <DriverFactory.hpp>
-#include <IVRDevice.hpp>
+#include "IVRDevice.hpp"
+#include <openvr_driver.h>
 
 #include "Logger.hpp"
 #include "TrackerRole.hpp"
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <thread>
 
 namespace SlimeVRDriver {
 
