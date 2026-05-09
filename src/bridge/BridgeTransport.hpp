@@ -22,9 +22,11 @@
 */
 #pragma once
 
+#ifdef __linux__
 #include <filesystem>
+#endif
+
 #include <optional>
-#include <stdint.h>
 #include <thread>
 #include <uvw.hpp>
 
