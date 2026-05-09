@@ -60,7 +60,7 @@ endif()
 set(protobuf_MODULE_COMPATIBLE ON CACHE BOOL "")
 find_package(Protobuf CONFIG REQUIRED)
 protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
-SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
+set_source_files_properties(${PROTO_SRC} ${PROTO_HEADER} PROPERTIES GENERATED TRUE)
 
 find_package(simdjson CONFIG REQUIRED)
 
