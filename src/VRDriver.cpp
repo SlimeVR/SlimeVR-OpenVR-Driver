@@ -221,7 +221,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                     logger_->Log("Failed to get device {}'s Prop_ManufacturerName_String: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
                 }
                 if (manufacturer.empty())
-                    name = "OpenVR";
+                    manufacturer = "OpenVR";
 
                 TrackerRole role = GetRoleForDevice(index);
 
