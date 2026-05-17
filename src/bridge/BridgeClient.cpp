@@ -82,12 +82,3 @@ void BridgeClient::CloseConnectionHandles() {
         reconnect_timeout_->close();
     connected_ = false;
 }
-
-void BridgeClient::SendVersion() {
-    messages::ProtobufMessage* message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena_);
-    messages::Version* version = google::protobuf::Arena::Create<messages::Version>(&arena_);
-    message->set_allocated_version(version);
-    version->set_protocol_version(PROTOCOL_VERSION);
-    SendBridgeMessage(*message);
-    arena_.Reset();
-}
