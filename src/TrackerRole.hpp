@@ -23,37 +23,13 @@
 #pragma once
 
 #include "DeviceType.hpp"
+#include <solarxr_protocol/generated/all_generated.h>
 #include <string>
 
-enum TrackerRole {
-    NONE = 0,
-    WAIST = 1,
-    LEFT_FOOT = 2,
-    RIGHT_FOOT = 3,
-    CHEST = 4,
-    LEFT_KNEE = 5,
-    RIGHT_KNEE = 6,
-    LEFT_ELBOW = 7,
-    RIGHT_ELBOW = 8,
-    LEFT_SHOULDER = 9,
-    RIGHT_SHOULDER = 10,
-    LEFT_HAND = 11,
-    RIGHT_HAND = 12,
-    LEFT_CONTROLLER = 13,
-    RIGHT_CONTROLLER = 14,
-    HEAD = 15,
-    NECK = 16,
-    CAMERA = 17,
-    KEYBOARD = 18,
-    HMD = 19,
-    BEACON = 20,
-    GENERIC_CONTROLLER = 21,
-};
+std::string GetSerial(solarxr_protocol::datatypes::BodyPart role);
 
-std::string GetRoleName(TrackerRole role);
+std::string GetViveRoleHint(solarxr_protocol::datatypes::BodyPart role);
 
-std::string GetViveRoleHint(TrackerRole role);
+std::string GetViveRole(solarxr_protocol::datatypes::BodyPart role);
 
-std::string GetViveRole(TrackerRole role);
-
-DeviceType GetDeviceType(TrackerRole role);
+DeviceType GetDeviceType(solarxr_protocol::datatypes::BodyPart role);
