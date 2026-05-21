@@ -30,7 +30,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
       with:
-        submodules: true
+        submodules: recursive
 
     - if: matrix.os == 'ubuntu-latest'
       name: Install GCC 16
