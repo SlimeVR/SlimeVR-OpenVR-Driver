@@ -2,7 +2,6 @@
 #include "DriverFactory.hpp"
 #include "TrackerRole.hpp"
 #include <cmath>
-#include <solarxr_protocol/generated/all_generated.h>
 
 using namespace solarxr_protocol;
 

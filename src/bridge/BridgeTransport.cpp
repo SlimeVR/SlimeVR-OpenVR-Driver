@@ -22,7 +22,6 @@
 */
 #include "BridgeTransport.hpp"
 #include <bit>
-#include <solarxr_protocol/generated/all_generated.h>
 
 void BridgeTransport::Start() {
     thread_ = std::make_unique<std::thread>(&BridgeTransport::RunThread, this);

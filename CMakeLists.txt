@@ -108,6 +108,10 @@ if(UNIX)
   target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
   target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)
 endif()
+# Enable unwind on MSVC
+if(MSVC)
+  target_compile_options("${PROJECT_NAME}_static" PUBLIC "/EHsc")
+endif()
 
 # compile driver
 file(GLOB_RECURSE DRIVER_MAIN "${CMAKE_CURRENT_SOURCE_DIR}/src/DriverFactory.cpp")

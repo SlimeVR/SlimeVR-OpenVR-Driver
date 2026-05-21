@@ -1,9 +1,9 @@
 #pragma once
 
 #include <openvr_driver.h>
+#include <solarxr_protocol/generated/all_generated.h>
 
 #include "DeviceType.hpp"
-#include "solarxr_protocol/generated/all_generated.h"
 
 namespace SlimeVRDriver {
 

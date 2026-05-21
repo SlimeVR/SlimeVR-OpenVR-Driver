@@ -22,6 +22,9 @@
 */
 #pragma once
 
+#include <solarxr_protocol/generated/all_generated.h>
+#include <uvw.hpp>
+
 #include <optional>
 #ifdef __linux__
 #include <filesystem>
@@ -31,12 +34,9 @@
 #include <variant>
 
 #include <stdint.h>
-#include <uvw.hpp>
 
 #include "CircularBuffer.hpp"
 #include "Logger.hpp"
-
-#include <solarxr_protocol/generated/all_generated.h>
 
 #define VRBRIDGE_MAX_MESSAGE_SIZE 4096
 #define VRBRIDGE_BUFFERS_SIZE 16384

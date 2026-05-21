@@ -24,7 +24,6 @@
 
 #include <optional>
 #include <stdint.h>
-#include <uvw.hpp>
 
 #include "BridgeTransport.hpp"
 

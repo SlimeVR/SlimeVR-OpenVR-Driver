@@ -1,16 +1,18 @@
-#include "VRDriver.hpp"
+#include <openvr_driver.h>
+#include <solarxr_protocol/generated/all_generated.h>
+
 #include "Consts.hpp"
 #include "Paths.hpp"
 #include "TrackerDevice.hpp"
 #include "TrackerRole.hpp"
+#include "VRDriver.hpp"
+
 #include <cmath>
 #include <limits>
 #include <mutex>
 #include <simdjson.h>
 #include <utility>
 
-#include "openvr_driver.h"
-#include <solarxr_protocol/generated/all_generated.h>
 using namespace solarxr_protocol;
 using namespace solarxr_protocol::datatypes;
 

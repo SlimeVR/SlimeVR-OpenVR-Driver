@@ -1,5 +1,7 @@
 #pragma once
 
+#include <solarxr_protocol/generated/all_generated.h>
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -10,7 +12,6 @@
 #include <openvr_driver.h>
 
 #include "Logger.hpp"
-#include <solarxr_protocol/generated/all_generated.h>
 
 namespace SlimeVRDriver {
 

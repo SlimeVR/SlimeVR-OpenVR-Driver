@@ -1,22 +1,21 @@
 #pragma once
 #define NOMINMAX
 
+#include <solarxr_protocol/generated/all_generated.h>
+
+#include <openvr_driver.h>
+#include <simdjson.h>
+
 #include <chrono>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <optional>
 #include <vector>
 
-#include <openvr_driver.h>
-
-#include <IVRDevice.hpp>
-
-#include <simdjson.h>
-
+#include "IVRDevice.hpp"
 #include "Logger.hpp"
 #include "bridge/BridgeClient.hpp"
-
-#include <solarxr_protocol/generated/all_generated.h>
 
 namespace SlimeVRDriver {
 
