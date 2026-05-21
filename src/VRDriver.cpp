@@ -124,7 +124,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
 
         vr::PropertyContainerHandle_t hmd_prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
         std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> poses{};
-        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, poses.data(), poses.size());
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, poses.data(), static_cast<uint32_t>(poses.size()));
 
         vr::ETrackedPropertyError universe_error;
         uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
@@ -284,7 +284,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                     pos.v[2] = pos_z;
                 }
 
-                auto quat_fbs = math::Quat(q.x, q.y, q.z, q.w);
+                auto quat_fbs = math::Quat(static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z), static_cast<float>(q.w));
                 auto position_fbs = math::Vec3f(pos.v[0], pos.v[1], pos.v[2]);
                 auto update_pose_msg = rpc::CreateUpdateTrackerPose(fbb, tracker_id, &quat_fbs, &position_fbs, nullptr);
                 auto msg_header = rpc::CreateRpcMessageHeader(fbb, nullptr, rpc::RpcMessage::UpdateTrackerPose, update_pose_msg.Union());
@@ -417,7 +417,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                                if (body_part == BodyPart::NONE || body_part == BodyPart::HEAD)
                                    continue;
 
-                               bool tracker_enabled = body_part_mask_ & (1 << std::to_underlying(body_part));
+                               bool tracker_enabled = body_part_mask_ & (1ll << std::to_underlying(body_part));
                                std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
                                if (!tracker_enabled) {
                                    if (device)
@@ -475,26 +475,26 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
 
                            decltype(body_part_mask_) temp_body_part_mask{};
                            if (steam_vr_trackers_setting->chest())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::UPPER_CHEST);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::UPPER_CHEST);
                            if (steam_vr_trackers_setting->left_elbow())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::LEFT_UPPER_ARM);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::LEFT_UPPER_ARM);
                            if (steam_vr_trackers_setting->right_elbow())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::RIGHT_UPPER_ARM);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::RIGHT_UPPER_ARM);
                            if (steam_vr_trackers_setting->left_hand())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::LEFT_HAND);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::LEFT_HAND);
                            if (steam_vr_trackers_setting->right_hand())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::RIGHT_HAND);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::RIGHT_HAND);
 
                            if (steam_vr_trackers_setting->waist())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::HIP);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::HIP);
                            if (steam_vr_trackers_setting->left_knee())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::LEFT_UPPER_LEG);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::LEFT_UPPER_LEG);
                            if (steam_vr_trackers_setting->right_knee())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::RIGHT_UPPER_LEG);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::RIGHT_UPPER_LEG);
                            if (steam_vr_trackers_setting->left_foot())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::LEFT_FOOT);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::LEFT_FOOT);
                            if (steam_vr_trackers_setting->right_foot())
-                               temp_body_part_mask |= 1 << std::to_underlying(BodyPart::RIGHT_FOOT);
+                               temp_body_part_mask |= 1ll << std::to_underlying(BodyPart::RIGHT_FOOT);
 
                            body_part_mask_ = temp_body_part_mask;
                            break;
