@@ -25,6 +25,9 @@
 #include <solarxr_protocol/generated/all_generated.h>
 #include <uvw.hpp>
 
+// Windows, Windows, go away
+#undef ERROR
+
 #include <optional>
 #ifdef __linux__
 #include <filesystem>
