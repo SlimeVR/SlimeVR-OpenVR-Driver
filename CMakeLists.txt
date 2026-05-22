@@ -119,7 +119,6 @@ add_library("${PROJECT_NAME}" SHARED ${DRIVER_MAIN} ${HEADERS} ${PROTO_HEADER})
 target_link_libraries("${PROJECT_NAME}" PUBLIC "${PROJECT_NAME}_static")
 set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 23)
 
-#[[ TODO: make the tests compile
 # compile tests
 function(build_tests target_name test_dir)
     file(GLOB TESTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_dir}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/${test_dir}/*.hpp")
@@ -131,7 +130,6 @@ endfunction()
 build_tests(tests "test")
 build_tests(tests_integration "test/integration")
 add_test(NAME tests COMMAND "tests")
-]]
 
 # IDE Config
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Header Files" FILES ${HEADERS})

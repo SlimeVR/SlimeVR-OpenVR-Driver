@@ -31,15 +31,36 @@ public:
 typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
 
 struct TrackerIdT {
+    TrackerIdT() = default;
+    TrackerIdT(std::optional<uint8_t> device_id, uint8_t tracker_num)
+        : device_id(device_id)
+        , tracker_num(tracker_num) { }
     TrackerIdT(const solarxr_protocol::datatypes::TrackerId* id)
         : tracker_num(id->tracker_num()) {
         if (auto new_id = id->device_id()) {
             device_id.emplace(new_id->id());
         }
     }
+
     std::optional<solarxr_protocol::datatypes::DeviceId> device_id;
     uint8_t tracker_num;
+
+    flatbuffers::Offset<solarxr_protocol::datatypes::TrackerId> create(flatbuffers::FlatBufferBuilder& fbb) const {
+        const solarxr_protocol::datatypes::DeviceId* device_id_p = nullptr;
+        if (device_id.has_value()) {
+            device_id_p = &device_id.value();
+        }
+        return solarxr_protocol::datatypes::CreateTrackerId(fbb, device_id_p, tracker_num);
+    }
 };
+
+inline std::string to_string(const TrackerIdT& id) {
+    if (id.device_id.has_value()) {
+        return std::format("TrackerId(device_id={} tracker_num={})", id.device_id.value().id(), id.tracker_num);
+    } else {
+        return std::format("TrackerId(tracker_num={})", id.tracker_num);
+    }
+}
 
 struct DeviceData {
     vr::TrackedDeviceIndex_t index{ vr::k_unTrackedDeviceIndexInvalid };

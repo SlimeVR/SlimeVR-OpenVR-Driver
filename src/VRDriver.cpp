@@ -213,7 +213,16 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
 
                 // Send add message for device
                 auto tx_id = datatypes::TransactionId(index);
-                auto add_tracker_msg = rpc::CreateAddTrackerRequest(fbb, fbb.CreateString(serial), fbb.CreateString(name), fbb.CreateString(manufacturer), true, false, true, role, index == vr::k_unTrackedDeviceIndex_Hmd);
+                auto add_tracker_msg = rpc::CreateAddTrackerRequest(fbb,
+                                                                    fbb.CreateString(serial),               // name
+                                                                    fbb.CreateString(name),                 // display_name
+                                                                    fbb.CreateString(manufacturer),         // manufacturer
+                                                                    true,                                   // tracks_rotation
+                                                                    false,                                  // tracks_acceleration
+                                                                    true,                                   // tracks_position
+                                                                    role,                                   // role_hint
+                                                                    index == vr::k_unTrackedDeviceIndex_Hmd // is_hmd
+                );
                 auto msg_header = rpc::CreateRpcMessageHeader(fbb, &tx_id, rpc::RpcMessage::AddTrackerRequest, add_tracker_msg.Union());
 
                 rpc_msgs.push_back(msg_header);
@@ -229,12 +238,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                     continue;
                 }
 
-                auto& id = device.id.value();
-                DeviceId* device_id = nullptr;
-                if (id.device_id.has_value()) {
-                    device_id = &id.device_id.value();
-                }
-                tracker_id = datatypes::CreateTrackerId(fbb, device_id, id.tracker_num);
+                tracker_id = device.id.value().create(fbb);
             }
 
             if (device.sent_add_message && !pose.bDeviceIsConnected) {

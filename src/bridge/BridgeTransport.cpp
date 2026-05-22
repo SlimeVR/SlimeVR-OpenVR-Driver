@@ -117,13 +117,17 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 
         if (auto data_feed_msgs = bundle->data_feed_msgs()) {
             for (auto msg : *data_feed_msgs) {
+#ifndef NDEBUG
                 logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
+#endif
                 message_callback_(msg);
             }
         }
         if (auto rpc_msgs = bundle->rpc_msgs()) {
             for (auto msg : *rpc_msgs) {
+#ifndef NDEBUG
                 logger_->Log("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
+#endif
                 message_callback_(msg);
             }
         }
