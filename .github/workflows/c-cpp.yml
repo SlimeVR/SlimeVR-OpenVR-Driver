@@ -3,26 +3,33 @@ name: Build and test OpenVR driver
 on: [ push, pull_request, workflow_dispatch ]
 
 jobs:
+  setup-matrix:
+    name: Setup build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.setup-matrix.outputs.matrix }}
+    steps:
+      - id: setup-matrix
+        shell: bash
+        run: |
+          cat <<EOF | jq -c > matrix.json
+          {
+            "include": [
+              {"os": "windows-2025", "name": "win64"},
+              {"os": "ubuntu-latest", "name": "x64-linux"},
+              {"os": "ubuntu-24.04-arm", "name": "aarch64-linux"}
+            ]
+          }
+          EOF
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+
   build:
     name: Build (${{ matrix.os }})
+    needs: [setup-matrix]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
-        include:
-          - os: windows-latest
-            name: win64
-            target: ALL_BUILD
-            release_dir: Release # dir of driver binaries within env.CMAKE_BUILD_DIR, VS multi-config uses <CONFIG>/ subfolder
-          - os: ubuntu-latest
-            name: x64-linux
-            target: all
-            release_dir: "" # makefile single config won't have subfolder
-          - os: ubuntu-24.04-arm
-            name: aarch64-linux
-            target: all
-            release_dir: "" # makefile single config won't have subfolder
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     env:
       # Indicates the CMake build directory where project files and binaries are being produced.
       CMAKE_BUILD_DIR: ${{ github.workspace }}/build
@@ -32,61 +39,88 @@ jobs:
       with:
         submodules: true
 
-    - uses: lukka/get-cmake@latest
-
-    - uses: hendrikmuhs/ccache-action@v1.2
-
     - name: Get submodule commit hashes
-      id: submodule_hashes
-      run: git submodule foreach --recursive git rev-parse HEAD > submodule_hashes.txt
-    
-    - name: Configure CMake
-      run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}" -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_BUILD_TYPE=Release -DSLIMEVR_BUILD_TESTS=ON
-      
-    - name: Build
-      run: cmake --build "${{env.CMAKE_BUILD_DIR}}" --config Release --target "${{ matrix.target }}" -j 6 --
+      id: get-submodule-commit-hashes
+      run: git submodule foreach --recursive git rev-parse HEAD > submodule-hashes.txt
+
+    - name: Generate cache key
+      id: gen-cache-key
+      shell: bash
+      run: |
+        echo "cache-key=${{ matrix.os }}-${{ hashFiles('submodule-hashes.txt') }}-${{ hashFiles('CMakeLists.txt') }}" >> $GITHUB_OUTPUT
+
+    - name: Set up CPM cache
+      id: setup-cpm-cache
+      uses: actions/cache@v5
+      with:
+        path: ~/cpm-cache
+        key: cpm-${{ steps.gen-cache-key.outputs.cache-key }}
+        restore-keys: |
+          cpm-${{ matrix.os }}-
+
+    - name: Set up ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      id: setup-ccache
+      with:
+        key: ccache-${{ steps.gen-cache-key.outputs.cache-key }}
+        append-timestamp: false
+        restore-keys: |
+          ccache-${{ matrix.os }}-
+
+    - if: matrix.os == 'windows-2025'
+      name: Configure and build on Windows
+      shell: cmd
+      run: |
+        call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+        cmake -S "${{ github.workspace }}" -B "${{ env.CMAKE_BUILD_DIR }}" -G Ninja ^
+          -DCPM_SOURCE_CACHE=%USERPROFILE%\cpm-cache                                ^
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache                                        ^
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                      ^
+          -DSLIMEVR_BUILD_TESTS=ON                                                  ^
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config Release -j6
+
+    - if: matrix.os != 'windows-2025'
+      name: Configure and build on Unix
+      run: |
+        cmake -S "${{ github.workspace }}" -B "${{ env.CMAKE_BUILD_DIR }}" -G Ninja \
+          -DCPM_SOURCE_CACHE=~/cpm-cache                                            \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache                                        \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                      \
+          -DSLIMEVR_BUILD_TESTS=ON                                                  \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config Release -j6
 
     - name: Upload driver
       uses: actions/upload-artifact@v7
       with:
         name: slimevr-openvr-driver-${{ matrix.name }}
-        path: ${{ env.CMAKE_BUILD_DIR }}/${{ matrix.release_dir }}/driver
+        path: ${{ env.CMAKE_BUILD_DIR }}/driver
 
     - name: Upload tests
       uses: actions/upload-artifact@v7
       with:
         name: tests-${{ matrix.name }}
-        path: ${{ env.CMAKE_BUILD_DIR }}/${{ matrix.release_dir }}/tests*
+        path: ${{ env.CMAKE_BUILD_DIR }}/tests*
   
   test:
     name: Run tests (${{ matrix.os }})
-    needs: build
-    runs-on: ${{ matrix.os }}
+    needs: [setup-matrix, build]
     strategy:
       fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
-        include:
-          - os: windows-latest
-            name: win64
-            target: ALL_BUILD
-          - os: ubuntu-latest
-            name: x64-linux
-            target: all
-          - os: ubuntu-24.04-arm
-            name: aarch64-linux
-            target: all
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v8
         with:
           name: tests-${{ matrix.name }}
           path: ${{ github.workspace }}
-      - if: matrix.os == 'windows-latest'
+      - if: matrix.os == 'windows-2025'
         name: Run tests on Windows
         working-directory: ${{ github.workspace }}/
         run: .\tests.exe
-      - if: matrix.os != 'windows-latest'
+      - if: matrix.os != 'windows-2025'
         name: Run tests on Unix
         working-directory: ${{ github.workspace }}/
         run: chmod +x ./tests && ./tests
