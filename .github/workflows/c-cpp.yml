@@ -12,25 +12,20 @@ jobs:
         os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
         include:
           - os: windows-latest
-            triplet: x64-windows-static-md
             name: win64
             target: ALL_BUILD
             release_dir: Release # dir of driver binaries within env.CMAKE_BUILD_DIR, VS multi-config uses <CONFIG>/ subfolder
           - os: ubuntu-latest
-            triplet: x64-linux
             name: x64-linux
             target: all
             release_dir: "" # makefile single config won't have subfolder
           - os: ubuntu-24.04-arm
-            triplet: arm64-linux
             name: aarch64-linux
             target: all
             release_dir: "" # makefile single config won't have subfolder
     env:
       # Indicates the CMake build directory where project files and binaries are being produced.
       CMAKE_BUILD_DIR: ${{ github.workspace }}/build
-      # Indicates the location of the vcpkg as a Git submodule of the project repository.
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
     - uses: actions/checkout@v6
@@ -39,37 +34,14 @@ jobs:
 
     - uses: lukka/get-cmake@latest
 
+    - uses: hendrikmuhs/ccache-action@v1.2
+
     - name: Get submodule commit hashes
       id: submodule_hashes
       run: git submodule foreach --recursive git rev-parse HEAD > submodule_hashes.txt
     
-    - name: Restore vcpkg and its artifacts
-      uses: actions/cache@v5
-      with:
-        # The first path is where vcpkg generates artifacts while consuming the vcpkg.json manifest file.
-        # The second path is the location of vcpkg (it contains the vcpkg executable and data files).
-        # The other paths starting with "!" are exclusions: they contain termporary files generated during the build of the installed packages.
-        path: |
-          ${{ env.CMAKE_BUILD_DIR }}/vcpkg_installed/
-          ${{ env.VCPKG_ROOT }}
-          !${{ env.VCPKG_ROOT }}/buildtrees
-          !${{ env.VCPKG_ROOT }}/packages
-          !${{ env.VCPKG_ROOT }}/downloads
-        # The key is composed in a way that it gets properly invalidated: this must happen whenever vcpkg/submodule Git commit id changes, or the list of packages changes. In this case a cache miss must happen and a new entry with a new key with be pushed to GitHub the cache service.
-        # The key includes: hash of the vcpkg.json file, the hash of the vcpkg Git commit id, and the used vcpkg's triplet. The vcpkg's commit id would suffice, but computing an hash out it does not harm.
-        # Note: given a key, the cache content is immutable. If a cache entry has been created improperly, in order the recreate the right content the key must be changed as well, and it must be brand new (i.e. not existing already).
-        key: ${{ matrix.triplet }}-${{ hashFiles( '**/vcpkg.json', '**/CMakeLists.txt' ) }}-${{ hashFiles( 'submodule_hashes.txt' )}}
-
-    - if: matrix.os == 'windows-latest'
-      name: Set up vcpkg for Windows
-      run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.bat
-      
-    - if: matrix.os != 'windows-latest'
-      name: Set up vcpkg for Unix
-      run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.sh
-    
     - name: Configure CMake
-      run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}" -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DCMAKE_BUILD_TYPE=Release
+      run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}" -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_BUILD_TYPE=Release -DSLIMEVR_BUILD_TESTS=ON
       
     - name: Build
       run: cmake --build "${{env.CMAKE_BUILD_DIR}}" --config Release --target "${{ matrix.target }}" -j 6 --
@@ -96,15 +68,12 @@ jobs:
         os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
         include:
           - os: windows-latest
-            triplet: x64-windows-static-md
             name: win64
             target: ALL_BUILD
           - os: ubuntu-latest
-            triplet: x64-linux
             name: x64-linux
             target: all
           - os: ubuntu-24.04-arm
-            triplet: arm64-linux
             name: aarch64-linux
             target: all
     steps:

@@ -1,42 +1,22 @@
-cmake_minimum_required(VERSION 3.8.0)
+cmake_minimum_required(VERSION 3.19)
 
-#if (NOT DEFINED VCPKG_TARGET_TRIPLET)
-    if(WIN32)
-        set(VCPKG_TARGET_TRIPLET "x64-windows-static-md")
-    endif()
-#endif()
+# PIE is required
+include(CheckPIESupported)
+check_pie_supported()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set (CMAKE_CXX_STANDARD 20)
-
-# If the toolchain is already defined, do not attempt to find it
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    # If the VCPKG_ROOT environment variable is not defined, try to automatically define it from AppData/home
-    if(NOT DEFINED ENV{VCPKG_ROOT})
-        if(WIN32)
-            file(READ "$ENV{LOCALAPPDATA}/vcpkg/vcpkg.path.txt" VCPKG_ROOT)
-        elseif(UNIX)
-            file(READ "$ENV{HOME}/.vcpkg/vcpkg.path.txt" VCPKG_ROOT)
-        endif()
-
-        set(VCPKG_PATH "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
-    else()
-        set(VCPKG_PATH "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
-    endif()
-    
-    if(EXISTS "${VCPKG_PATH}")
-        message("vcpkg CMake toolchain was found at \"${VCPKG_PATH}\"")
-        set(CMAKE_TOOLCHAIN_FILE "${VCPKG_PATH}")
-    else()
-        message(FATAL_ERROR "vcpkg could not be found")
-    endif()
-endif()
+set(CMAKE_CXX_STANDARD 20)
 
 project(SlimeVR-OpenVR-Driver VERSION 0.2.0)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(DRIVER_NAME "slimevr")
 
-include(CTest)
-enable_testing()
+option(SLIMEVR_BUILD_TESTS "Build tests" OFF)
+
+if (SLIMEVR_BUILD_TESTS)
+    include(CTest)
+    enable_testing()
+endif()
 
 # OpenVR
 set(OPENVR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr/headers")
@@ -62,22 +42,24 @@ elseif(APPLE)
     set(PLATFORM_NAME "osx")
 endif()
 
-# Protobuf
-# Installation:
-# Please refer to this readme to install protobuf in your system: https://github.com/protocolbuffers/protobuf/blob/master/src/README.md
-# WARNING: CLang has an arror building protobuf messages, use MSVC 2019
-set(protobuf_MODULE_COMPATIBLE ON CACHE BOOL "")
-find_package(Protobuf CONFIG REQUIRED)
-protobuf_generate_cpp(PROTO_SRC PROTO_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto")
-SET_SOURCE_FILES_PROPERTIES(${PROTO_SRC} ${PROTO_INCL} PROPERTIES GENERATED TRUE)
+include(cmake/CPM.cmake)
 
-find_package(simdjson CONFIG REQUIRED)
+CPMAddPackage(URI "gh:protocolbuffers/protobuf@31.1"
+    OPTIONS "protobuf_BUILD_TESTS OFF" "protobuf_MSVC_STATIC_RUNTIME OFF")
+CPMAddPackage(URI "gh:simdjson/simdjson@4.6.4")
+CPMAddPackage(URI "gh:libuv/libuv@1.52.1")
+CPMAddPackage(URI "gh:skypjack/uvw#bf9c298ea6598e78913c6cd186211412ddac04d6")
+if (SLIMEVR_BUILD_TESTS)
+    CPMAddPackage(URI "gh:catchorg/Catch2@3.15.0")
+endif()
 
-# libuv
-find_package(uvw CONFIG REQUIRED)
-
-# Catch2
-find_package(Catch2 3 REQUIRED)
+include("${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake")
+protobuf_generate(
+    LANGUAGE cpp
+    PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/ProtobufMessages.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src/bridge"
+    OUT_VAR PROTO_GENERATED_FILES
+)
 
 # Project
 set(DEPS_INCLUDES
@@ -90,16 +72,17 @@ set(DEPS_LIBS
     protobuf::libprotobuf
     protobuf::libprotobuf-lite
     simdjson::simdjson
+    libuv::libuv
     uvw::uvw
 )
 
 # compile into a static lib
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
-add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} ${PROTO_HEADER} ${PROTO_SRC})
+add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} ${PROTO_GENERATED_FILES})
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
-set_property(TARGET "${PROJECT_NAME}_static" PROPERTY CXX_STANDARD 20)
-include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+set_target_properties("${PROJECT_NAME}_static" PROPERTIES CXX_STANDARD 20)
+target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
 if(UNIX)
     target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
     target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)
@@ -107,21 +90,24 @@ endif()
 
 # compile driver
 file(GLOB_RECURSE DRIVER_MAIN "${CMAKE_CURRENT_SOURCE_DIR}/src/DriverFactory.cpp")
-add_library("${PROJECT_NAME}" SHARED ${DRIVER_MAIN} ${HEADERS} ${PROTO_HEADER})
+add_library("${PROJECT_NAME}" SHARED ${DRIVER_MAIN} ${HEADERS})
+target_include_directories("${PROJECT_NAME}" PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries("${PROJECT_NAME}" PUBLIC "${PROJECT_NAME}_static")
-set_property(TARGET "${PROJECT_NAME}" PROPERTY CXX_STANDARD 20)
+set_target_properties("${PROJECT_NAME}" PROPERTIES CXX_STANDARD 20)
 
 # compile tests
-function(build_tests target_name test_dir)
+function(build_tests target_name test_dir executable_name)
     file(GLOB TESTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_dir}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/${test_dir}/*.hpp")
     file(GLOB TESTS_COMMON "${CMAKE_CURRENT_SOURCE_DIR}/test/common/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/test/common/*.hpp")
     add_executable(${target_name} ${TESTS} ${TESTS_COMMON} ${HEADERS} ${PROTO_HEADER})
     target_link_libraries(${target_name} PUBLIC "${PROJECT_NAME}_static" Catch2::Catch2WithMain)
-    set_property(TARGET ${target_name} PROPERTY CXX_STANDARD 20)
+    set_target_properties(${target_name} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "${executable_name}")
 endfunction()
-build_tests(tests "test")
-build_tests(tests_integration "test/integration")
-add_test(NAME tests COMMAND "tests")
+if (SLIMEVR_BUILD_TESTS)
+    build_tests("${PROJECT_NAME}-Tests" "test" "tests")
+    build_tests("${PROJECT_NAME}-Tests-Integration" "test/integration" "tests_integration")
+    add_test(NAME "Driver tests" COMMAND "${PROJECT_NAME}-Tests")
+endif()
 
 # IDE Config
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Header Files" FILES ${HEADERS})
