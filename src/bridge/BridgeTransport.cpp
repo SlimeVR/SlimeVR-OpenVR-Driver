@@ -70,6 +70,11 @@ void BridgeTransport::ResetBuffers() {
     send_buf_.Clear();
 }
 
+void BridgeTransport::OnConnect() {
+    if (connect_callback_)
+        (*connect_callback_)();
+}
+
 void BridgeTransport::OnRecv(const uvw::data_event& event) {
     if (!recv_buf_.Push(event.data.get(), event.length)) {
         logger_->Log("recv_buf_.Push({}) failed", event.length);
@@ -108,42 +113,48 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
             return;
         }
 
-        messages::ProtobufMessage message;
-        if (message.ParseFromArray(message_buf, unwrapped_size)) {
-            message_callback_(message);
-        } else {
-            logger_->Log("receivedMessage.ParseFromArray failed");
-            ResetConnection();
-            return;
+        auto bundle = flatbuffers::GetRoot<solarxr_protocol::MessageBundle>(message_buf);
+
+        if (auto data_feed_msgs = bundle->data_feed_msgs()) {
+            for (auto msg : *data_feed_msgs) {
+#ifndef NDEBUG
+                logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
+#endif
+                message_callback_(msg);
+            }
+        }
+        if (auto rpc_msgs = bundle->rpc_msgs()) {
+            for (auto msg : *rpc_msgs) {
+#ifndef NDEBUG
+                logger_->Log("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
+#endif
+                message_callback_(msg);
+            }
         }
     }
 }
 
-void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message) {
+void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
     if (!IsConnected())
         return;
 
-    uint32_t size = static_cast<uint32_t>(message.ByteSizeLong());
+    uint32_t size = static_cast<uint32_t>(fbb.GetSize());
     uint32_t wrapped_size = size + 4;
 
     char message_buf[VRBRIDGE_MAX_MESSAGE_SIZE];
     if (wrapped_size > std::size(message_buf)) {
-        logger_->Log("Skipping protobuf message send because it's too large ({} > {})", wrapped_size, std::size(message_buf));
+        logger_->Log("Skipping message send because it's too large ({} > {})", wrapped_size, std::size(message_buf));
         return;
     }
 
-    uint32_t* out_size = reinterpret_cast<uint32_t*>(&message_buf[0]);
     if constexpr (std::endian::native != std::endian::little) {
-        *out_size = std::byteswap(wrapped_size);
+        uint32_t le_size = std::byteswap(wrapped_size);
+        send_buf_.Push(reinterpret_cast<const char*>(&le_size), sizeof(le_size));
     } else {
-        *out_size = wrapped_size;
-    }
-    if (!message.SerializeToArray(&message_buf[4], std::size(message_buf) - 4)) {
-        logger_->Log("Failed to serialise protobuf message");
-        return;
+        send_buf_.Push(reinterpret_cast<const char*>(&wrapped_size), sizeof(wrapped_size));
     }
 
-    if (!send_buf_.Push(message_buf, wrapped_size)) {
+    if (!send_buf_.Push(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize())) {
         ResetConnection();
         return;
     }

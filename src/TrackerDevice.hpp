@@ -1,5 +1,7 @@
 #pragma once
 
+#include <solarxr_protocol/generated/all_generated.h>
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -10,25 +12,23 @@
 #include <openvr_driver.h>
 
 #include "Logger.hpp"
-#include "TrackerRole.hpp"
 
 namespace SlimeVRDriver {
 
 class TrackerDevice : public IVRDevice {
 public:
-    TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
+    TrackerDevice(std::string serial, solarxr_protocol::datatypes::BodyPart body_part);
     ~TrackerDevice() = default;
 
     // Inherited via IVRDevice
+    virtual solarxr_protocol::datatypes::BodyPart GetBodyPart() override;
     virtual std::string GetSerial() override;
     virtual void Update() override;
     virtual vr::TrackedDeviceIndex_t GetDeviceIndex() override;
     virtual DeviceType GetDeviceType() override;
-    virtual int GetDeviceId() override;
-    virtual void SetDeviceId(int device_id) override;
-    virtual void PositionMessage(messages::Position& position) override;
-    virtual void StatusMessage(messages::TrackerStatus& status) override;
-    virtual void BatteryMessage(messages::Battery& battery) override;
+    virtual void UpdatePose(const solarxr_protocol::datatypes::math::Quat* rot, const solarxr_protocol::datatypes::math::Vec3f* pos, solarxr_protocol::datatypes::TrackerStatus status) override;
+    virtual void UpdateStatus(solarxr_protocol::datatypes::TrackerStatus status) override;
+    virtual void UpdateBattery(float battery_percentage, bool charging) override;
 
     // Inherited via ITrackedDeviceServerDriver
     virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
@@ -44,11 +44,9 @@ private:
     std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
     std::string serial_;
 
-    int device_id_;
-    TrackerRole tracker_role_;
+    solarxr_protocol::datatypes::BodyPart body_part_;
 
     vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
-    std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
 
     bool did_vibrate_ = false;
     float vibrate_anim_state_ = 0.f;

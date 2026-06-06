@@ -1,13 +1,16 @@
 #pragma once
 
-#include "ProtobufMessages.pb.h"
-#include <DeviceType.hpp>
 #include <openvr_driver.h>
+#include <solarxr_protocol/generated/all_generated.h>
+
+#include "DeviceType.hpp"
 
 namespace SlimeVRDriver {
 
 class IVRDevice : public vr::ITrackedDeviceServerDriver {
 public:
+    virtual solarxr_protocol::datatypes::BodyPart GetBodyPart() = 0;
+
     /**
      * Returns the serial string for this device.
      *
@@ -62,29 +65,19 @@ public:
     }
 
     /**
-     * Returns the device id.
+     * Updates device pose from a received message.
      */
-    virtual int GetDeviceId() = 0;
-
-    /**
-     * Sets the device id.
-     */
-    virtual void SetDeviceId(int device_id) = 0;
-
-    /**
-     * Updates device position from a received message.
-     */
-    virtual void PositionMessage(messages::Position& position) = 0;
+    virtual void UpdatePose(const solarxr_protocol::datatypes::math::Quat* rot, const solarxr_protocol::datatypes::math::Vec3f* pos, solarxr_protocol::datatypes::TrackerStatus status) = 0;
 
     /**
      * Updates device status from a received message.
      */
-    virtual void StatusMessage(messages::TrackerStatus& status) = 0;
+    virtual void UpdateStatus(solarxr_protocol::datatypes::TrackerStatus status) = 0;
 
     /**
      * Updates battery indicator from a received message.
      */
-    virtual void BatteryMessage(messages::Battery& battery) = 0;
+    virtual void UpdateBattery(float battery_percentage, bool charging) = 0;
 
     // Inherited via ITrackedDeviceServerDriver
     virtual vr::EVRInitError Activate(uint32_t unObjectId) = 0;

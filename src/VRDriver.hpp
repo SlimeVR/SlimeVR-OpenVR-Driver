@@ -1,19 +1,20 @@
 #pragma once
 #define NOMINMAX
 
+#include <solarxr_protocol/generated/all_generated.h>
+
+#include <openvr_driver.h>
+#include <simdjson.h>
+
 #include <chrono>
+#include <filesystem>
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
 
-#include <openvr_driver.h>
-
-#include <IVRDevice.hpp>
-
-#include <simdjson.h>
-
+#include "IVRDevice.hpp"
 #include "Logger.hpp"
-#include "TrackerRole.hpp"
 #include "bridge/BridgeClient.hpp"
 
 namespace SlimeVRDriver {
@@ -28,6 +29,50 @@ public:
 };
 
 typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
+
+struct TrackerIdT {
+    TrackerIdT() = default;
+    TrackerIdT(std::optional<uint8_t> device_id, uint8_t tracker_num)
+        : device_id(device_id)
+        , tracker_num(tracker_num) { }
+    TrackerIdT(const solarxr_protocol::datatypes::TrackerId* id)
+        : tracker_num(id->tracker_num()) {
+        if (auto new_id = id->device_id()) {
+            device_id.emplace(new_id->id());
+        }
+    }
+
+    std::optional<solarxr_protocol::datatypes::DeviceId> device_id;
+    uint8_t tracker_num;
+
+    flatbuffers::Offset<solarxr_protocol::datatypes::TrackerId> create(flatbuffers::FlatBufferBuilder& fbb) const {
+        const solarxr_protocol::datatypes::DeviceId* device_id_p = nullptr;
+        if (device_id.has_value()) {
+            device_id_p = &device_id.value();
+        }
+        return solarxr_protocol::datatypes::CreateTrackerId(fbb, device_id_p, tracker_num);
+    }
+};
+
+inline std::string to_string(const TrackerIdT& id) {
+    if (id.device_id.has_value()) {
+        return std::format("TrackerId(device_id={} tracker_num={})", id.device_id.value().id(), id.tracker_num);
+    } else {
+        return std::format("TrackerId(tracker_num={})", id.tracker_num);
+    }
+}
+
+struct DeviceData {
+    vr::TrackedDeviceIndex_t index{ vr::k_unTrackedDeviceIndexInvalid };
+    solarxr_protocol::datatypes::BodyPart role{ solarxr_protocol::datatypes::BodyPart::NONE };
+    bool sent_add_message{ false };
+    std::mutex id_mutex;
+    std::optional<TrackerIdT> id{};
+
+    solarxr_protocol::datatypes::TrackerStatus status{ solarxr_protocol::datatypes::TrackerStatus::DISCONNECTED };
+    float last_battery_percentage{ -1.f };
+    std::chrono::steady_clock::time_point battery_sent_at{};
+};
 
 class VRDriver : protected vr::IServerTrackedDeviceProvider {
 public:
@@ -49,25 +94,26 @@ public:
 
     std::optional<UniverseTranslation> GetCurrentUniverse();
 
-    void OnBridgeMessage(const messages::ProtobufMessage& message);
-
 private:
     std::jthread pose_request_thread_;
     void RunPoseRequestThread(std::stop_token stop);
+    void OnBridgeConnect();
+    void OnBridgeMessage(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*>&& message);
 
-    TrackerRole GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
+    solarxr_protocol::datatypes::BodyPart GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
+    uint64_t body_part_mask_;
 
     std::shared_ptr<BridgeClient> bridge_ = nullptr;
-    google::protobuf::Arena arena_;
     std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
     std::mutex devices_mutex_;
     std::vector<std::shared_ptr<IVRDevice>> devices_;
     std::vector<vr::VREvent_t> openvr_events_;
-    std::map<int, std::shared_ptr<IVRDevice>> devices_by_id_;
-    std::map<std::string, std::shared_ptr<IVRDevice>> devices_by_serial_;
+    std::map<solarxr_protocol::datatypes::BodyPart, std::shared_ptr<IVRDevice>> devices_by_role_;
     std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
     std::chrono::steady_clock::time_point last_frame_time_ = std::chrono::steady_clock::now();
     std::string settings_key_ = "driver_slimevr";
+
+    std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> feeder_devices_{};
 
     vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t& matrix);
     vr::HmdVector3_t GetPosition(vr::HmdMatrix34_t& matrix);

@@ -7,3 +7,6 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/Microsoft/vcpkg.git
+[submodule "libraries/solarxr-protocol"]
+	path = libraries/solarxr-protocol
+	url = https://github.com/SlimeVR/SolarXR-Protocol.git

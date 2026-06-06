@@ -22,26 +22,33 @@
 */
 #pragma once
 
+#include <solarxr_protocol/generated/all_generated.h>
+#include <uvw.hpp>
+
+// Windows, Windows, go away
+#undef ERROR
+
+#include <optional>
 #ifdef __linux__
 #include <filesystem>
 #endif
 
-#include <stdint.h>
 #include <thread>
-#include <uvw.hpp>
+#include <variant>
+
+#include <stdint.h>
 
 #include "CircularBuffer.hpp"
 #include "Logger.hpp"
-#include "ProtobufMessages.pb.h"
 
-#define VRBRIDGE_MAX_MESSAGE_SIZE 1024
-#define VRBRIDGE_BUFFERS_SIZE 8192
+#define VRBRIDGE_MAX_MESSAGE_SIZE 4096
+#define VRBRIDGE_BUFFERS_SIZE 16384
 
-#define WINDOWS_PIPE_NAME "\\\\.\\pipe\\SlimeVRDriver"
+#define WINDOWS_PIPE_NAME "\\\\.\\pipe\\SlimeVRRpc"
 #define UNIX_XDG_DATA_HOME_DEFAULT ".local/share/"
 #define UNIX_SLIMEVR_DIR "dev.slimevr.SlimeVR"
 #define UNIX_TMP_DIR "/tmp"
-#define UNIX_SOCKET_NAME "SlimeVRDriver"
+#define UNIX_SOCKET_NAME "SlimeVRRpc"
 
 /**
  * @brief Passes messages between SlimeVR Server and SteamVR Driver using pipes or unix sockets.
@@ -59,10 +66,13 @@
  */
 class BridgeTransport {
 public:
-    BridgeTransport(std::shared_ptr<Logger> logger, std::function<void(const messages::ProtobufMessage&)> on_message_received)
+    BridgeTransport(std::shared_ptr<Logger> logger,
+                    std::function<void(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*>&&)> on_message_received,
+                    std::optional<std::function<void()>> on_connect = std::nullopt)
         : logger_(logger)
         , send_buf_(VRBRIDGE_BUFFERS_SIZE)
         , recv_buf_(VRBRIDGE_BUFFERS_SIZE)
+        , connect_callback_(on_connect)
         , message_callback_(on_message_received) { }
 
     ~BridgeTransport() {
@@ -97,7 +107,7 @@ public:
      *
      * @param message The message to send.
      */
-    void SendBridgeMessage(const messages::ProtobufMessage& message);
+    void SendMessage(const flatbuffers::FlatBufferBuilder& fbb);
 
     /**
      * @brief Checks if the channel is connected.
@@ -113,6 +123,7 @@ protected:
     virtual void ResetConnection() = 0;
     virtual void CloseConnectionHandles() = 0;
     void ResetBuffers();
+    void OnConnect();
     void OnRecv(const uvw::data_event& event);
     auto GetLoop() {
         return loop_;
@@ -166,5 +177,6 @@ private:
     std::shared_ptr<uvw::async_handle> write_signal_handle_ = nullptr;
     std::unique_ptr<std::thread> thread_ = nullptr;
     std::shared_ptr<uvw::loop> loop_ = nullptr;
-    const std::function<void(const messages::ProtobufMessage&)> message_callback_;
+    const std::optional<std::function<void()>> connect_callback_;
+    const std::function<void(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*>&&)> message_callback_;
 };

@@ -1,89 +1,111 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "BridgeServerMock.hpp"
+#include "VRDriver.hpp"
 #include "common/TestBridgeClient.hpp"
+#include "flatbuffers/flatbuffer_builder.h"
+#include "solarxr_protocol/generated/all_generated.h"
+
+using namespace solarxr_protocol;
+
+template <class... Ts>
+struct overloaded : Ts... {
+    using Ts::operator()...;
+};
 
 TEST_CASE("IO with a mock server", "[Bridge]") {
     using namespace std::chrono;
 
-    std::unordered_map<int, std::pair<TrackerRole, const char*>> serials = {
-        { 3, { TrackerRole::WAIST, "human://WAIST" } },
-        { 4, { TrackerRole::LEFT_FOOT, "human://LEFT_FOOT" } },
-        { 5, { TrackerRole::RIGHT_FOOT, "human://RIGHT_FOOT" } },
-        { 6, { TrackerRole::LEFT_KNEE, "human://LEFT_KNEE" } },
-        { 7, { TrackerRole::RIGHT_KNEE, "human://RIGHT_KNEE" } },
-    };
-
-    int positions = 0;
     int invalid_messages = 0;
-
     bool last_logged_position = false;
-    bool trackers_sent = false;
-
-    google::protobuf::Arena arena;
 
     auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>("ServerMock"));
 
-    std::shared_ptr<BridgeServerMock> server_mock;
-    server_mock = std::make_shared<BridgeServerMock>(
+    std::shared_ptr<BridgeServerMock> server_mock = std::make_shared<BridgeServerMock>(
         logger,
-        [&](const messages::ProtobufMessage& message) {
-            if (message.has_tracker_added()) {
-                TestLogTrackerAdded(logger, message);
-            } else if (message.has_tracker_status()) {
-                TestLogTrackerStatus(logger, message);
-            } else if (message.has_position()) {
-                messages::Position pos = message.position();
-                if (!last_logged_position)
-                    logger->Log("... tracker positions response");
-                last_logged_position = true;
-                positions++;
+        [&](std::variant<const data_feed::DataFeedMessageHeader*, const rpc::RpcMessageHeader*>&& message) {
+            flatbuffers::FlatBufferBuilder fbb(1024);
 
-                messages::ProtobufMessage* server_message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena);
+            std::visit(overloaded{
+                           [&](const data_feed::DataFeedMessageHeader* data_feed_msg) {
+                               using solarxr_protocol::data_feed::DataFeedMessage;
+                               switch (data_feed_msg->message_type()) {
+                               case DataFeedMessage::StartDataFeed:
+                                   break;
+                               default:
+                                   invalid_messages++;
+                                   break;
+                               }
+                           },
+                           [&](const rpc::RpcMessageHeader* rpc_msg) {
+                               using solarxr_protocol::rpc::RpcMessage;
+                               switch (rpc_msg->message_type()) {
+                               case RpcMessage::AddTrackerRequest: {
+                                   last_logged_position = false;
+                                   auto add_msg = rpc_msg->message_as<rpc::AddTrackerRequest>();
+                                   logger->Log("Tracker added with name {} (display name {}) role BodyPart::{}",
+                                               flatbuffers::GetString(add_msg->name()),
+                                               flatbuffers::GetString(add_msg->display_name()),
+                                               datatypes::EnumNameBodyPart(add_msg->role_hint().value_or(datatypes::BodyPart::NONE)));
 
-                if (!trackers_sent) {
-                    for (int32_t id = 3; id <= 7; id++) {
-                        messages::TrackerAdded* tracker_added = google::protobuf::Arena::Create<messages::TrackerAdded>(&arena);
-                        server_message->set_allocated_tracker_added(tracker_added);
-                        tracker_added->set_tracker_id(id);
-                        tracker_added->set_tracker_role(serials[id].first);
-                        tracker_added->set_tracker_serial(serials[id].second);
-                        tracker_added->set_tracker_name(serials[id].second);
-                        server_mock->SendBridgeMessage(*server_message);
+                                   auto add_response = rpc::CreateAddTrackerResponse(fbb, SlimeVRDriver::TrackerIdT(std::nullopt, 1).create(fbb));
+                                   auto rpc_msg_header = rpc::CreateRpcMessageHeader(fbb, rpc_msg->tx_id(), RpcMessage::AddTrackerResponse, add_response.Union());
+                                   auto rpc_msgs = fbb.CreateVector({ rpc_msg_header });
+                                   auto bundle = CreateMessageBundle(fbb, 0, rpc_msgs, 0);
+                                   fbb.Finish(bundle);
 
-                        messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena);
-                        server_message->set_allocated_tracker_status(tracker_status);
-                        tracker_status->set_tracker_id(id);
-                        tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-                        server_mock->SendBridgeMessage(*server_message);
-                    }
+                                   server_mock->SendMessage(fbb);
+                                   break;
+                               }
+                               case RpcMessage::UpdateTrackerStatus: {
+                                   last_logged_position = false;
+                                   auto status_msg = rpc_msg->message_as<rpc::UpdateTrackerStatus>();
+                                   logger->Log("Tracker {} changed status to {}", to_string(SlimeVRDriver::TrackerIdT(status_msg->tracker_id())), datatypes::EnumNameTrackerStatus(status_msg->status()));
+                                   break;
+                               }
+                               case RpcMessage::UpdateTrackerPose: {
+                                   if (!last_logged_position) {
+                                       logger->Log("... tracker positions response");
+                                       last_logged_position = true;
+                                   }
 
-                    trackers_sent = true;
-                }
-
-                for (int32_t id = 3; id <= 7; id++) {
-                    messages::Position* tracker_position = google::protobuf::Arena::Create<messages::Position>(&arena);
-                    server_message->set_allocated_position(tracker_position);
-                    tracker_position->set_tracker_id(id);
-                    tracker_position->set_data_source(messages::Position_DataSource_FULL);
-                    tracker_position->set_x(0);
-                    tracker_position->set_y(0);
-                    tracker_position->set_z(0);
-                    tracker_position->set_qx(0);
-                    tracker_position->set_qy(0);
-                    tracker_position->set_qz(0);
-                    tracker_position->set_qw(0);
-                    server_mock->SendBridgeMessage(*server_message);
-                }
-            } else if (message.has_version()) {
-                TestLogVersion(logger, message);
-            } else {
-                invalid_messages++;
-            }
-
-            if (!message.has_position()) {
-                last_logged_position = false;
-            }
+                                   using solarxr_protocol::datatypes::BodyPart;
+                                   constexpr std::array body_parts{
+                                       BodyPart::UPPER_CHEST,
+                                       BodyPart::LEFT_UPPER_ARM,
+                                       BodyPart::RIGHT_UPPER_ARM,
+                                       BodyPart::HIP,
+                                       BodyPart::LEFT_UPPER_LEG,
+                                       BodyPart::RIGHT_UPPER_LEG,
+                                       BodyPart::LEFT_FOOT,
+                                       BodyPart::RIGHT_FOOT,
+                                   };
+                                   std::array<flatbuffers::Offset<data_feed::tracker::TrackerData>, std::size(body_parts)> synthetic_trackers{};
+                                   datatypes::math::Quat rot{};
+                                   datatypes::math::Vec3f pos{};
+                                   for (size_t i = 0; i < body_parts.size(); i++) {
+                                       synthetic_trackers[i] = data_feed::tracker::CreateTrackerData(fbb,
+                                                                                                     0,
+                                                                                                     data_feed::tracker::CreateTrackerInfo(fbb, datatypes::hardware_info::ImuType::Other, body_parts[i], nullptr, nullptr, false, true),
+                                                                                                     datatypes::TrackerStatus::OK,
+                                                                                                     &rot,
+                                                                                                     &pos);
+                                   }
+                                   auto feed_update_msg = data_feed::CreateDataFeedUpdate(fbb, 0, fbb.CreateVector(synthetic_trackers.data(), synthetic_trackers.size()), 0, 0, 0, 0);
+                                   auto feed_msg_header = data_feed::CreateDataFeedMessageHeader(fbb, data_feed::DataFeedMessage::DataFeedUpdate, feed_update_msg.Union());
+                                   auto msgs = fbb.CreateVector({ feed_msg_header });
+                                   auto bundle = CreateMessageBundle(fbb, msgs, 0, 0);
+                                   fbb.Finish(bundle);
+                                   server_mock->SendMessage(fbb);
+                                   break;
+                               }
+                               default:
+                                   last_logged_position = false;
+                                   invalid_messages++;
+                                   break;
+                               }
+                           } },
+                       message);
         });
 
     server_mock->Start();
