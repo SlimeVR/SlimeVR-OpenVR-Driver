@@ -26,19 +26,25 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
 
     bridge_ = std::make_shared<BridgeClient>(
         std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
-        std::bind(&SlimeVRDriver::VRDriver::OnBridgeMessage, this, std::placeholders::_1));
+        std::bind(&SlimeVRDriver::VRDriver::OnBridgeMessage, this, std::placeholders::_1),
+        std::bind(&SlimeVRDriver::VRDriver::OnBridgeConnect, this));
     bridge_->Start();
 
-    exiting_pose_request_thread_ = false;
     pose_request_thread_ = std::make_unique<std::thread>(&SlimeVRDriver::VRDriver::RunPoseRequestThread, this);
 
     return vr::VRInitError_None;
 }
 
 void SlimeVRDriver::VRDriver::Cleanup() {
-    exiting_pose_request_thread_ = true;
+    exiting_.store(true);
+    // Wake up all threads waiting on init, if SteamVR exits before an HMD is connected
+    steamvr_init_guard_.store(true);
+    steamvr_init_guard_.notify_all();
+
+    logger_->Log("Waiting for pose request thread to exit");
     pose_request_thread_->join();
     pose_request_thread_.reset();
+    logger_->Log("Stopping bridge");
     bridge_->Stop();
 }
 
@@ -92,7 +98,12 @@ TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t i
 void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
     std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> devices{};
     logger_->Log("Pose request thread started");
-    while (!exiting_pose_request_thread_) {
+    steamvr_init_guard_.wait(false);
+    // If SteamVR exited before initialisation completed, we'll just
+    // skip past the loop body on the first iteration anyway
+
+    logger_->Log("Entering pose request loop");
+    while (!exiting_) {
         if (!bridge_->IsConnected()) {
             // If bridge not connected, assume we need to resend device add messages
             for (auto& device : devices) {
@@ -293,15 +304,48 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread() {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-    logger_->Log("Pose request thread exited");
+    logger_->Log("Pose request thread exiting");
 }
 
 void SlimeVRDriver::VRDriver::RunFrame() {
     // Collect events
     vr::VREvent_t event;
     std::vector<vr::VREvent_t> events;
+    auto* properties = vr::VRProperties();
+
     while (vr::VRServerDriverHost()->PollNextEvent(&event, sizeof(event))) {
         events.push_back(event);
+
+        if (steamvr_init_guard_) {
+            // We already signaled init was done.
+            continue;
+        }
+
+        auto hmd_device_class = properties->GetInt32Property(properties->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd), vr::Prop_DeviceClass_Int32);
+        bool signal_steamvr_init_done = false;
+        // this is the signal SteamVR uses to start up the systemui as of 2.17.1
+        switch (event.eventType) {
+        case vr::VREvent_TrackedDeviceActivated: {
+            if (event.trackedDeviceIndex != vr::k_unTrackedDeviceIndex_Hmd)
+                break;
+            if (hmd_device_class != vr::TrackedDeviceClass_Invalid) {
+                logger_->Log("Received TrackedDeviceActivated for HMD and its device class is not Invalid");
+                signal_steamvr_init_done = true;
+            }
+            break;
+        }
+        default:
+            signal_steamvr_init_done = hmd_device_class != vr::TrackedDeviceClass_Invalid;
+            if (signal_steamvr_init_done) {
+                logger_->Log("Received an event and device class for HMD is not Invalid");
+            }
+            break;
+        }
+        if (signal_steamvr_init_done) {
+            logger_->Log("Signaling that SteamVR is done initialising");
+            steamvr_init_guard_.store(true);
+            steamvr_init_guard_.notify_all();
+        }
     }
     openvr_events_ = std::move(events);
 
@@ -319,6 +363,20 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     }
 }
 
+void SlimeVRDriver::VRDriver::OnBridgeConnect() {
+    std::thread t{ [this]() {
+        steamvr_init_guard_.wait(false);
+        // We woke up because SteamVR exited before initialisation.
+        if (exiting_) {
+            logger_->Log("Exiting OnBridgeConnect early");
+            return;
+        }
+
+        logger_->Log("Sending version message");
+        bridge_->SendVersion();
+    } };
+    t.detach();
+}
 void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& message) {
     std::lock_guard<std::mutex> lock(devices_mutex_);
     if (message.has_tracker_added()) {
