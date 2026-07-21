@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
         include:
           - os: windows-latest
             triplet: x64-windows-static-md
@@ -19,6 +19,11 @@ jobs:
           - os: ubuntu-latest
             triplet: x64-linux
             name: x64-linux
+            target: all
+            release_dir: "" # makefile single config won't have subfolder
+          - os: ubuntu-24.04-arm
+            triplet: arm64-linux
+            name: aarch64-linux
             target: all
             release_dir: "" # makefile single config won't have subfolder
     env:
@@ -88,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
         include:
           - os: windows-latest
             triplet: x64-windows-static-md
@@ -97,6 +102,10 @@ jobs:
           - os: ubuntu-latest
             triplet: x64-linux
             name: x64-linux
+            target: all
+          - os: ubuntu-24.04-arm
+            triplet: arm64-linux
+            name: aarch64-linux
             target: all
     steps:
       - name: Download build artifact
