@@ -45,13 +45,13 @@
 class BridgeClient : public BridgeTransport {
 public:
     using BridgeTransport::BridgeTransport;
+    void SendVersion();
 
 private:
     void CreateConnection() override;
     void ResetConnection() override;
     void CloseConnectionHandles() override;
     void Reconnect();
-    void SendVersion();
 
     std::optional<std::string> last_error_;
     std::optional<std::string> last_path_;

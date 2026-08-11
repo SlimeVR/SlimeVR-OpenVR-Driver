@@ -1,7 +1,9 @@
 #pragma once
 #define NOMINMAX
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <vector>
 
@@ -42,12 +44,18 @@ public:
 
     virtual std::optional<UniverseTranslation> GetCurrentUniverse() override;
 
+    void OnBridgeConnect();
     void OnBridgeMessage(const messages::ProtobufMessage& message);
     void RunPoseRequestThread();
 
 private:
+    // set to true if initialisation is done, or we're exiting
+    // if we're exiting, this will be true AND exiting_ will be true
+    std::atomic<bool> steamvr_init_guard_ = false;
+
+    std::atomic<bool> exiting_ = false;
+
     std::unique_ptr<std::thread> pose_request_thread_ = nullptr;
-    std::atomic<bool> exiting_pose_request_thread_ = false;
 
     TrackerRole GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
 

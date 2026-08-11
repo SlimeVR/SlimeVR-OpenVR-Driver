@@ -40,7 +40,7 @@ void BridgeClient::CreateConnection() {
         logger_->Log("[{}] connected", path);
         connected_ = true;
         last_error_ = std::nullopt;
-        SendVersion();
+        OnConnect();
     });
     connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event&, uvw::pipe_handle&) {
         logger_->Log("[{}] disconnected", path);
