@@ -3,121 +3,125 @@ name: Build and test OpenVR driver
 on: [ push, pull_request, workflow_dispatch ]
 
 jobs:
+  setup-matrix:
+    name: Setup build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.setup-matrix.outputs.matrix }}
+    steps:
+      - id: setup-matrix
+        shell: bash
+        run: |
+          cat <<EOF | jq -c > matrix.json
+          {
+            "include": [
+              {"os": "windows-2025", "name": "win64"},
+              {"os": "ubuntu-latest", "name": "x64-linux"},
+              {"os": "ubuntu-24.04-arm", "name": "aarch64-linux"}
+            ]
+          }
+          EOF
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+
   build:
     name: Build (${{ matrix.os }})
+    needs: [setup-matrix]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
-        include:
-          - os: windows-latest
-            triplet: x64-windows-static-md
-            name: win64
-            target: ALL_BUILD
-            release_dir: Release # dir of driver binaries within env.CMAKE_BUILD_DIR, VS multi-config uses <CONFIG>/ subfolder
-          - os: ubuntu-latest
-            triplet: x64-linux
-            name: x64-linux
-            target: all
-            release_dir: "" # makefile single config won't have subfolder
-          - os: ubuntu-24.04-arm
-            triplet: arm64-linux
-            name: aarch64-linux
-            target: all
-            release_dir: "" # makefile single config won't have subfolder
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     env:
       # Indicates the CMake build directory where project files and binaries are being produced.
       CMAKE_BUILD_DIR: ${{ github.workspace }}/build
-      # Indicates the location of the vcpkg as a Git submodule of the project repository.
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
     - uses: actions/checkout@v6
       with:
         submodules: true
 
-    - uses: lukka/get-cmake@latest
-
     - name: Get submodule commit hashes
-      id: submodule_hashes
-      run: git submodule foreach --recursive git rev-parse HEAD > submodule_hashes.txt
-    
-    - name: Restore vcpkg and its artifacts
+      id: get-submodule-commit-hashes
+      run: git submodule foreach --recursive git rev-parse HEAD > submodule-hashes.txt
+
+    - name: Generate cache key
+      id: gen-cache-key
+      shell: bash
+      run: |
+        echo "cache-key=${{ matrix.os }}-${{ hashFiles('submodule-hashes.txt') }}-${{ hashFiles('CMakeLists.txt') }}" >> $GITHUB_OUTPUT
+
+    - name: Set up CPM cache
+      id: setup-cpm-cache
       uses: actions/cache@v5
       with:
-        # The first path is where vcpkg generates artifacts while consuming the vcpkg.json manifest file.
-        # The second path is the location of vcpkg (it contains the vcpkg executable and data files).
-        # The other paths starting with "!" are exclusions: they contain termporary files generated during the build of the installed packages.
-        path: |
-          ${{ env.CMAKE_BUILD_DIR }}/vcpkg_installed/
-          ${{ env.VCPKG_ROOT }}
-          !${{ env.VCPKG_ROOT }}/buildtrees
-          !${{ env.VCPKG_ROOT }}/packages
-          !${{ env.VCPKG_ROOT }}/downloads
-        # The key is composed in a way that it gets properly invalidated: this must happen whenever vcpkg/submodule Git commit id changes, or the list of packages changes. In this case a cache miss must happen and a new entry with a new key with be pushed to GitHub the cache service.
-        # The key includes: hash of the vcpkg.json file, the hash of the vcpkg Git commit id, and the used vcpkg's triplet. The vcpkg's commit id would suffice, but computing an hash out it does not harm.
-        # Note: given a key, the cache content is immutable. If a cache entry has been created improperly, in order the recreate the right content the key must be changed as well, and it must be brand new (i.e. not existing already).
-        key: ${{ matrix.triplet }}-${{ hashFiles( '**/vcpkg.json', '**/CMakeLists.txt' ) }}-${{ hashFiles( 'submodule_hashes.txt' )}}
+        path: ~/cpm-cache
+        key: cpm-${{ steps.gen-cache-key.outputs.cache-key }}
+        restore-keys: |
+          cpm-${{ matrix.os }}-
 
-    - if: matrix.os == 'windows-latest'
-      name: Set up vcpkg for Windows
-      run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.bat
-      
-    - if: matrix.os != 'windows-latest'
-      name: Set up vcpkg for Unix
-      run: ${{ env.VCPKG_ROOT }}/bootstrap-vcpkg.sh
-    
-    - name: Configure CMake
-      run: cmake -S "${{github.workspace}}" -B "${{env.CMAKE_BUILD_DIR}}" -DVCPKG_TARGET_TRIPLET=${{matrix.triplet}} -DCMAKE_BUILD_TYPE=Release
-      
-    - name: Build
-      run: cmake --build "${{env.CMAKE_BUILD_DIR}}" --config Release --target "${{ matrix.target }}" -j 6 --
+    - name: Set up sccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      id: setup-ccache
+      with:
+        key: ${{ steps.gen-cache-key.outputs.cache-key }}
+        variant: sccache
+        append-timestamp: false
+        restore-keys: |
+          ${{ matrix.os }}-
+
+    - if: matrix.os == 'windows-2025'
+      name: Configure and build on Windows
+      shell: cmd
+      run: |
+        call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+        cmake -S "${{ github.workspace }}" -B "${{ env.CMAKE_BUILD_DIR }}" -G Ninja ^
+          -DCPM_SOURCE_CACHE=%USERPROFILE%\cpm-cache                                ^
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache                                       ^
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache                                     ^
+          -DSLIMEVR_BUILD_TESTS=ON                                                  ^
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config Release -j6
+
+    - if: matrix.os != 'windows-2025'
+      name: Configure and build on Unix
+      run: |
+        cmake -S "${{ github.workspace }}" -B "${{ env.CMAKE_BUILD_DIR }}" -G Ninja \
+          -DCPM_SOURCE_CACHE=~/cpm-cache                                            \
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache                                       \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache                                     \
+          -DSLIMEVR_BUILD_TESTS=ON                                                  \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config Release -j6
 
     - name: Upload driver
       uses: actions/upload-artifact@v7
       with:
         name: slimevr-openvr-driver-${{ matrix.name }}
-        path: ${{ env.CMAKE_BUILD_DIR }}/${{ matrix.release_dir }}/driver
+        path: ${{ env.CMAKE_BUILD_DIR }}/driver
 
     - name: Upload tests
       uses: actions/upload-artifact@v7
       with:
         name: tests-${{ matrix.name }}
-        path: ${{ env.CMAKE_BUILD_DIR }}/${{ matrix.release_dir }}/tests*
+        path: ${{ env.CMAKE_BUILD_DIR }}/tests*
   
   test:
     name: Run tests (${{ matrix.os }})
-    needs: build
-    runs-on: ${{ matrix.os }}
+    needs: [setup-matrix, build]
     strategy:
       fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, ubuntu-24.04-arm]
-        include:
-          - os: windows-latest
-            triplet: x64-windows-static-md
-            name: win64
-            target: ALL_BUILD
-          - os: ubuntu-latest
-            triplet: x64-linux
-            name: x64-linux
-            target: all
-          - os: ubuntu-24.04-arm
-            triplet: arm64-linux
-            name: aarch64-linux
-            target: all
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v8
         with:
           name: tests-${{ matrix.name }}
           path: ${{ github.workspace }}
-      - if: matrix.os == 'windows-latest'
+      - if: matrix.os == 'windows-2025'
         name: Run tests on Windows
         working-directory: ${{ github.workspace }}/
         run: .\tests.exe
-      - if: matrix.os != 'windows-latest'
+      - if: matrix.os != 'windows-2025'
         name: Run tests on Unix
         working-directory: ${{ github.workspace }}/
         run: chmod +x ./tests && ./tests
