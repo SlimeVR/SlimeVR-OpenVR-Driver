@@ -58,14 +58,15 @@ jobs:
         restore-keys: |
           cpm-${{ matrix.os }}-
 
-    - name: Set up ccache
+    - name: Set up sccache
       uses: hendrikmuhs/ccache-action@v1.2
       id: setup-ccache
       with:
-        key: ccache-${{ steps.gen-cache-key.outputs.cache-key }}
+        key: ${{ steps.gen-cache-key.outputs.cache-key }}
+        variant: sccache
         append-timestamp: false
         restore-keys: |
-          ccache-${{ matrix.os }}-
+          ${{ matrix.os }}-
 
     - if: matrix.os == 'windows-2025'
       name: Configure and build on Windows
@@ -74,8 +75,8 @@ jobs:
         call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
         cmake -S "${{ github.workspace }}" -B "${{ env.CMAKE_BUILD_DIR }}" -G Ninja ^
           -DCPM_SOURCE_CACHE=%USERPROFILE%\cpm-cache                                ^
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache                                        ^
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                      ^
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache                                       ^
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache                                     ^
           -DSLIMEVR_BUILD_TESTS=ON                                                  ^
           -DCMAKE_BUILD_TYPE=Release
         cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config Release -j6
@@ -85,8 +86,8 @@ jobs:
       run: |
         cmake -S "${{ github.workspace }}" -B "${{ env.CMAKE_BUILD_DIR }}" -G Ninja \
           -DCPM_SOURCE_CACHE=~/cpm-cache                                            \
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache                                        \
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                      \
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache                                       \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache                                     \
           -DSLIMEVR_BUILD_TESTS=ON                                                  \
           -DCMAKE_BUILD_TYPE=Release
         cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config Release -j6
