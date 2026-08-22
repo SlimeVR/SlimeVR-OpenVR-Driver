@@ -42,7 +42,7 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 #define CHECK_CLASSIFICATION(D)                                                                    \
     if (auto classification = std::fpclassify((D)); classification == FP_NAN) {                    \
         logger_->Log("Uh oh! fpclassify(" #D ") returned FP_NAN for {}: {}, zeroing", D, serial_); \
