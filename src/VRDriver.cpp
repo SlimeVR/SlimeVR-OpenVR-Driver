@@ -410,14 +410,20 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                            body_part_mask_ = 0;
                            for (auto route : *routes) {
                                auto outputs = route->outputs();
-                               if (!outputs)
+                               if (!outputs) {
+                                   logger_->Log("Got route with no outputs");
                                    continue;
+                               }
                                for (auto output : *outputs) {
                                    if (output == rpc::RoutingOutput::DRIVER) {
-                                       body_part_mask_ |= 1 << std::to_underlying(route->bone());
+                                       datatypes::BodyPart body_part = route->bone();
+                                       logger_->Log("Bone {} is enabled", EnumNameBodyPart(body_part));
+                                       body_part_mask_ |= 1l << std::to_underlying(body_part);
                                    }
                                }
                            }
+
+                           logger_->Log("Body part mask changed to {:#b}", body_part_mask_);
 
                            break;
                        }
@@ -446,7 +452,17 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                            auto status = resp->status();
                            logger_->Log("Got HandshakeResponse with status={}", driver_protocol::EnumNameHandshakeStatus(status));
                            if (status == driver_protocol::HandshakeStatus::ACCEPTED) {
+                               flatbuffers::FlatBufferBuilder fbb(256);
+
+                               auto bone_routing_req = rpc::CreateBoneRoutingSettingsRequest(fbb);
+                               auto rpc_msg_header = rpc::CreateRpcMessageHeader(fbb, 0, 0, rpc::RpcMessage::BoneRoutingSettingsRequest, bone_routing_req.Union());
+                               auto msgs = fbb.CreateVector({ rpc_msg_header });
+                               auto bundle = CreateMessageBundle(fbb, 0, msgs, 0);
+                               fbb.Finish(bundle);
+                               bridge_->SendMessage(fbb);
+
                                driver_connection_active_.store(true);
+                               driver_connection_active_.notify_all();
                            }
 
                            break;
@@ -477,7 +493,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                                if (body_part == BodyPart::NONE || body_part == BodyPart::HEAD)
                                    continue;
 
-                               bool tracker_enabled = body_part_mask_ & (1 << std::to_underlying(body_part));
+                               bool tracker_enabled = body_part_mask_ & (1l << std::to_underlying(body_part));
                                std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
                                if (!tracker_enabled) {
                                    if (device)
@@ -488,7 +504,6 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                                if (!device) {
                                    device = std::make_shared<TrackerDevice>(GetSerial(body_part), body_part);
                                    if (!AddDevice(device)) {
-                                       logger_->Log("Failed to add device!?!?");
                                        continue;
                                    }
                                }
@@ -582,12 +597,12 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
 
     auto body_part = device->GetBodyPart();
     if (devices_by_role_.contains(body_part)) {
-        logger_->Log("Trying to re-add device with role BodyPart::{}!?!?", EnumNameBodyPart(body_part));
+        logger_->Log("Tried to re-add device with role BodyPart::{}!?!?", EnumNameBodyPart(body_part));
         return false;
     }
 
     if (!vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get())) {
-        logger_->Log("Failed to add device {}", device->GetSerial());
+        logger_->Log("Failed to add device for BodyPart::{} (\"{}\")", EnumNameBodyPart(body_part), device->GetSerial());
         return false;
     }
 

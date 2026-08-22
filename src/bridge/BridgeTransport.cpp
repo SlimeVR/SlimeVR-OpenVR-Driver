@@ -113,7 +113,7 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
 
         if (auto data_feed_msgs = bundle->data_feed_msgs()) {
             for (auto msg : *data_feed_msgs) {
-                logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
+                // logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
                 message_callback_(msg);
             }
         }
@@ -125,7 +125,7 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
         }
         if (auto driver_msgs = bundle->driver_msgs()) {
             for (auto msg : *driver_msgs) {
-                logger_->Log("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
+                // logger_->Log("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
                 message_callback_(msg);
             }
         }

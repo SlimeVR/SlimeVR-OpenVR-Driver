@@ -29,6 +29,10 @@ std::string GetSerial(BodyPart role) {
     case BodyPart::UPPER_CHEST:
     case BodyPart::CHEST:
         return "human://CHEST";
+    case BodyPart::LEFT_SHOULDER:
+        return "human://LEFT_SHOULDER";
+    case BodyPart::RIGHT_SHOULDER:
+        return "human://RIGHT_SHOULDER";
     case BodyPart::LEFT_UPPER_ARM:
         return "human://LEFT_ELBOW";
     case BodyPart::RIGHT_UPPER_ARM:

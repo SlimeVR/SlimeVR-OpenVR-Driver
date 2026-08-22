@@ -75,7 +75,7 @@ private:
     void OnBridgeMessage(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*, const solarxr_protocol::driver_protocol::DriverMessageHeader*>&& message);
 
     solarxr_protocol::datatypes::BodyPart GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
-    uint64_t body_part_mask_;
+    uint64_t body_part_mask_ = 0;
 
     std::shared_ptr<BridgeClient> bridge_ = nullptr;
     std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
