@@ -8,6 +8,6 @@ find src/ test/ \( \
   -iname '*.cpp' \
   -or -iname '*.hpp' \
   -or -iname '*.proto' \
-\) -and -not -iname '*_openvr.*' \
-   -exec echo Formatting {} \; \
-   -exec clang-format -i {} \;
+\) \
+  -exec echo Formatting {} \; \
+  -exec clang-format -i {} \;

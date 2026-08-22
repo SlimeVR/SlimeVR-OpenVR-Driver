@@ -62,6 +62,25 @@ protobuf_generate(
     OUT_VAR PROTO_GENERATED_FILES
 )
 
+find_package(Git)
+
+if (NOT GIT_DESC)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --always
+        OUTPUT_VARIABLE GIT_DESC
+        ERROR_QUIET
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    string(STRIP "${GIT_DESC}" GIT_DESC)
+else()
+    message(STATUS "Using GIT_DESC ${GIT_DESC} from explicit build flag")
+endif()
+
+if (GIT_DESC)
+    message(STATUS "GIT_DESC: ${GIT_DESC}")
+else()
+    message(FATAL_ERROR "Could not set GIT_DESC")
+endif()
+
 # Project
 set(DEPS_INCLUDES
     "${OPENVR_INCLUDE_DIR}"
@@ -77,13 +96,15 @@ set(DEPS_LIBS
     uvw::uvw
 )
 
+configure_file(src/Consts.hpp.in src/Consts.hpp @ONLY)
+
 # compile into a static lib
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} ${PROTO_GENERATED_FILES})
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
-set_target_properties("${PROJECT_NAME}_static" PROPERTIES CXX_STANDARD 20)
-target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+set_target_properties("${PROJECT_NAME}_static" PROPERTIES CXX_STANDARD 23)
+target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} ${Protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} "${CMAKE_CURRENT_BINARY_DIR}/src")
 if(UNIX)
     target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
     target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)
@@ -94,7 +115,7 @@ file(GLOB_RECURSE DRIVER_MAIN "${CMAKE_CURRENT_SOURCE_DIR}/src/DriverFactory.cpp
 add_library("${PROJECT_NAME}" SHARED ${DRIVER_MAIN} ${HEADERS})
 target_include_directories("${PROJECT_NAME}" PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries("${PROJECT_NAME}" PUBLIC "${PROJECT_NAME}_static")
-set_target_properties("${PROJECT_NAME}" PROPERTIES CXX_STANDARD 20)
+set_target_properties("${PROJECT_NAME}" PROPERTIES CXX_STANDARD 23)
 
 # compile tests
 function(build_tests target_name test_dir executable_name)
@@ -102,7 +123,7 @@ function(build_tests target_name test_dir executable_name)
     file(GLOB TESTS_COMMON "${CMAKE_CURRENT_SOURCE_DIR}/test/common/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/test/common/*.hpp")
     add_executable(${target_name} ${TESTS} ${TESTS_COMMON} ${HEADERS} ${PROTO_HEADER})
     target_link_libraries(${target_name} PUBLIC "${PROJECT_NAME}_static" Catch2::Catch2WithMain)
-    set_target_properties(${target_name} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "${executable_name}")
+    set_target_properties(${target_name} PROPERTIES CXX_STANDARD 23 OUTPUT_NAME "${executable_name}")
 endfunction()
 if (SLIMEVR_BUILD_TESTS)
     build_tests("${PROJECT_NAME}-Tests" "test" "tests")

@@ -5,7 +5,7 @@ if ((Get-Command "clang-format" -ErrorAction SilentlyContinue) -eq $null) {
     throw $errorObj
 }
 
-$SourceFiles = Get-ChildItem -Path '.\src\','.\test\' -Recurse -Include "*.cpp","*.hpp","*.proto" -Exclude "*_openvr.*"
+$SourceFiles = Get-ChildItem -Path '.\src\','.\test\' -Recurse -Include "*.cpp","*.hpp","*.proto"
 foreach ($file in $SourceFiles) {
     Write-Output "Formatting $(Resolve-Path -Relative $file.FullName)"
     clang-format -i "$($file.FullName)"
