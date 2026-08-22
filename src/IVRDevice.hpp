@@ -1,5 +1,6 @@
 #pragma once
 
+#include <linalg.h>
 #include <openvr_driver.h>
 
 #include "DeviceType.hpp"
@@ -67,7 +68,7 @@ public:
     /**
      * Updates device pose from a received message.
      */
-    virtual void UpdatePose(const solarxr_protocol::datatypes::math::Quat* rot, const solarxr_protocol::datatypes::math::Vec3f* pos, solarxr_protocol::datatypes::TrackerStatus status) = 0;
+    virtual void UpdatePose(linalg::vec<float, 4>&& rot, linalg::vec<float, 3>&& pos) = 0;
 
     /**
      * Updates device status from a received message.

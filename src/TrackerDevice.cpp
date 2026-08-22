@@ -44,7 +44,7 @@ void SlimeVRDriver::TrackerDevice::Update() {
     }
 }
 
-void SlimeVRDriver::TrackerDevice::UpdatePose(const datatypes::math::Quat* rot, const datatypes::math::Vec3f* pos, datatypes::TrackerStatus status) {
+void SlimeVRDriver::TrackerDevice::UpdatePose(linalg::vec<float, 4>&& rot, linalg::vec<float, 3>&& pos) {
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
@@ -63,19 +63,17 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(const datatypes::math::Quat* rot, 
     // Setup pose for this frame
     auto pose = last_pose_;
     // send the new position and rotation from the pipe to the tracker object
-    if (pos) {
-        pose.vecPosition[0] = pos->x();
-        pose.vecPosition[1] = pos->y();
-        pose.vecPosition[2] = pos->z();
-        CHECK_CLASSIFICATION(pose.vecPosition[0]);
-        CHECK_CLASSIFICATION(pose.vecPosition[1]);
-        CHECK_CLASSIFICATION(pose.vecPosition[2]);
-    }
+    pose.vecPosition[0] = pos.x;
+    pose.vecPosition[1] = pos.y;
+    pose.vecPosition[2] = pos.z;
+    CHECK_CLASSIFICATION(pose.vecPosition[0]);
+    CHECK_CLASSIFICATION(pose.vecPosition[1]);
+    CHECK_CLASSIFICATION(pose.vecPosition[2]);
 
-    pose.qRotation.w = rot->w();
-    pose.qRotation.x = rot->x();
-    pose.qRotation.y = rot->y();
-    pose.qRotation.z = rot->z();
+    pose.qRotation.w = rot.w;
+    pose.qRotation.x = rot.x;
+    pose.qRotation.y = rot.y;
+    pose.qRotation.z = rot.z;
     CHECK_CLASSIFICATION(pose.qRotation.w);
     CHECK_CLASSIFICATION(pose.qRotation.x);
     CHECK_CLASSIFICATION(pose.qRotation.y);
@@ -114,32 +112,6 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(const datatypes::math::Quat* rot, 
         CHECK_CLASSIFICATION(pose.qWorldFromDriverRotation.y);
     }
 
-    switch (status) {
-    case datatypes::TrackerStatus::OK:
-        pose.deviceIsConnected = true;
-        pose.poseIsValid = true;
-        pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
-        break;
-
-    case datatypes::TrackerStatus::DISCONNECTED:
-        pose.deviceIsConnected = false;
-        pose.poseIsValid = false;
-        pose.result = vr::ETrackingResult::TrackingResult_Uninitialized;
-        break;
-    case datatypes::TrackerStatus::BUSY:
-    case datatypes::TrackerStatus::OCCLUDED:
-        pose.deviceIsConnected = true;
-        pose.poseIsValid = true;
-        pose.result = vr::ETrackingResult::TrackingResult_Calibrating_OutOfRange;
-        break;
-    case datatypes::TrackerStatus::ERROR:
-    default:
-        pose.deviceIsConnected = true;
-        pose.poseIsValid = false;
-        pose.result = vr::ETrackingResult::TrackingResult_Uninitialized;
-        break;
-    }
-
     last_pose_ = pose;
     vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
@@ -167,27 +139,33 @@ void SlimeVRDriver::TrackerDevice::UpdateStatus(datatypes::TrackerStatus status)
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
-    vr::DriverPose_t pose = last_pose_;
+    vr::DriverPose_t& pose = last_pose_;
     switch (status) {
     case datatypes::TrackerStatus::OK:
         pose.deviceIsConnected = true;
         pose.poseIsValid = true;
+        pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
         break;
+
     case datatypes::TrackerStatus::DISCONNECTED:
         pose.deviceIsConnected = false;
         pose.poseIsValid = false;
+        pose.result = vr::ETrackingResult::TrackingResult_Uninitialized;
+        break;
+    case datatypes::TrackerStatus::BUSY:
+    case datatypes::TrackerStatus::OCCLUDED:
+        pose.deviceIsConnected = true;
+        pose.poseIsValid = true;
+        pose.result = vr::ETrackingResult::TrackingResult_Calibrating_OutOfRange;
         break;
     case datatypes::TrackerStatus::ERROR:
-    case datatypes::TrackerStatus::BUSY:
     default:
         pose.deviceIsConnected = true;
         pose.poseIsValid = false;
+        pose.result = vr::ETrackingResult::TrackingResult_Uninitialized;
         break;
     }
 
-    // TODO: send position/rotation of 0 instead of last pose?
-
-    last_pose_ = pose;
     vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 

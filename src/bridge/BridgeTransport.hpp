@@ -65,12 +65,10 @@
 class BridgeTransport {
 public:
     BridgeTransport(std::shared_ptr<Logger> logger,
-                    std::function<void(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*>&&)> on_message_received,
-                    std::optional<std::function<void()>> on_connect = std::nullopt)
+                    std::function<void(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*, const solarxr_protocol::driver_protocol::DriverMessageHeader*>&&)> on_message_received)
         : logger_(logger)
         , send_buf_(VRBRIDGE_BUFFERS_SIZE)
         , recv_buf_(VRBRIDGE_BUFFERS_SIZE)
-        , connect_callback_(on_connect)
         , message_callback_(on_message_received) { }
 
     ~BridgeTransport() {
@@ -121,7 +119,6 @@ protected:
     virtual void ResetConnection() = 0;
     virtual void CloseConnectionHandles() = 0;
     void ResetBuffers();
-    void OnConnect();
     void OnRecv(const uvw::data_event& event);
     auto GetLoop() {
         return loop_;
@@ -175,6 +172,5 @@ private:
     std::shared_ptr<uvw::async_handle> write_signal_handle_ = nullptr;
     std::unique_ptr<std::thread> thread_ = nullptr;
     std::shared_ptr<uvw::loop> loop_ = nullptr;
-    const std::optional<std::function<void()>> connect_callback_;
-    const std::function<void(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*>&&)> message_callback_;
+    std::function<void(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*, const solarxr_protocol::driver_protocol::DriverMessageHeader*>&&)> message_callback_;
 };

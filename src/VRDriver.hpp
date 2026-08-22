@@ -33,23 +33,11 @@ public:
 
 typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
 
-struct TrackerIdT {
-    TrackerIdT(const solarxr_protocol::datatypes::TrackerId* id)
-        : tracker_num(id->tracker_num()) {
-        if (auto new_id = id->device_id()) {
-            device_id.emplace(new_id->id());
-        }
-    }
-    std::optional<solarxr_protocol::datatypes::DeviceId> device_id;
-    uint8_t tracker_num;
-};
-
 struct DeviceData {
     vr::TrackedDeviceIndex_t index{ vr::k_unTrackedDeviceIndexInvalid };
     solarxr_protocol::datatypes::BodyPart role{ solarxr_protocol::datatypes::BodyPart::NONE };
     bool sent_add_message{ false };
-    std::mutex id_mutex;
-    std::optional<TrackerIdT> id{};
+    std::atomic_uint16_t tracker_id{};
 
     solarxr_protocol::datatypes::TrackerStatus status{ solarxr_protocol::datatypes::TrackerStatus::DISCONNECTED };
     float last_battery_percentage{ -1.f };
@@ -81,10 +69,10 @@ private:
     // if we're exiting, this will be true and stop tokens will be signaled
     std::atomic<bool> steamvr_init_guard_ = false;
 
+    std::atomic<bool> driver_connection_active_ = false;
     std::jthread pose_request_thread_;
     void RunPoseRequestThread(std::stop_token stop);
-    void OnBridgeConnect();
-    void OnBridgeMessage(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*>&& message);
+    void OnBridgeMessage(std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*, const solarxr_protocol::driver_protocol::DriverMessageHeader*>&& message);
 
     solarxr_protocol::datatypes::BodyPart GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
     uint64_t body_part_mask_;

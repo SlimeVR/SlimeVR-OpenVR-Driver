@@ -25,7 +25,7 @@ public:
     virtual void Update() override;
     virtual vr::TrackedDeviceIndex_t GetDeviceIndex() override;
     virtual DeviceType GetDeviceType() override;
-    virtual void UpdatePose(const solarxr_protocol::datatypes::math::Quat* rot, const solarxr_protocol::datatypes::math::Vec3f* pos, solarxr_protocol::datatypes::TrackerStatus status) override;
+    virtual void UpdatePose(linalg::vec<float, 4>&& rot, linalg::vec<float, 3>&& pos) override;
     virtual void UpdateStatus(solarxr_protocol::datatypes::TrackerStatus status) override;
     virtual void UpdateBattery(float battery_percentage, bool charging) override;
 

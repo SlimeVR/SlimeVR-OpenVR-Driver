@@ -71,10 +71,6 @@ void BridgeTransport::ResetBuffers() {
     send_buf_.Clear();
 }
 
-void BridgeTransport::OnConnect() {
-    if (connect_callback_)
-        (*connect_callback_)();
-}
 void BridgeTransport::OnRecv(const uvw::data_event& event) {
     if (!recv_buf_.Push(event.data.get(), event.length)) {
         logger_->Log("recv_buf_.Push({}) failed", event.length);
@@ -124,6 +120,12 @@ void BridgeTransport::OnRecv(const uvw::data_event& event) {
         if (auto rpc_msgs = bundle->rpc_msgs()) {
             for (auto msg : *rpc_msgs) {
                 logger_->Log("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
+                message_callback_(msg);
+            }
+        }
+        if (auto driver_msgs = bundle->driver_msgs()) {
+            for (auto msg : *driver_msgs) {
+                logger_->Log("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
                 message_callback_(msg);
             }
         }
