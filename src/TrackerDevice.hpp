@@ -45,6 +45,7 @@ private:
 
     solarxr_protocol::datatypes::BodyPart body_part_;
 
+    solarxr_protocol::datatypes::TrackerStatus status_;
     vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
 
     bool did_vibrate_ = false;

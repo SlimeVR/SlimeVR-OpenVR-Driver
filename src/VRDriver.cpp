@@ -463,6 +463,14 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
 
                                driver_connection_active_.store(true);
                                driver_connection_active_.notify_all();
+                           } else {
+                               for (auto& [_, device] : devices_by_role_) {
+                                   if (!device)
+                                       continue; // ??
+
+                                   device->UpdateStatus(TrackerStatus::DISCONNECTED);
+                               }
+                               driver_connection_active_.store(false);
                            }
 
                            break;
@@ -496,8 +504,9 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                                bool tracker_enabled = body_part_mask_ & (1l << std::to_underlying(body_part));
                                std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
                                if (!tracker_enabled) {
-                                   if (device)
+                                   if (device) {
                                        device->UpdateStatus(TrackerStatus::DISCONNECTED);
+                                   }
                                    continue;
                                }
 
@@ -507,12 +516,12 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                                        continue;
                                    }
 
-                                   device->UpdateStatus(TrackerStatus::OK);
                                    if (const auto battery = queued_bone_battery_.extract(body_part)) {
                                        const BatteryInfo& info = battery.mapped();
                                        device->UpdateBattery(info.percentage, info.charging);
                                    }
                                }
+                               device->UpdateStatus(TrackerStatus::OK);
 
                                const datatypes::math::Vec3f* head_position_fbs = bone->head_position_g();
                                const datatypes::math::Quat* rotation_quat_fbs = bone->rotation_g();

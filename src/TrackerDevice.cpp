@@ -61,7 +61,7 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(linalg::vec<float, 4>&& rot, linal
 #endif
 
     // Setup pose for this frame
-    auto pose = last_pose_;
+    vr::DriverPose_t pose = last_pose_;
     // send the new position and rotation from the pipe to the tracker object
     pose.vecPosition[0] = pos.x;
     pose.vecPosition[1] = pos.y;
@@ -70,6 +70,7 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(linalg::vec<float, 4>&& rot, linal
     CHECK_CLASSIFICATION(pose.vecPosition[1]);
     CHECK_CLASSIFICATION(pose.vecPosition[2]);
 
+    // logger_->Log("rotation x={} y={} z={} w={}", rot.x, rot.y, rot.z, rot.w);
     pose.qRotation.w = rot.w;
     pose.qRotation.x = rot.x;
     pose.qRotation.y = rot.y;
@@ -112,8 +113,8 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(linalg::vec<float, 4>&& rot, linal
         CHECK_CLASSIFICATION(pose.qWorldFromDriverRotation.y);
     }
 
-    last_pose_ = pose;
     vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
+    last_pose_ = pose;
 }
 
 void SlimeVRDriver::TrackerDevice::UpdateBattery(float battery_percentage, bool charging) {
@@ -136,11 +137,13 @@ void SlimeVRDriver::TrackerDevice::UpdateBattery(float battery_percentage, bool 
 }
 
 void SlimeVRDriver::TrackerDevice::UpdateStatus(datatypes::TrackerStatus status) {
-    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
+    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid || status_ == status)
         return;
 
-    vr::DriverPose_t& pose = last_pose_;
-    switch (status) {
+    status_ = status;
+
+    auto& pose = last_pose_;
+    switch (status_) {
     case datatypes::TrackerStatus::OK:
         pose.deviceIsConnected = true;
         pose.poseIsValid = true;
