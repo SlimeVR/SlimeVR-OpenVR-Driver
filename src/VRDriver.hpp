@@ -44,6 +44,11 @@ struct DeviceData {
     std::chrono::steady_clock::time_point battery_sent_at{};
 };
 
+struct BatteryInfo {
+    float percentage;
+    bool charging;
+};
+
 class VRDriver : protected vr::IServerTrackedDeviceProvider {
 public:
     // Inherited via IServerTrackedDeviceProvider
@@ -82,11 +87,13 @@ private:
     std::mutex devices_mutex_;
     std::vector<std::shared_ptr<IVRDevice>> devices_;
     std::vector<vr::VREvent_t> openvr_events_;
-    std::map<solarxr_protocol::datatypes::BodyPart, std::shared_ptr<IVRDevice>> devices_by_role_;
+    std::unordered_map<solarxr_protocol::datatypes::BodyPart, std::shared_ptr<IVRDevice>> devices_by_role_;
     std::chrono::milliseconds frame_timing_ = std::chrono::milliseconds(16);
     std::chrono::steady_clock::time_point last_frame_time_ = std::chrono::steady_clock::now();
     std::string settings_key_ = "driver_slimevr";
 
+    // Server may send us BoneBatteryUpdate before we create a device, we store them in this map for later when adding devices.
+    std::unordered_map<solarxr_protocol::datatypes::BodyPart, BatteryInfo> queued_bone_battery_{};
     std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> feeder_devices_{};
 
     vr::HmdQuaternion_t GetRotation(vr::HmdMatrix34_t& matrix);

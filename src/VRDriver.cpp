@@ -506,16 +506,22 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
                                    if (!AddDevice(device)) {
                                        continue;
                                    }
+
+                                   device->UpdateStatus(TrackerStatus::OK);
+                                   if (const auto battery = queued_bone_battery_.extract(body_part)) {
+                                       const BatteryInfo& info = battery.mapped();
+                                       device->UpdateBattery(info.percentage, info.charging);
+                                   }
                                }
 
                                const datatypes::math::Vec3f* head_position_fbs = bone->head_position_g();
                                const datatypes::math::Quat* rotation_quat_fbs = bone->rotation_g();
                                if (head_position_fbs == nullptr) {
-                                   logger_->Log("Bone with head_position_g=null!?!?");
+                                   logger_->Log("Got bone with head_position_g=null, continuing");
                                    continue;
                                }
                                if (rotation_quat_fbs == nullptr) {
-                                   logger_->Log("Bone with rotation_g=null!?!?");
+                                   logger_->Log("Got bone with rotation_g=null, continuing");
                                    continue;
                                }
 
@@ -531,16 +537,21 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(std::variant<const data_feed::Data
 
                            break;
                        }
-                       case DriverMessage::BoneStatusUpdate: {
-                           auto update = driver_header->message_as<driver_protocol::BoneStatusUpdate>();
+                       case DriverMessage::BoneBatteryUpdate: {
+                           auto update = driver_header->message_as<driver_protocol::BoneBatteryUpdate>();
                            datatypes::BodyPart body_part = update->bone();
+                           float battery_level = update->battery_level();
+                           bool charging = update->charging();
 
                            std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
-                           if (!device)
+                           if (!device) {
+                               logger_->Log("Got BoneStatusUpdate(bone=BodyPart::{} battery_level={:.2f} charging={}) with no device", EnumNameBodyPart(body_part), battery_level, charging);
+                               queued_bone_battery_.try_emplace(body_part, battery_level, charging);
                                break;
+                           }
 
-                           device->UpdateStatus(update->status());
-                           device->UpdateBattery(update->battery_level(), update->charging());
+                           logger_->Log("Got BoneBatteryUpdate(bone=BodyPart::{} battery_level={:.2f} charging={})", EnumNameBodyPart(body_part), battery_level, charging);
+                           device->UpdateBattery(battery_level, charging);
                            break;
                        }
                        default:
@@ -597,7 +608,7 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
 
     auto body_part = device->GetBodyPart();
     if (devices_by_role_.contains(body_part)) {
-        logger_->Log("Tried to re-add device with role BodyPart::{}!?!?", EnumNameBodyPart(body_part));
+        logger_->Log("Tried to re-add device with role BodyPart::{}", EnumNameBodyPart(body_part));
         return false;
     }
 
