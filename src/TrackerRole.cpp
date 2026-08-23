@@ -22,145 +22,128 @@
 */
 #include "TrackerRole.hpp"
 
-std::string GetRoleName(TrackerRole role) {
+using solarxr_protocol::datatypes::BodyPart;
+
+std::string GetSerial(BodyPart role) {
     switch (role) {
-    case NONE:
-        return "NONE";
-    case WAIST:
-        return "WAIST";
-    case LEFT_FOOT:
-        return "LEFT_FOOT";
-    case RIGHT_FOOT:
-        return "RIGHT_FOOT";
-    case CHEST:
-        return "CHEST";
-    case LEFT_KNEE:
-        return "LEFT_KNEE";
-    case RIGHT_KNEE:
-        return "RIGHT_KNEE";
-    case LEFT_ELBOW:
-        return "LEFT_ELBOW";
-    case RIGHT_ELBOW:
-        return "RIGHT_ELBOW";
-    case LEFT_SHOULDER:
-        return "LEFT_SHOULDER";
-    case RIGHT_SHOULDER:
-        return "RIGHT_SHOULDER";
-    case LEFT_HAND:
-        return "LEFT_HAND";
-    case RIGHT_HAND:
-        return "RIGHT_HAND";
-    case LEFT_CONTROLLER:
-        return "LEFT_CONTROLLER";
-    case RIGHT_CONTROLLER:
-        return "RIGHT_CONTROLLER";
-    case HEAD:
-        return "HEAD";
-    case NECK:
-        return "NECK";
-    case CAMERA:
-        return "CAMERA";
-    case KEYBOARD:
-        return "KEYBOARD";
-    case HMD:
-        return "HMD";
-    case BEACON:
-        return "BEACON";
-    case GENERIC_CONTROLLER:
-        return "GENERIC_CONTROLLER";
+    case BodyPart::UPPER_CHEST:
+    case BodyPart::CHEST:
+        return "human://CHEST";
+    case BodyPart::LEFT_SHOULDER:
+        return "human://LEFT_SHOULDER";
+    case BodyPart::RIGHT_SHOULDER:
+        return "human://RIGHT_SHOULDER";
+    case BodyPart::LEFT_UPPER_ARM:
+        return "human://LEFT_ELBOW";
+    case BodyPart::RIGHT_UPPER_ARM:
+        return "human://RIGHT_ELBOW";
+    case BodyPart::LEFT_LOWER_ARM:
+        return "human://LEFT_WRIST";
+    case BodyPart::RIGHT_LOWER_ARM:
+        return "human://RIGHT_WRIST";
+    case BodyPart::LEFT_HAND:
+        return "human://LEFT_HAND";
+    case BodyPart::RIGHT_HAND:
+        return "human://RIGHT_HAND";
+    case BodyPart::WAIST:
+    case BodyPart::HIP:
+        return "human://WAIST";
+    case BodyPart::LEFT_UPPER_LEG:
+        return "human://LEFT_KNEE";
+    case BodyPart::RIGHT_UPPER_LEG:
+        return "human://RIGHT_KNEE";
+    case BodyPart::LEFT_FOOT:
+        return "human://LEFT_FOOT";
+    case BodyPart::RIGHT_FOOT:
+        return "human://RIGHT_FOOT";
+    default:
+        break;
     }
+    return "";
 }
 
-std::string GetViveRoleHint(TrackerRole role) {
+std::string GetViveRoleHint(BodyPart role) {
     switch (role) {
-    case LEFT_CONTROLLER:
-    case RIGHT_CONTROLLER:
-    case GENERIC_CONTROLLER:
-    case LEFT_HAND:
-    case RIGHT_HAND:
-        return "vive_tracker_handed";
-    case LEFT_FOOT:
-        return "vive_tracker_left_foot";
-    case RIGHT_FOOT:
-        return "vive_tracker_right_foot";
-    case LEFT_SHOULDER:
-        return "vive_tracker_left_shoulder";
-    case RIGHT_SHOULDER:
-        return "vive_tracker_right_shoulder";
-    case LEFT_ELBOW:
-        return "vive_tracker_left_elbow";
-    case RIGHT_ELBOW:
-        return "vive_tracker_right_elbow";
-    case LEFT_KNEE:
-        return "vive_tracker_left_knee";
-    case RIGHT_KNEE:
-        return "vive_tracker_right_knee";
-    case WAIST:
-        return "vive_tracker_waist";
-    case CHEST:
+    case BodyPart::UPPER_CHEST:
+    case BodyPart::CHEST:
         return "vive_tracker_chest";
-    case CAMERA:
-        return "vive_tracker_camera";
-    case KEYBOARD:
-        return "vive_tracker_keyboard";
+    case BodyPart::LEFT_SHOULDER:
+        return "vive_tracker_left_shoulder";
+    case BodyPart::RIGHT_SHOULDER:
+        return "vive_tracker_right_shoulder";
+    case BodyPart::LEFT_UPPER_ARM:
+        return "vive_tracker_left_elbow";
+    case BodyPart::RIGHT_UPPER_ARM:
+        return "vive_tracker_right_elbow";
+    case BodyPart::LEFT_LOWER_ARM:
+        return "vive_tracker_left_wrist";
+    case BodyPart::RIGHT_LOWER_ARM:
+        return "vive_tracker_right_wrist";
+    case BodyPart::LEFT_HAND:
+    case BodyPart::RIGHT_HAND:
+        return "vive_tracker_handed";
+    case BodyPart::WAIST:
+    case BodyPart::HIP:
+        return "vive_tracker_waist";
+    case BodyPart::LEFT_UPPER_LEG:
+        return "vive_tracker_left_knee";
+    case BodyPart::RIGHT_UPPER_LEG:
+        return "vive_tracker_right_knee";
+    case BodyPart::LEFT_FOOT:
+        return "vive_tracker_left_foot";
+    case BodyPart::RIGHT_FOOT:
+        return "vive_tracker_right_foot";
     default:
         break;
     }
     return "";
 }
 
-std::string GetViveRole(TrackerRole role) {
+std::string GetViveRole(BodyPart role) {
     switch (role) {
-    case GENERIC_CONTROLLER:
-        return "TrackerRole_Handed";
-    case LEFT_CONTROLLER:
-    case LEFT_HAND:
-        return "TrackerRole_Handed,TrackedControllerRole_LeftHand";
-    case RIGHT_CONTROLLER:
-    case RIGHT_HAND:
-        return "TrackerRole_Handed,TrackedControllerRole_RightHand";
-    case LEFT_FOOT:
-        return "TrackerRole_LeftFoot";
-    case RIGHT_FOOT:
-        return "TrackerRole_RightFoot";
-    case LEFT_SHOULDER:
-        return "TrackerRole_LeftShoulder";
-    case RIGHT_SHOULDER:
-        return "TrackerRole_RightShoulder";
-    case LEFT_ELBOW:
-        return "TrackerRole_LeftElbow";
-    case RIGHT_ELBOW:
-        return "TrackerRole_RightElbow";
-    case LEFT_KNEE:
-        return "TrackerRole_LeftKnee";
-    case RIGHT_KNEE:
-        return "TrackerRole_RightKnee";
-    case WAIST:
-        return "TrackerRole_Waist";
-    case CHEST:
+    case BodyPart::UPPER_CHEST:
+    case BodyPart::CHEST:
         return "TrackerRole_Chest";
-    case CAMERA:
-        return "TrackerRole_Camera";
-    case KEYBOARD:
-        return "TrackerRole_Keyboard";
+    case BodyPart::LEFT_SHOULDER:
+        return "TrackerRole_LeftShoulder";
+    case BodyPart::RIGHT_SHOULDER:
+        return "TrackerRole_RightShoulder";
+    case BodyPart::LEFT_UPPER_ARM:
+        return "TrackerRole_LeftElbow";
+    case BodyPart::RIGHT_UPPER_ARM:
+        return "TrackerRole_RightElbow";
+    case BodyPart::LEFT_LOWER_ARM:
+        return "TrackerRole_LeftWrist";
+    case BodyPart::RIGHT_LOWER_ARM:
+        return "TrackerRole_RightWrist";
+    case BodyPart::LEFT_HAND:
+        return "TrackerRole_Handed,TrackedControllerRole_LeftHand";
+    case BodyPart::RIGHT_HAND:
+        return "TrackerRole_Handed,TrackedControllerRole_RightHand";
+    case BodyPart::WAIST:
+    case BodyPart::HIP:
+        return "TrackerRole_Waist";
+    case BodyPart::LEFT_UPPER_LEG:
+        return "TrackerRole_LeftKnee";
+    case BodyPart::RIGHT_UPPER_LEG:
+        return "TrackerRole_RightKnee";
+    case BodyPart::LEFT_FOOT:
+        return "TrackerRole_LeftFoot";
+    case BodyPart::RIGHT_FOOT:
+        return "TrackerRole_RightFoot";
     default:
         break;
     }
     return "";
 }
 
-DeviceType GetDeviceType(TrackerRole role) {
+DeviceType GetDeviceType(BodyPart role) {
     switch (role) {
-    case LEFT_CONTROLLER:
-    case LEFT_HAND:
-    case RIGHT_CONTROLLER:
-    case RIGHT_HAND:
-    case GENERIC_CONTROLLER:
+    case BodyPart::LEFT_HAND:
+    case BodyPart::RIGHT_HAND:
         return DeviceType::CONTROLLER;
-    case HMD:
+    case BodyPart::HEAD:
         return DeviceType::HMD;
-    case BEACON:
-        return DeviceType::TRACKING_REFERENCE;
     default:
         break;
     }

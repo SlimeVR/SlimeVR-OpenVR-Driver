@@ -8,27 +8,26 @@
 
 #include "IVRDevice.hpp"
 #include <openvr_driver.h>
+#include <solarxr_protocol/generated/all_generated.h>
 
 #include "Logger.hpp"
-#include "TrackerRole.hpp"
 
 namespace SlimeVRDriver {
 
 class TrackerDevice : public IVRDevice {
 public:
-    TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role);
+    TrackerDevice(std::string serial, solarxr_protocol::datatypes::BodyPart body_part);
     ~TrackerDevice() = default;
 
     // Inherited via IVRDevice
+    virtual solarxr_protocol::datatypes::BodyPart GetBodyPart() override;
     virtual std::string GetSerial() override;
     virtual void Update() override;
     virtual vr::TrackedDeviceIndex_t GetDeviceIndex() override;
     virtual DeviceType GetDeviceType() override;
-    virtual int GetDeviceId() override;
-    virtual void SetDeviceId(int device_id) override;
-    virtual void PositionMessage(messages::Position& position) override;
-    virtual void StatusMessage(messages::TrackerStatus& status) override;
-    virtual void BatteryMessage(messages::Battery& battery) override;
+    virtual void UpdatePose(linalg::vec<float, 4>&& orientation, linalg::vec<float, 3>&& position) override;
+    virtual void UpdateStatus(solarxr_protocol::datatypes::TrackerStatus status) override;
+    virtual void UpdateBattery(float battery_percentage, bool charging) override;
 
     // Inherited via ITrackedDeviceServerDriver
     virtual vr::EVRInitError Activate(uint32_t unObjectId) override;
@@ -36,7 +35,6 @@ public:
     virtual void EnterStandby() override;
     virtual void* GetComponent(const char* pchComponentNameAndVersion) override;
     virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
-    virtual vr::DriverPose_t GetPose() override;
 
 private:
     std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
@@ -44,11 +42,10 @@ private:
     std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
     std::string serial_;
 
-    int device_id_;
-    TrackerRole tracker_role_;
+    solarxr_protocol::datatypes::BodyPart body_part_;
 
+    solarxr_protocol::datatypes::TrackerStatus status_ = solarxr_protocol::datatypes::TrackerStatus::DISCONNECTED;
     vr::DriverPose_t last_pose_ = IVRDevice::MakeDefaultPose();
-    std::atomic<vr::DriverPose_t> last_pose_atomic_ = IVRDevice::MakeDefaultPose();
 
     bool did_vibrate_ = false;
     float vibrate_anim_state_ = 0.f;
