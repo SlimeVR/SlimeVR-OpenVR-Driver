@@ -39,6 +39,7 @@ void BridgeClient::CreateConnection() {
         connection_handle_->read();
         logger_->Log("[{}] connected", path);
         connected_ = true;
+        OnConnect();
         last_error_ = std::nullopt;
     });
     connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event&, uvw::pipe_handle&) {

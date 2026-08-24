@@ -68,10 +68,12 @@ public:
     using MessageHeader = std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*, const solarxr_protocol::driver_protocol::DriverMessageHeader*>;
     BridgeTransport(std::shared_ptr<Logger> logger,
                     std::function<void(MessageHeader&&)> on_message_received,
+                    std::function<void()> on_connect = {},
                     std::function<void()> on_disconnect = {})
         : logger_(logger)
         , send_buf_(VRBRIDGE_BUFFERS_SIZE)
         , recv_buf_(VRBRIDGE_BUFFERS_SIZE)
+        , connect_callback_(on_connect)
         , message_callback_(on_message_received)
         , disconnect_callback_(on_disconnect) { }
 
@@ -123,6 +125,10 @@ protected:
     virtual void ResetConnection() = 0;
     virtual void CloseConnectionHandles() = 0;
     void ResetBuffers();
+    void OnConnect() {
+        if (connect_callback_)
+            connect_callback_();
+    }
     void OnRecv(const uvw::data_event& event);
     void OnDisconnect() {
         if (disconnect_callback_)
@@ -180,6 +186,7 @@ private:
     std::shared_ptr<uvw::async_handle> write_signal_handle_ = nullptr;
     std::unique_ptr<std::thread> thread_ = nullptr;
     std::shared_ptr<uvw::loop> loop_ = nullptr;
+    std::function<void()> connect_callback_;
     std::function<void(MessageHeader&&)> message_callback_;
     std::function<void()> disconnect_callback_;
 };

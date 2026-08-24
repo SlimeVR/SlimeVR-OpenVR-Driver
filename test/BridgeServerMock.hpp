@@ -23,7 +23,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <uvw.hpp>
 
 #include "bridge/BridgeTransport.hpp"
 

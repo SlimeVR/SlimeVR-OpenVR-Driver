@@ -44,6 +44,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     bridge_ = std::make_shared<BridgeClient>(
         std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
         [this](BridgeTransport::MessageHeader&& v) { OnBridgeMessage(std::move(v)); },
+        nullptr,
         [this] { driver_connection_active_.store(false); });
     bridge_->Start();
 

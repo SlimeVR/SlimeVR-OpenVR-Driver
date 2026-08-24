@@ -52,6 +52,7 @@ void BridgeServerMock::CreateConnection() {
         server_handle_->accept(*connection_handle_);
         logger_->Log("[{}] connected", path);
         connected_ = true;
+        OnConnect();
         connection_handle_->read();
     });
     server_handle_->on<uvw::error_event>([this, path](const uvw::error_event& event, uvw::pipe_handle&) {
@@ -72,5 +73,6 @@ void BridgeServerMock::CloseConnectionHandles() {
         server_handle_->close();
     if (connection_handle_)
         connection_handle_->close();
-    connected_ = false;
+    if (connected_.exchange(false))
+        OnDisconnect();
 }

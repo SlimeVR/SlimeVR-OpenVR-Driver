@@ -1,84 +1,109 @@
 #include "TestBridgeClient.hpp"
+#include "bridge/BridgeClient.hpp"
 
-void TestLogTrackerAdded(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
-    if (!message.has_tracker_added())
-        return;
-    messages::TrackerAdded tracker_added = message.tracker_added();
-    logger->Log("tracker added id {} name {} role {} serial {}",
-                tracker_added.tracker_id(),
-                tracker_added.tracker_name(),
-                tracker_added.tracker_role(),
-                tracker_added.tracker_serial());
-}
-
-void TestLogTrackerStatus(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
-    if (!message.has_tracker_status())
-        return;
-    messages::TrackerStatus status = message.tracker_status();
-    static const std::unordered_map<messages::TrackerStatus_Status, std::string> status_map = {
-        { messages::TrackerStatus_Status_OK, "OK" },
-        { messages::TrackerStatus_Status_DISCONNECTED, "DISCONNECTED" },
-        { messages::TrackerStatus_Status_ERROR, "ERROR" },
-        { messages::TrackerStatus_Status_BUSY, "BUSY" },
-    };
-    if (status_map.count(status.status())) {
-        logger->Log("tracker status id {} status {}", status.tracker_id(), status_map.at(status.status()));
-    }
-}
-
-void TestLogVersion(std::shared_ptr<Logger> logger, const messages::ProtobufMessage& message) {
-    if (!message.has_version())
-        return;
-    messages::Version version = message.version();
-    logger->Log("protocol version {}", version.protocol_version());
-}
+#include <atomic>
+#include <solarxr_protocol/generated/all_generated.h>
 
 void TestBridgeClient() {
     using namespace std::chrono;
+    using namespace std::chrono_literals;
 
-    std::atomic<bool> ready_to_bench = false;
+    const uint32_t tx_id = *reinterpret_cast<const uint32_t*>("svr");
+    std::atomic_uint16_t hmd_id = 0;
     std::atomic<steady_clock::time_point> position_requested_at = steady_clock::now();
-    std::map<int, double> latency_nanos_sum;
-    std::map<int, int> latency_nanos_count;
+    double latency_nanos_sum;
+    int latency_nanos_count;
 
     int invalid_messages = 0;
-    int trackers = 0;
     int positions = 0;
 
     bool last_logged_position = false;
 
     auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>("Test"));
-    auto bridge = std::make_shared<BridgeClient>(
+    std::shared_ptr<BridgeClient> bridge = std::make_shared<BridgeClient>(
         logger,
-        [&](const messages::ProtobufMessage& message) {
-            if (message.has_tracker_added()) {
-                trackers++;
-                TestLogTrackerAdded(logger, message);
-            } else if (message.has_tracker_status()) {
-                TestLogTrackerStatus(logger, message);
-            } else if (message.has_battery()) {
-                TestLogTrackerStatus(logger, message);
-            } else if (message.has_position()) {
-                messages::Position pos = message.position();
-                if (!last_logged_position)
-                    logger->Log("... tracker positions");
-                last_logged_position = true;
-                positions++;
+        [&](BridgeTransport::MessageHeader&& message) {
+            std::visit(overloaded{
+                           [&](const solarxr_protocol::data_feed::DataFeedMessageHeader*) {
+                               invalid_messages++;
+                           },
+                           [&](const solarxr_protocol::rpc::RpcMessageHeader*) {
+                               // ignore
+                           },
+                           [&](const solarxr_protocol::driver_protocol::DriverMessageHeader* msg) {
+                               using namespace solarxr_protocol::driver_protocol;
+                               using namespace solarxr_protocol::datatypes;
 
-                if (!ready_to_bench)
-                    return;
+                               DriverMessage type = msg->message_type();
+                               switch (type) {
+                               case DriverMessage::HandshakeAvailable: {
+                                   flatbuffers::FlatBufferBuilder fbb;
+                                   auto handshake = CreateHandshakeRequest(fbb, fbb.CreateString("TestClient"), solarxr_protocol::datatypes::CreateBoneMask(fbb, true, true, false, true, true));
+                                   auto msg_header = CreateDriverMessageHeader(fbb, 0, 0, DriverMessage::HandshakeRequest, handshake.Union());
+                                   auto bundle = solarxr_protocol::CreateMessageBundle(fbb, 0, 0, fbb.CreateVector({ msg_header }));
+                                   fbb.Finish(bundle);
+                                   bridge->SendMessage(fbb);
+                                   break;
+                               }
+                               case DriverMessage::HandshakeResponse: {
+                                   if (msg->message_as_HandshakeResponse()->status() != HandshakeStatus::ACCEPTED)
+                                       FAIL("Handshake was rejected");
 
-                auto id = pos.tracker_id();
-                auto dt = duration_cast<nanoseconds>(steady_clock::now() - position_requested_at.load());
-                latency_nanos_count[id]++;
-                latency_nanos_sum[id] += dt.count();
-            } else {
-                invalid_messages++;
-            }
+                                   flatbuffers::FlatBufferBuilder fbb;
+                                   auto add_tracker_msg = CreateAddTrackerRequest(fbb, fbb.CreateString("HMD"), fbb.CreateString("HMD"), 0, BodyPart::HEAD);
+                                   auto msg_header = CreateDriverMessageHeader(fbb, tx_id, 0, DriverMessage::AddTrackerRequest, add_tracker_msg.Union());
+                                   auto bundle = solarxr_protocol::CreateMessageBundle(fbb, 0, 0, fbb.CreateVector({ msg_header }));
+                                   fbb.Finish(bundle);
+                                   bridge->SendMessage(fbb);
+                                   break;
+                               }
+                               case DriverMessage::AddTrackerResponse:
+                                   if (msg->reply_to() == tx_id) {
+                                       auto resp = msg->message_as_AddTrackerResponse();
+                                       AddTrackerStatus status = resp->status();
+                                       if (status == AddTrackerStatus::ERROR)
+                                           FAIL("Error when adding HMD");
 
-            if (!message.has_position()) {
-                last_logged_position = false;
-            }
+                                       uint16_t id = resp->tracker_id();
+                                       flatbuffers::FlatBufferBuilder fbb;
+                                       auto status_update = CreateUpdateTrackerStatus(fbb, id, TrackerStatus::OK);
+                                       auto msg_header = CreateDriverMessageHeader(fbb, 0, 0, DriverMessage::UpdateTrackerStatus, status_update.Union());
+                                       auto bundle = solarxr_protocol::CreateMessageBundle(fbb, 0, 0, fbb.CreateVector({ msg_header }));
+                                       fbb.Finish(bundle);
+                                       bridge->SendMessage(fbb);
+
+                                       hmd_id.store(id);
+                                       hmd_id.notify_all();
+                                   }
+                                   break;
+                               case DriverMessage::UpdateTrackerStatus:
+                               case DriverMessage::UpdateTrackerBattery:
+                                   // ignore
+                                   break;
+                               case DriverMessage::SkeletonUpdate: {
+                                   if (!last_logged_position) {
+                                       logger->Log("... skeleton update");
+                                       last_logged_position = true;
+                                   }
+                                   positions++;
+
+                                   if (hmd_id == 0)
+                                       return;
+                                   auto dt = duration_cast<nanoseconds>(steady_clock::now() - position_requested_at.load());
+                                   latency_nanos_count++;
+                                   latency_nanos_sum += dt.count();
+                                   break;
+                               }
+                               default:
+                                   invalid_messages++;
+                                   break;
+                               }
+
+                               if (type != DriverMessage::SkeletonUpdate)
+                                   last_logged_position = false;
+                           },
+                       },
+                       message);
         });
 
     bridge->Start();
@@ -86,7 +111,7 @@ void TestBridgeClient() {
     for (int i = 0; i < 20; i++) {
         if (bridge->IsConnected())
             break;
-        std::this_thread::sleep_for(milliseconds(100));
+        std::this_thread::sleep_for(100ms);
     }
 
     if (!bridge->IsConnected()) {
@@ -95,55 +120,34 @@ void TestBridgeClient() {
         return;
     }
 
-    google::protobuf::Arena arena;
-    messages::ProtobufMessage* message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena);
+    hmd_id.wait(0);
 
-    messages::TrackerAdded* tracker_added = google::protobuf::Arena::Create<messages::TrackerAdded>(&arena);
-    message->set_allocated_tracker_added(tracker_added);
-    tracker_added->set_tracker_id(0);
-    tracker_added->set_tracker_role(TrackerRole::HMD);
-    tracker_added->set_tracker_serial("HMD");
-    tracker_added->set_tracker_name("HMD");
-    bridge->SendBridgeMessage(*message);
-
-    messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena);
-    message->set_allocated_tracker_status(tracker_status);
-    tracker_status->set_tracker_id(0);
-    tracker_status->set_status(messages::TrackerStatus_Status::TrackerStatus_Status_OK);
-    bridge->SendBridgeMessage(*message);
-
-    ready_to_bench = true;
-
+    flatbuffers::FlatBufferBuilder fbb;
     for (int i = 0; i < 50; i++) {
-        messages::Position* hmd_position = google::protobuf::Arena::Create<messages::Position>(&arena);
-        message->set_allocated_position(hmd_position);
-        hmd_position->set_tracker_id(0);
-        hmd_position->set_data_source(messages::Position_DataSource_FULL);
-        hmd_position->set_x(0);
-        hmd_position->set_y(0);
-        hmd_position->set_z(0);
-        hmd_position->set_qx(0);
-        hmd_position->set_qy(0);
-        hmd_position->set_qz(0);
-        hmd_position->set_qw(0);
+        using namespace solarxr_protocol;
+        using namespace solarxr_protocol::driver_protocol;
+
+        datatypes::math::Quat rot(0.f, 0.f, 0.f, 1.f);
+        datatypes::math::Vec3f pos(0.f, 0.f, 0.f);
+        auto update_pos_msg = driver_protocol::CreateUpdateTrackerPosition(fbb, hmd_id, &rot, &pos);
+        auto msg_header = CreateDriverMessageHeader(fbb, 0, 0, DriverMessage::UpdateTrackerPosition, update_pos_msg.Union());
+        auto bundle = solarxr_protocol::CreateMessageBundle(fbb, 0, 0, fbb.CreateVector({ msg_header }));
+        fbb.Finish(bundle);
 
         position_requested_at = steady_clock::now();
-        bridge->SendBridgeMessage(*message);
-        std::this_thread::sleep_for(milliseconds(10));
+        bridge->SendMessage(fbb);
+        fbb.Clear();
+        std::this_thread::sleep_for(10ms);
     }
 
     bridge->Stop();
 
-    for (const auto& [id, sum] : latency_nanos_sum) {
-        auto avg_latency_nanos = static_cast<int>(latency_nanos_count[id] ? sum / latency_nanos_count[id] : -1);
-        auto avg_latency_ms = duration_cast<duration<double, std::milli>>(nanoseconds(avg_latency_nanos));
-        logger->Log("avg latency for tracker {}: {:.3f}ms", id, avg_latency_ms.count());
-    }
+    auto avg_latency_nanos = static_cast<int>(latency_nanos_count ? latency_nanos_sum / latency_nanos_count : -1);
+    auto avg_latency_ms = duration_cast<duration<double, std::milli>>(nanoseconds(avg_latency_nanos));
+    logger->Log("avg latency: {:.3f}ms", avg_latency_ms.count());
 
     if (invalid_messages)
         FAIL("Invalid messages received");
-    if (!trackers)
-        FAIL("No trackers received");
     if (!positions)
         FAIL("No tracker positions received");
 }
