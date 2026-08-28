@@ -28,8 +28,8 @@
 
 std::string GetSerial(solarxr_protocol::datatypes::BodyPart role);
 
-std::string GetViveRoleHint(solarxr_protocol::datatypes::BodyPart role);
+std::string GetViveControllerType(solarxr_protocol::datatypes::BodyPart role);
 
-std::string GetViveRole(solarxr_protocol::datatypes::BodyPart role);
+std::string GetTrackerRole(solarxr_protocol::datatypes::BodyPart role);
 
 DeviceType GetDeviceType(solarxr_protocol::datatypes::BodyPart role);

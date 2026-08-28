@@ -62,7 +62,7 @@ std::string GetSerial(BodyPart role) {
     return "";
 }
 
-std::string GetViveRoleHint(BodyPart role) {
+std::string GetViveControllerType(BodyPart role) {
     switch (role) {
     case BodyPart::UPPER_CHEST:
     case BodyPart::CHEST:
@@ -99,7 +99,7 @@ std::string GetViveRoleHint(BodyPart role) {
     return "";
 }
 
-std::string GetViveRole(BodyPart role) {
+std::string GetTrackerRole(BodyPart role) {
     switch (role) {
     case BodyPart::UPPER_CHEST:
     case BodyPart::CHEST:

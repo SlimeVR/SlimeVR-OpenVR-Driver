@@ -97,7 +97,7 @@ BodyPart SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t inde
         }
 
         for (auto part : EnumValuesBodyPart()) {
-            if (auto role_hint = GetViveRoleHint(part); !role_hint.empty() && role_hint == controller_type) {
+            if (auto role_hint = GetViveControllerType(part); !role_hint.empty() && role_hint == controller_type) {
                 return part;
             }
         }
