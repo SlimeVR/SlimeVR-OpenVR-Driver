@@ -636,6 +636,10 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
     }
 
     auto serial = device->GetSerial();
+    if (serial.empty()) {
+        logger_->Log("Tried to add device for role BodyPart::{} with empty serial number (unhandled)", EnumNameBodyPart(body_part));
+        return false;
+    }
 
     // Doesn't apply until restart of SteamVR
     auto role = GetTrackerRole(body_part);
