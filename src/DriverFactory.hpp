@@ -1,11 +1,10 @@
 #pragma once
 
-#include <cstdlib>
 #include <memory>
 
 #include <openvr_driver.h>
 
-#include <IVRDriver.hpp>
+#include "VRDriver.hpp"
 
 #ifdef WIN32
 extern "C" __declspec(dllexport) void* HmdDriverFactory(const char* interface_name, int* return_code);
@@ -14,5 +13,5 @@ extern "C" void* HmdDriverFactory(const char* interface_name, int* return_code);
 #endif
 
 namespace SlimeVRDriver {
-std::shared_ptr<SlimeVRDriver::IVRDriver> GetDriver();
+std::shared_ptr<SlimeVRDriver::VRDriver> GetDriver();
 }
