@@ -1,6 +1,5 @@
 #include "TrackerDevice.hpp"
 #include "DriverFactory.hpp"
-#include "TrackerRole.hpp"
 #include <cmath>
 #include <solarxr_protocol/generated/all_generated.h>
 
@@ -197,12 +196,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     bool emulate_vives = vr::VRSettings()->GetBool("driver_slimevr", "emulateVives");
     std::string input_profile_path = emulate_vives ? "{htc}/input/vive_tracker_profile.json" : "{slimevr}/input/slimevr_tracker_profile.json";
     vr::VRProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, input_profile_path.c_str());
-
-    // Doesn't apply until restart of SteamVR
-    auto role = GetTrackerRole(body_part_);
-    if (!role.empty()) {
-        vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial_).c_str(), role.c_str());
-    }
 
     return vr::EVRInitError::VRInitError_None;
 }

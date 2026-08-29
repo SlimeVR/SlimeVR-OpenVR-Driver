@@ -635,7 +635,15 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
         return false;
     }
 
-    if (!vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get())) {
+    auto serial = device->GetSerial();
+
+    // Doesn't apply until restart of SteamVR
+    auto role = GetTrackerRole(body_part);
+    if (!role.empty()) {
+        vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial).c_str(), role.c_str());
+    }
+
+    if (!vr::VRServerDriverHost()->TrackedDeviceAdded(serial.c_str(), openvr_device_class, device.get())) {
         logger_->Log("Failed to add device for BodyPart::{} (\"{}\")", EnumNameBodyPart(body_part), device->GetSerial());
         return false;
     }
