@@ -22,90 +22,169 @@
 */
 #pragma once
 
-#ifdef __linux__
-#include <filesystem>
-#endif
-
 #include <atomic>
+#include <condition_variable>
+#include <filesystem>
+#include <mutex>
+#include <span>
 #include <thread>
 #include <variant>
 
-// Needs to be before anything that includes Windows.h (uvw) to avoid macro clashes
+// Needs to be before anything that includes Windows.h to avoid macro clashes
 #include <solarxr_protocol/generated/all_generated.h>
 
-#include <uvw.hpp>
-// Windows, Windows, go away
+#ifdef _WIN32
+#include <Winsock2.h>
+#include <afunix.h>
+// Microsoft why
 #undef ERROR
+#undef SendMessage
+#else
+#include <poll.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
 
-#include "CircularBuffer.hpp"
 #include "Logger.hpp"
 
-#define VRBRIDGE_MAX_MESSAGE_SIZE 4096
-#define VRBRIDGE_BUFFERS_SIZE 16384
-
-#define WINDOWS_PIPE_NAME "\\\\.\\pipe\\SlimeVRRpc"
-#define UNIX_XDG_DATA_HOME_DEFAULT ".local/share/"
-#define UNIX_SLIMEVR_DIR "dev.slimevr.SlimeVR"
-#define UNIX_TMP_DIR "/tmp"
-#define UNIX_SOCKET_NAME "SlimeVRRpc"
-
 /**
- * @brief Passes messages between SlimeVR Server and SteamVR Driver using pipes or unix sockets.
+ * @brief Passes messages between SlimeVR Server and SteamVR Driver using Unix sockets.
  *
  * Client or Server connection handling is implemented by extending this class.
  *
- * This class provides a set of methods to start, stop an IO thread, send messages over a named pipe or unix socket
- * and is abstracted through `libuv`.
+ * This class provides a set of methods to start, stop an IO thread, and send messages over a Unix socket.
  *
- * When a message is received and parsed from the pipe, the messageCallback function passed in the constructor is called
- * from the libuv event loop thread with the message as a parameter.
+ * When a message is received and parsed from the pipe, the on_message_received function passed in the constructor is called
+ * from the bridge thread with the message as a parameter.
  *
  * @param logger A shared pointer to an Logger object to log messages from the transport.
  * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
+ * @param on_connect A function to be called when the socket is connected to.
+ * @param on_disconnect A function to be called when the connection is ended.
  */
 class BridgeTransport {
 public:
     using MessageHeader = std::variant<const solarxr_protocol::data_feed::DataFeedMessageHeader*, const solarxr_protocol::rpc::RpcMessageHeader*, const solarxr_protocol::driver_protocol::DriverMessageHeader*>;
+
+#ifdef _WIN32
+    using Socket = SOCKET;
+#else
+    using Socket = int;
+#endif
+
+#ifdef _WIN32
+    constexpr static Socket InvalidSocket = INVALID_SOCKET;
+#else
+    constexpr static Socket InvalidSocket = -1;
+#endif
+
+#ifdef _WIN32
+    constexpr static int SocketError = SOCKET_ERROR;
+#else
+    constexpr static int SocketError = -1;
+#endif
+
+    static inline int GetLastSocketError() {
+#ifdef _WIN32
+        return WSAGetLastError();
+#else
+        return errno;
+#endif
+    }
+
+    static inline int CloseSocket(Socket fd) {
+#ifdef _WIN32
+        return closesocket(fd);
+#else
+        return close(fd);
+#endif
+    }
+
+    static inline bool IsBlockingError(int err) {
+#ifdef _WIN32
+        return err == WSAEWOULDBLOCK;
+#else
+        return err == EAGAIN || err == EWOULDBLOCK;
+#endif
+    }
+
+    template <typename Rep, typename Period>
+    static inline bool Poll(Socket fd, std::chrono::duration<Rep, Period> timeout) noexcept(false) {
+        struct pollfd pollfd{
+            .fd = fd,
+            .events = POLLIN
+        };
+
+        int ret;
+
+#ifdef _WIN32
+        ret = WSAPoll(&pollfd, 1, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
+#else
+        {
+            auto s = std::chrono::duration_cast<std::chrono::seconds>(timeout);
+            auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(timeout - s);
+            struct timespec ts{
+                .tv_sec = s.count(),
+                .tv_nsec = ns.count(),
+            };
+            ret = ppoll(&pollfd, 1, timeout == timeout.zero() ? nullptr : &ts, nullptr);
+        }
+#endif
+
+#ifdef _WIN32
+        constexpr int InterruptedErrno = WSAEINTR;
+#else
+        constexpr int InterruptedErrno = EINTR;
+#endif
+
+        return ret != SocketError ? (pollfd.revents & (POLLERR | POLLHUP)) == 0 : GetLastSocketError() == InterruptedErrno;
+    }
+
     BridgeTransport(std::shared_ptr<Logger> logger,
                     std::function<void(MessageHeader&&)> on_message_received,
                     std::function<void()> on_connect = {},
                     std::function<void()> on_disconnect = {})
         : logger_(logger)
-        , send_buf_(VRBRIDGE_BUFFERS_SIZE)
-        , recv_buf_(VRBRIDGE_BUFFERS_SIZE)
         , connect_callback_(on_connect)
         , message_callback_(on_message_received)
-        , disconnect_callback_(on_disconnect) { }
+        , disconnect_callback_(on_disconnect) {
+#ifdef _WIN32
+        WSADATA _ws_data;
+        if (int ret = WSAStartup(MAKEWORD(2, 2), &_ws_data); ret != 0) {
+            logger_->Log("WSAStartup failed with code {}", ret);
+            return;
+        }
+#endif
+    }
 
-    ~BridgeTransport() {
+    virtual ~BridgeTransport() {
         Stop();
+#ifdef _WIN32
+        WSACleanup();
+#endif
     }
 
     /**
-     * @brief Starts the channel by creating a thread with an libuv event loop.
+     * @brief Starts the channel by creating a thread.
      *
      * Connects and automatic reconnects with a timeout are implemented internally.
      */
     void Start();
 
     /**
-     * @brief Stops the channel by stopping the libuv event loop and closing the connection handles.
+     * @brief Stops the channel by stopping the thread and closing the connection handles.
      *
-     * Blocks until the event loop is stopped and the connection handles are closed.
+     * Blocks until the thread is stopped and the connection handles are closed.
      */
     void Stop();
 
     /**
-     * @brief Stops the channel asynchronously by sending a signal to the libuv event loop to stop and returning immediately.
-     *
-     * The `Stop()` function calls this method.
+     * @brief Stops the channel asynchronously and returns immediately.
      */
     void StopAsync();
 
     /**
      * @brief Sends a message over the channel.
-     *
-     * Queues the message to the send buffer to be sent over the pipe.
      *
      * @param message The message to send.
      */
@@ -117,76 +196,43 @@ public:
      * @return true if the channel is connected, false otherwise.
      */
     bool IsConnected() {
-        return connected_;
+        return fd_ != InvalidSocket;
     };
 
 protected:
     virtual void CreateConnection() = 0;
-    virtual void ResetConnection() = 0;
-    virtual void CloseConnectionHandles() = 0;
-    void ResetBuffers();
+    void ResetConnection();
+
+    void CloseConnectionHandles();
+
     void OnConnect() {
         if (connect_callback_)
             connect_callback_();
     }
-    void OnRecv(const uvw::data_event& event);
+    void OnRecv(std::span<uint8_t> event);
     void OnDisconnect() {
         if (disconnect_callback_)
             disconnect_callback_();
-    };
-    auto GetLoop() {
-        return loop_;
     }
 
-    static std::string GetBridgePath() {
-#if defined(__linux__)
-        namespace fs = std::filesystem;
-
-        std::vector<std::string> paths = {};
-        if (const char* ptr = std::getenv("XDG_RUNTIME_DIR")) {
-            const fs::path xdg_runtime = ptr;
-            paths.push_back((xdg_runtime / UNIX_SOCKET_NAME).string());
-        }
-
-        if (const char* ptr = std::getenv("XDG_DATA_HOME")) {
-            const fs::path xdg_data = ptr;
-            paths.push_back((xdg_data / UNIX_SLIMEVR_DIR / UNIX_SOCKET_NAME).string());
-        }
-
-        if (const char* ptr = std::getenv("HOME")) {
-            const fs::path home = ptr;
-            paths.push_back((home / UNIX_XDG_DATA_HOME_DEFAULT / UNIX_SLIMEVR_DIR / UNIX_SOCKET_NAME).string());
-        }
-
-        for (auto path : paths) {
-            if (fs::exists(path)) {
-                return path;
-            }
-        }
-
-        return (fs::path(UNIX_TMP_DIR) / UNIX_SOCKET_NAME).string();
-#elif defined(_WIN32)
-        return WINDOWS_PIPE_NAME;
-#else
-#error "Unsupported platform"
-#endif
-    }
+    static std::filesystem::path GetSocketPath();
 
     std::shared_ptr<Logger> logger_;
-    std::atomic<bool> connected_ = false;
-    std::shared_ptr<uvw::pipe_handle> connection_handle_ = nullptr;
+    // used for the condition variable
+    std::mutex m_;
+    // cv is signaled on connection, or when we're exiting, in which case fd_ == InvalidSocket
+    std::condition_variable cv_;
+
+    std::atomic<Socket> fd_ = InvalidSocket;
 
 private:
-    void RunThread();
-    void SendWrites();
+    void RunThread(std::stop_token stop);
 
-    CircularBuffer send_buf_;
-    CircularBuffer recv_buf_;
-    std::shared_ptr<uvw::async_handle> stop_signal_handle_ = nullptr;
-    std::shared_ptr<uvw::async_handle> write_signal_handle_ = nullptr;
-    std::unique_ptr<std::thread> thread_ = nullptr;
-    std::shared_ptr<uvw::loop> loop_ = nullptr;
     std::function<void()> connect_callback_;
     std::function<void(MessageHeader&&)> message_callback_;
     std::function<void()> disconnect_callback_;
+
+    std::jthread thread_;
+    std::jthread reconnect_thread_;
+    std::optional<std::error_code> last_error_;
 };

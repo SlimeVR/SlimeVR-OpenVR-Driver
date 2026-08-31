@@ -22,34 +22,21 @@
 */
 #pragma once
 
-#include <optional>
-
 #include "BridgeTransport.hpp"
 
 /**
- * @brief Client implementation for communication with SlimeVR Server using pipes or unix sockets.
+ * @brief Client implementation of @ref BridgeTransport for communication with SlimeVR Server using unix sockets.
  *
- * This class provides a set of methods to start, stop an IO thread, send messages over a named pipe or unix socket
- * and is abstracted through `libuv`.
- *
- * When a message is received and parsed from the pipe, the messageCallback function passed in the constructor is called
- * from the event loop thread with the message as a parameter.
- *
- * @param logger A shared pointer to an Logger object to log messages from the transport.
- * @param on_message_received A function to be called from event loop thread when a message is received and parsed from the pipe.
+ * @copydoc BridgeTransport
  */
 class BridgeClient : public BridgeTransport {
 public:
     using BridgeTransport::BridgeTransport;
-    void SendVersion();
 
 private:
-    void CreateConnection() override;
-    void ResetConnection() override;
-    void CloseConnectionHandles() override;
+    void CreateConnection();
+    void CloseConnectionHandles();
     void Reconnect();
 
-    std::optional<std::string> last_error_;
-    std::optional<std::string> last_path_;
-    std::shared_ptr<uvw::timer_handle> reconnect_timeout_;
+    void RunThread(std::stop_token stop);
 };

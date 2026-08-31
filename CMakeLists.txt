@@ -48,8 +48,6 @@ endif()
 include(cmake/CPM.cmake)
 
 CPMAddPackage(URI "gh:simdjson/simdjson@4.6.4")
-CPMAddPackage(URI "gh:libuv/libuv@1.52.1")
-CPMAddPackage(URI "gh:skypjack/uvw#bf9c298ea6598e78913c6cd186211412ddac04d6")
 if (SLIMEVR_BUILD_TESTS)
     CPMAddPackage(URI "gh:catchorg/Catch2@3.15.0")
 endif()
@@ -79,11 +77,7 @@ set(DEPS_INCLUDES
     "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/"
 )
-set(DEPS_LIBS
-    simdjson::simdjson
-    libuv::libuv
-    uvw::uvw
-)
+set(DEPS_LIBS simdjson::simdjson)
 
 configure_file(src/Consts.hpp.in src/Consts.hpp @ONLY)
 
@@ -98,6 +92,8 @@ target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} "${C
 if(UNIX)
     target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
     target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)
+elseif(WIN32)
+    target_link_libraries("${PROJECT_NAME}_static" PUBLIC ws2_32)
 endif()
 
 # compile driver

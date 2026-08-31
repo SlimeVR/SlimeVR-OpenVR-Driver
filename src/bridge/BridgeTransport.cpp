@@ -21,154 +21,227 @@
     THE SOFTWARE.
 */
 #include "BridgeTransport.hpp"
-#include <bit>
-#include <solarxr_protocol/generated/all_generated.h>
+#include "Endianness.hpp"
 
-void BridgeTransport::Start() {
-    thread_ = std::make_unique<std::thread>(&BridgeTransport::RunThread, this);
-}
+#include <solarxr_protocol/generated/all_generated.h>
+#include <system_error>
+
+#ifndef _WIN32
+#include <sys/socket.h>
+#endif
+
+using namespace std::chrono_literals;
+namespace fs = std::filesystem;
+
+#define UNIX_XDG_DATA_HOME_DEFAULT ".local/share/"
+#define SLIMEVR_IDENTIFIER "dev.slimevr.SlimeVR"
+#define UNIX_DEFAULT_TMP_DIR "/tmp"
+#define SOCKET_NAME "SlimeVRRpc"
 
 void BridgeTransport::Stop() {
-    if (!thread_ || !thread_->joinable())
-        return;
-    StopAsync();
     logger_->Log("stopping");
-    thread_->join();
-    thread_.reset();
+    StopAsync();
+    thread_ = std::jthread();
+    reconnect_thread_ = std::jthread();
 }
 
 void BridgeTransport::StopAsync() {
-    if (!stop_signal_handle_ || stop_signal_handle_->closing())
-        return;
-    stop_signal_handle_->send();
+    cv_.notify_all();
+    thread_.request_stop();
+    reconnect_thread_.request_stop();
 }
 
-void BridgeTransport::RunThread() {
-    logger_->Log("thread started");
-    loop_ = uvw::loop::create();
-    stop_signal_handle_ = GetLoop()->resource<uvw::async_handle>();
-    write_signal_handle_ = GetLoop()->resource<uvw::async_handle>();
-
-    stop_signal_handle_->on<uvw::async_event>([this](const uvw::async_event&, uvw::async_handle& handle) {
-        logger_->Log("closing handles");
-        CloseConnectionHandles();
-        write_signal_handle_->close();
-        stop_signal_handle_->close();
-    });
-
-    write_signal_handle_->on<uvw::async_event>([this](const uvw::async_event&, uvw::async_handle& handle) {
-        SendWrites();
-    });
-
-    CreateConnection();
-    GetLoop()->run();
-    GetLoop()->close();
-    logger_->Log("thread exited");
-}
-
-void BridgeTransport::ResetBuffers() {
-    recv_buf_.Clear();
-    send_buf_.Clear();
-}
-
-void BridgeTransport::OnRecv(const uvw::data_event& event) {
-    if (!recv_buf_.Push(event.data.get(), event.length)) {
-        logger_->Log("recv_buf_.Push({}) failed", event.length);
-        ResetConnection();
-        return;
+fs::path BridgeTransport::GetSocketPath() {
+#if defined(__linux__)
+    std::vector<fs::path> paths = {};
+    if (const char* xdg_runtime = std::getenv("XDG_RUNTIME_DIR")) {
+        paths.push_back(fs::path(xdg_runtime) / SOCKET_NAME);
     }
 
-    size_t available;
-    while ((available = recv_buf_.BytesAvailable())) {
-        if (available < 4)
-            return;
+    if (const char* xdg_data = std::getenv("XDG_DATA_HOME")) {
+        paths.push_back(fs::path(xdg_data) / SLIMEVR_IDENTIFIER / SOCKET_NAME);
+    }
 
-        char len_buf[4];
-        recv_buf_.Peek(len_buf, 4);
-        uint32_t msg_len = *reinterpret_cast<uint32_t*>(&len_buf[0]);
-        if constexpr (std::endian::native != std::endian::little) {
-            msg_len = std::byteswap(msg_len);
-        }
+    if (const char* home = std::getenv("HOME")) {
+        paths.push_back(fs::path(home) / UNIX_XDG_DATA_HOME_DEFAULT / SLIMEVR_IDENTIFIER / SOCKET_NAME);
+    }
 
-        if (available < msg_len)
-            return;
-
-        char message_buf[VRBRIDGE_MAX_MESSAGE_SIZE];
-        if (msg_len > std::size(message_buf)) {
-            logger_->Log(
-                "message size overflow: {} > {}",
-                msg_len, VRBRIDGE_MAX_MESSAGE_SIZE);
-            ResetConnection();
-            return;
-        }
-
-        auto unwrapped_size = msg_len - 4;
-        if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf, unwrapped_size)) {
-            logger_->Log("recv_buf_.Pop({}) failed", msg_len - 4);
-            ResetConnection();
-            return;
-        }
-
-        auto bundle = flatbuffers::GetRoot<solarxr_protocol::MessageBundle>(message_buf);
-
-        if (auto data_feed_msgs = bundle->data_feed_msgs()) {
-            for (auto msg : *data_feed_msgs) {
-                // logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
-                message_callback_(msg);
-            }
-        }
-        if (auto rpc_msgs = bundle->rpc_msgs()) {
-            for (auto msg : *rpc_msgs) {
-                logger_->Log("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
-                message_callback_(msg);
-            }
-        }
-        if (auto driver_msgs = bundle->driver_msgs()) {
-            for (auto msg : *driver_msgs) {
-                // logger_->Log("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
-                message_callback_(msg);
-            }
+    for (auto path : paths) {
+        if (fs::exists(path)) {
+            return path;
         }
     }
+
+    return fs::path(UNIX_DEFAULT_TMP_DIR) / SOCKET_NAME;
+#elif defined(_WIN32)
+    // This should work as long as the user's machine does not have
+    // the java.io.tmpdir system property overriden.
+    WCHAR tmp_dir[MAX_PATH + 1];
+    GetTempPathW(std::size(tmp_dir), tmp_dir);
+    return fs::path(tmp_dir) / SOCKET_NAME;
+#else
+#error "Unsupported platform"
+#endif
+}
+
+void BridgeTransport::OnRecv(std::span<uint8_t> event) {
+    auto bundle = flatbuffers::GetRoot<solarxr_protocol::MessageBundle>(event.data());
+
+    if (auto data_feed_msgs = bundle->data_feed_msgs()) {
+        for (auto msg : *data_feed_msgs) {
+            // logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
+            message_callback_(msg);
+        }
+    }
+    if (auto rpc_msgs = bundle->rpc_msgs()) {
+        for (auto msg : *rpc_msgs) {
+            logger_->Log("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
+            message_callback_(msg);
+        }
+    }
+    if (auto driver_msgs = bundle->driver_msgs()) {
+        for (auto msg : *driver_msgs) {
+            // logger_->Log("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
+            message_callback_(msg);
+        }
+    }
+}
+
+void BridgeTransport::Start() {
+    thread_ = std::jthread([this](std::stop_token stop) { return RunThread(stop); });
+}
+
+void BridgeTransport::RunThread(std::stop_token stop) {
+    std::vector<uint8_t> data;
+    data.reserve(0x10000);
+
+    // Kick off connection.
+    ResetConnection();
+
+    while (!stop.stop_requested()) {
+        Socket fd = fd_;
+        if (fd == InvalidSocket) {
+            std::unique_lock lk(m_);
+            cv_.wait(lk);
+            fd = fd_;
+            if (fd == InvalidSocket)
+                continue;
+        }
+
+        if (!Poll(fd, 1ms)) {
+            int err = GetLastSocketError();
+            logger_->Log("Error when polling socket: {}", std::error_code(err, std::system_category()).message());
+            ResetConnection();
+        }
+
+        int ret;
+        try {
+            data.clear();
+
+            uint32_t msg_len;
+            // need cast for winsock
+            ret = recv(fd, reinterpret_cast<char*>(&msg_len), sizeof(msg_len), 0);
+            if (ret == SocketError) {
+                int err = GetLastSocketError();
+                if (IsBlockingError(err))
+                    continue;
+
+                throw std::system_error(err, std::system_category(), "recv() for length failed");
+            }
+            msg_len = ConvertEndianness<std::endian::little>(msg_len);
+            // If we get something bigger than this, something's probably up
+            if (msg_len > 0x40000) {
+                throw std::runtime_error(std::format("Got too large message ({} bytes)", msg_len));
+            }
+            data.reserve(msg_len);
+
+            const uint32_t unwrapped_len = msg_len - 4;
+            uint32_t received{ 0 };
+            while (received < unwrapped_len) {
+                // need cast for winsock
+                ret = recv(fd, reinterpret_cast<char*>(&data[received]), unwrapped_len - received, 0);
+                if (ret == SocketError) {
+                    int err = GetLastSocketError();
+                    if (IsBlockingError(err))
+                        continue;
+
+                    throw std::system_error(err, std::system_category(), "recv() failed");
+                }
+                if (ret == 0) {
+                    throw std::runtime_error("EOF on socket");
+                }
+
+                received += ret;
+            }
+
+            OnRecv({ data.data(), received });
+        } catch (std::exception& e) {
+            logger_->Log("Error on socket: {}", e.what());
+            ResetConnection();
+        }
+    }
+
+    CloseConnectionHandles();
+}
+
+void BridgeTransport::ResetConnection() {
+    CloseConnectionHandles();
+    reconnect_thread_ = std::jthread([this](std::stop_token stop) {
+        while (!stop.stop_requested()) {
+            try {
+                CreateConnection();
+                if (fd_ != InvalidSocket)
+                    return;
+            } catch (std::system_error& e) {
+                if (last_error_ != e.code()) {
+                    logger_->Log("Error when trying to reconnect: {}", e.what());
+                    last_error_ = e.code();
+                }
+            } catch (std::exception& e) {
+                logger_->Log("Error when trying to connect: {}", e.what());
+            }
+
+            std::this_thread::sleep_for(1000ms);
+        }
+    });
+}
+
+void BridgeTransport::CloseConnectionHandles() {
+    Socket fd = fd_.exchange(InvalidSocket);
+    if (fd == InvalidSocket)
+        return;
+
+    CloseSocket(fd);
+    OnDisconnect();
 }
 
 void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
-    if (!IsConnected())
+    Socket fd = fd_;
+    if (fd == InvalidSocket)
         return;
 
-    uint32_t size = static_cast<uint32_t>(fbb.GetSize());
-    uint32_t wrapped_size = size + 4;
+    uint8_t message[0x10000];
+    const uint32_t size = static_cast<uint32_t>(fbb.GetSize());
+    const uint32_t wrapped_size = size + 4;
 
-    char message_buf[VRBRIDGE_MAX_MESSAGE_SIZE];
-    if (wrapped_size > std::size(message_buf)) {
-        logger_->Log("Skipping message send because it's too large ({} > {})", wrapped_size, std::size(message_buf));
-        return;
-    }
-
-    if constexpr (std::endian::native != std::endian::little) {
-        uint32_t le_size = std::byteswap(wrapped_size);
-        send_buf_.Push(reinterpret_cast<const char*>(&le_size), sizeof(le_size));
-    } else {
-        send_buf_.Push(reinterpret_cast<const char*>(&wrapped_size), sizeof(wrapped_size));
-    }
-
-    if (!send_buf_.Push(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize())) {
-        ResetConnection();
+    if (wrapped_size > std::size(message)) {
+        logger_->Log("Skipping send of message because it's too large ({} > {})", wrapped_size, std::size(message));
         return;
     }
 
-    write_signal_handle_->send();
-}
+    *reinterpret_cast<uint32_t*>(&message[0]) = ConvertEndianness<std::endian::little>(wrapped_size);
+    memcpy(&message[4], fbb.GetBufferPointer(), size);
 
-void BridgeTransport::SendWrites() {
-    if (!IsConnected())
-        return;
+#ifndef _WIN32
+    constexpr int flags = MSG_NOSIGNAL;
+#else
+    constexpr int flags = 0;
+#endif
 
-    auto available = send_buf_.BytesAvailable();
-    if (!available)
-        return;
-
-    char write_buf[VRBRIDGE_BUFFERS_SIZE];
-    send_buf_.Pop(write_buf, available);
-    connection_handle_->write(write_buf, static_cast<unsigned int>(available));
+    // need cast for winsock
+    int ret = send(fd, reinterpret_cast<char*>(message), wrapped_size, flags);
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        logger_->Log("send() failed: {}", std::error_code(err, std::system_category()).message());
+    }
 }
