@@ -21,65 +21,64 @@
     THE SOFTWARE.
 */
 #include "BridgeClient.hpp"
+#include "bridge/BridgeTransport.hpp"
+
+#include <system_error>
+
+#ifndef _WIN32
+#include <fcntl.h>
+#endif
 
 using namespace std::literals::chrono_literals;
+namespace fs = std::filesystem;
 
 void BridgeClient::CreateConnection() {
-    ResetBuffers();
+    fs::path path = GetSocketPath();
 
-    if (!last_error_.has_value()) {
-        logger_->Log("connecting");
+    Socket fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd == InvalidSocket) {
+        int err = GetLastSocketError();
+        throw std::system_error(err, std::system_category(), "socket() failed");
     }
 
-    std::string path = GetBridgePath();
+    struct sockaddr_un addr{
+        .sun_family = AF_UNIX,
+    };
 
-    /* ipc = false -> pipe will be used for handle passing between processes? no */
-    connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
-    connection_handle_->on<uvw::connect_event>([this, path](const uvw::connect_event&, uvw::pipe_handle&) {
-        connection_handle_->read();
-        logger_->Log("[{}] connected", path);
-        connected_ = true;
-        OnConnect();
-        last_error_ = std::nullopt;
-    });
-    connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event&, uvw::pipe_handle&) {
-        logger_->Log("[{}] disconnected", path);
-        Reconnect();
-    });
-    connection_handle_->on<uvw::data_event>([this](const uvw::data_event& event, uvw::pipe_handle&) {
-        OnRecv(event);
-    });
-    connection_handle_->on<uvw::error_event>([this, path](const uvw::error_event& event, uvw::pipe_handle&) {
-        if (!last_error_.has_value() || last_error_ != event.what() || last_path_ != path) {
-            logger_->Log("[{}] pipe error: {}", path, event.what());
-            last_error_ = event.what();
-            last_path_ = path;
-        }
-        Reconnect();
-    });
+    const std::u8string path_str = path.u8string();
+    if (path_str.size() > std::size(addr.sun_path) - 1) {
+        throw std::runtime_error("Socket path too long to fit in sun_path");
+    }
+    memcpy(addr.sun_path, path_str.data(), path_str.size() + 1);
 
-    connection_handle_->connect(path);
-}
+    int ret = connect(fd, reinterpret_cast<const struct sockaddr*>(&addr), sizeof(addr));
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        CloseSocket(fd);
+        throw std::system_error(err, std::system_category(), "connect() failed");
+    }
 
-void BridgeClient::ResetConnection() {
-    Reconnect();
-}
+    logger_->Log("Connected to {}", path.string());
 
-void BridgeClient::Reconnect() {
-    CloseConnectionHandles();
-    reconnect_timeout_ = GetLoop()->resource<uvw::timer_handle>();
-    reconnect_timeout_->start(1000ms, 0ms);
-    reconnect_timeout_->on<uvw::timer_event>([this](const uvw::timer_event&, uvw::timer_handle& handle) {
-        CreateConnection();
-        handle.close();
-    });
-}
+    // Set it to non-blocking mode so accept() doesn't block.
+#ifdef _WIN32
+    {
+        u_long mode = 1;
+        ret = ioctlsocket(fd, FIONBIO, &mode);
+    }
+#else
+    ret = fcntl(fd, F_SETFL, O_NONBLOCK);
+#endif
 
-void BridgeClient::CloseConnectionHandles() {
-    if (connection_handle_)
-        connection_handle_->close();
-    if (reconnect_timeout_)
-        reconnect_timeout_->close();
-    if (connected_.exchange(false))
-        OnDisconnect();
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
+    }
+
+    {
+        fd_ = fd;
+        cv_.notify_all();
+    }
+
+    OnConnect();
 }

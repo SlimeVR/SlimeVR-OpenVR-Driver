@@ -21,58 +21,94 @@
     THE SOFTWARE.
 */
 #include "BridgeServerMock.hpp"
+#include <system_error>
 
-using namespace std::literals::chrono_literals;
+#ifndef _WIN32
+#include <sys/fcntl.h>
+#endif
+
+using namespace std::chrono_literals;
+namespace fs = std::filesystem;
+
+BridgeServerMock::BridgeServerMock(std::shared_ptr<Logger> logger,
+                                   std::function<void(MessageHeader&&)> on_message_received,
+                                   std::function<void()> on_connect,
+                                   std::function<void()> on_disconnect)
+    : BridgeTransport(logger, on_message_received, on_connect, on_disconnect) {
+    sock_fd_ = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock_fd_ == InvalidSocket) {
+        int err = GetLastSocketError();
+        throw std::system_error(err, std::system_category(), "socket() failed");
+    }
+
+    struct sockaddr_un addr{
+        .sun_family = AF_UNIX,
+    };
+
+    const std::filesystem::path path = GetSocketPath();
+    const std::u8string path_str = path.u8string();
+    if (path_str.size() > std::size(addr.sun_path) - 1) {
+        throw std::runtime_error("Socket path too long to fit in sun_path");
+    }
+    memcpy(addr.sun_path, path_str.data(), path_str.size() + 1);
+
+    std::error_code ec;
+    fs::remove(path, ec);
+
+    int ret = bind(sock_fd_, reinterpret_cast<const struct sockaddr*>(&addr), sizeof(addr));
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        throw std::system_error(err, std::system_category(), "bind() failed");
+    }
+
+    ret = listen(sock_fd_, 5);
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        throw std::system_error(err, std::system_category(), "listen() failed");
+    }
+
+    // Set it to non-blocking mode so accept() doesn't block.
+#ifdef _WIN32
+    {
+        u_long mode = 1;
+        ret = ioctlsocket(sock_fd_, FIONBIO, &mode);
+    }
+#else
+    ret = fcntl(sock_fd_, F_SETFL, O_NONBLOCK);
+#endif
+
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
+    }
+
+    logger_->Log("Listening on socket {}", path.string());
+}
+
+BridgeServerMock::~BridgeServerMock() {
+    if (sock_fd_ != InvalidSocket) {
+        int ret = CloseSocket(sock_fd_);
+        if (ret == SocketError) {
+            logger_->Log("CloseSocket() failed: {}", std::error_code(ret, std::system_category()).message());
+        }
+
+        std::error_code ec;
+        fs::remove(sock_path_, ec);
+    }
+}
 
 void BridgeServerMock::CreateConnection() {
-    std::string path = GetBridgePath();
+    if (sock_fd_ == InvalidSocket)
+        return;
 
-    logger_->Log("[{}] listening", path);
+    Socket fd = accept(sock_fd_, nullptr, nullptr);
+    if (fd == InvalidSocket) {
+        int err = GetLastSocketError();
+        throw std::system_error(err, std::system_category(), "accept() failed");
+    }
 
-    server_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
-    server_handle_->on<uvw::listen_event>([this, path](const uvw::listen_event& event, uvw::pipe_handle&) {
-        logger_->Log("[{}] new client", path);
-        ResetBuffers();
+    fd_ = fd;
+    cv_.notify_all();
 
-        /* ipc = false -> pipe will be used for handle passing between processes? no */
-        connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
-
-        connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event&, uvw::pipe_handle&) {
-            logger_->Log("[{}] disconnected", path);
-            StopAsync();
-        });
-        connection_handle_->on<uvw::data_event>([this](const uvw::data_event& event, uvw::pipe_handle&) {
-            OnRecv(event);
-        });
-        connection_handle_->on<uvw::error_event>([this, path](const uvw::error_event& event, uvw::pipe_handle&) {
-            logger_->Log("[{}] pipe error: {}", path, event.what());
-            StopAsync();
-        });
-
-        server_handle_->accept(*connection_handle_);
-        logger_->Log("[{}] connected", path);
-        connected_ = true;
-        OnConnect();
-        connection_handle_->read();
-    });
-    server_handle_->on<uvw::error_event>([this, path](const uvw::error_event& event, uvw::pipe_handle&) {
-        logger_->Log("[{}] bind error: {}", path, event.what());
-        StopAsync();
-    });
-
-    server_handle_->bind(path);
-    server_handle_->listen();
-}
-
-void BridgeServerMock::ResetConnection() {
-    CloseConnectionHandles();
-}
-
-void BridgeServerMock::CloseConnectionHandles() {
-    if (server_handle_)
-        server_handle_->close();
-    if (connection_handle_)
-        connection_handle_->close();
-    if (connected_.exchange(false))
-        OnDisconnect();
+    OnConnect();
 }
