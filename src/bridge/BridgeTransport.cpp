@@ -54,7 +54,7 @@ fs::path BridgeTransport::GetSocketPath() {
         paths.push_back(fs::path(dir_override) / SOCKET_NAME);
     }
 
-#ifdef __linux__
+#ifndef _WIN32
     if (const char* xdg_runtime = std::getenv("XDG_RUNTIME_DIR")) {
         paths.push_back(fs::path(xdg_runtime) / SOCKET_NAME);
     }
@@ -240,12 +240,6 @@ void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
 
     const uint32_t size = static_cast<uint32_t>(fbb.GetSize());
     const uint32_t le_wrapped_size = ConvertEndianness<std::endian::little>(size + 4);
-
-#ifdef __linux__
-    constexpr int flags = MSG_NOSIGNAL;
-#else
-    constexpr int flags = 0;
-#endif
 
     // Send size
     int ret = WriteFully(fd_, &le_wrapped_size, sizeof(le_wrapped_size));
