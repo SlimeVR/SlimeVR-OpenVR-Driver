@@ -34,9 +34,5 @@ public:
     using BridgeTransport::BridgeTransport;
 
 private:
-    void CreateConnection();
-    void CloseConnectionHandles();
-    void Reconnect();
-
-    void RunThread(std::stop_token stop);
+    void CreateConnection() override;
 };

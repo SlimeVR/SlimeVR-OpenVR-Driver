@@ -59,17 +59,11 @@ void BridgeClient::CreateConnection() {
 
     logger_->Log("Connected to {}", path.string());
 
-    // Set it to non-blocking mode so accept() doesn't block.
     ret = SetNonBlocking(fd);
     if (ret == SocketError) {
         int err = GetLastSocketError();
         logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
     }
 
-    {
-        fd_ = fd;
-        cv_.notify_all();
-    }
-
-    OnConnect();
+    fd_ = fd;
 }
