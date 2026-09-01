@@ -48,8 +48,13 @@ void BridgeTransport::StopAsync() {
 }
 
 fs::path BridgeTransport::GetSocketPath() {
-#if defined(__linux__)
     std::vector<fs::path> paths = {};
+
+    if (const char* dir_override = std::getenv("SLIMEVR_SOCKET_DIR")) {
+        paths.push_back(fs::path(dir_override) / SOCKET_NAME);
+    }
+
+#ifdef __linux__
     if (const char* xdg_runtime = std::getenv("XDG_RUNTIME_DIR")) {
         paths.push_back(fs::path(xdg_runtime) / SOCKET_NAME);
     }
@@ -61,6 +66,7 @@ fs::path BridgeTransport::GetSocketPath() {
     if (const char* home = std::getenv("HOME")) {
         paths.push_back(fs::path(home) / UNIX_XDG_DATA_HOME_DEFAULT / SLIMEVR_IDENTIFIER / SOCKET_NAME);
     }
+#endif
 
     for (auto path : paths) {
         if (fs::exists(path)) {
@@ -68,15 +74,14 @@ fs::path BridgeTransport::GetSocketPath() {
         }
     }
 
-    return fs::path(UNIX_DEFAULT_TMP_DIR) / SOCKET_NAME;
-#elif defined(_WIN32)
+#ifdef _WIN32
     // This should work as long as the user's machine does not have
     // the java.io.tmpdir system property overriden.
     WCHAR tmp_dir[MAX_PATH + 1];
     GetTempPathW(std::size(tmp_dir), tmp_dir);
     return fs::path(tmp_dir) / SOCKET_NAME;
 #else
-#error "Unsupported platform"
+    return fs::path(UNIX_DEFAULT_TMP_DIR) / SOCKET_NAME;
 #endif
 }
 
