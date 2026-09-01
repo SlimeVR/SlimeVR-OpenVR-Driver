@@ -92,7 +92,8 @@ BridgeServerMock::~BridgeServerMock() {
     if (sock_fd_ != InvalidSocket) {
         int ret = CloseSocket(sock_fd_);
         if (ret == SocketError) {
-            logger_->Log("CloseSocket() failed: {}", std::error_code(ret, std::system_category()).message());
+            int err = GetLastSocketError();
+            logger_->Log("CloseSocket() failed: {}", std::error_code(err, std::system_category()).message());
         }
 
         std::error_code ec;
