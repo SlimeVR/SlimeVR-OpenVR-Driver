@@ -206,7 +206,7 @@ void BridgeTransport::ResetConnection() {
                 logger_->Log("Error when trying to connect: {}", e.what());
             }
 
-            std::this_thread::sleep_for(1000ms);
+            std::this_thread::sleep_for(100ms);
         }
     });
 }
