@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <shared_mutex>
 #include <span>
+#include <system_error>
 #include <thread>
 #include <variant>
 
@@ -107,6 +108,7 @@ public:
      * @brief Read @a size bytes from @a fd into @a data, retrying until all data is read or an error occurs.
      *
      * @throws @ref Cancelled stop was requested on @a stop
+     * @throws std::system_error error returned on socket
      * @returns @ref SocketError on fail, otherwise number of bytes read
      */
     static ptrdiff_t ReadFully(Socket fd, std::stop_token stop, void* data, size_t size) {
@@ -118,12 +120,12 @@ public:
                 return ret;
 
             if (ret == SocketError) [[unlikely]] {
-                if (IsBlockingError(GetLastSocketError())) {
+                int err = GetLastSocketError();
+                if (IsBlockingError(err)) [[likely]] {
                     // we couldn't read because it would block, just try again
                     continue;
                 } else {
-                    // failed for other reasons, bail
-                    return ret;
+                    throw std::system_error(err, std::system_category(), "recv() failed");
                 }
             }
 
@@ -132,13 +134,15 @@ public:
 
         if (stop.stop_requested())
             throw Cancelled();
-        return size;
+        return received;
     }
 
     /**
      * @brief Write @a size bytes from @a data to @a fd, retrying until all data is written or an error occurs.
      *
-     * @returns @ref SocketError on fail, otherwise a positive integer
+     * @throws std::system_error error returned on socket
+     *
+     * @returns @ref SocketError on fail, otherwise number of bytes written
      */
     static inline ptrdiff_t WriteFully(Socket fd, const void* data, size_t size) {
 #ifdef __linux__
@@ -152,19 +156,19 @@ public:
         while (sent < size) {
             ret = send(fd, reinterpret_cast<const char*>(data) + sent, size - sent, flags);
             if (ret == SocketError) [[unlikely]] {
-                if (IsBlockingError(GetLastSocketError())) {
+                int err = GetLastSocketError();
+                if (IsBlockingError(err)) [[likely]] {
                     // we couldn't write because it would block, just try again
                     continue;
                 } else {
-                    // failed for other reasons, bail
-                    return ret;
+                    throw std::system_error(err, std::system_category(), "send() failed");
                 }
             }
 
             sent += ret;
         }
 
-        return size;
+        return sent;
     }
 
     /**
@@ -173,7 +177,10 @@ public:
      * @param fd file descriptor to poll
      * @param timeout amount of time to wait before giving up
      *
-     * @returns @ref SocketError if an error happened, 0 if there is no data, positive value if there is data
+     * @throws std::system_error error returned when polling
+     * @throws std::runtime_error error on socket, or hang up was detected
+     *
+     * @returns @ref 0 if there is no data, positive value if there is data
      */
     template <typename Rep, typename Period>
     static int Poll(Socket fd, std::chrono::duration<Rep, Period> timeout) noexcept(false) {
@@ -204,15 +211,16 @@ public:
         constexpr int InterruptedErrno = EINTR;
 #endif
 
-        if (ret != SocketError) {
-            if ((pollfd.revents & (POLLERR | POLLHUP)) != 0) {
-                return SocketError;
-            }
-
-            return pollfd.revents & POLLIN;
-        } else {
-            return ret;
+        if (ret == SocketError) {
+            int err = GetLastSocketError();
+            throw std::system_error(err, std::system_category(), "Poll() failed");
         }
+
+        if ((pollfd.revents & (POLLERR | POLLHUP)) != 0) {
+            throw std::runtime_error("Socket connection lost");
+        }
+
+        return pollfd.revents & POLLIN;
     }
 
     BridgeTransport(std::shared_ptr<Logger> logger,
