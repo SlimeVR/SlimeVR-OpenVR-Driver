@@ -66,6 +66,9 @@ fs::path BridgeTransport::GetSocketPath() {
 }
 
 void BridgeTransport::OnRecv(std::span<uint8_t> event) {
+    if (!message_callback_)
+        return;
+
     auto bundle = flatbuffers::GetRoot<solarxr_protocol::MessageBundle>(event.data());
 
     if (auto data_feed_msgs = bundle->data_feed_msgs()) {

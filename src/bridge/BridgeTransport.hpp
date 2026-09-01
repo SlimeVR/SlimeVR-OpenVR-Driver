@@ -216,7 +216,7 @@ public:
     }
 
     BridgeTransport(std::shared_ptr<Logger> logger,
-                    std::function<void(MessageHeader&&)> on_message_received,
+                    std::function<void(MessageHeader&&)> on_message_received = {},
                     std::function<void()> on_connect = {},
                     std::function<void()> on_disconnect = {})
         : logger_(logger)
