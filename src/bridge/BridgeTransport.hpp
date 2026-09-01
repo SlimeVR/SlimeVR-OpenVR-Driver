@@ -14,12 +14,13 @@
 #include <solarxr_protocol/generated/all_generated.h>
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <Winsock2.h>
 #include <afunix.h>
 // Microsoft why
 #undef ERROR
 #undef SendMessage
-#undef max
 #else
 #include <fcntl.h>
 #include <poll.h>
