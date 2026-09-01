@@ -37,7 +37,10 @@ void BridgeClient::CreateConnection() {
         throw std::system_error(err, std::system_category(), "socket() failed");
     }
 
-    logger_->Log("Trying to connect to socket {}", path.string());
+    if (last_path_ != path) {
+        logger_->Log("Trying to connect to socket {}", path.string());
+        last_path_ = path;
+    }
 
     struct sockaddr_un addr{
         .sun_family = AF_UNIX,

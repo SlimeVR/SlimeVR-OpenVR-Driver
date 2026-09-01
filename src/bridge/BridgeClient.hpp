@@ -35,4 +35,6 @@ public:
 
 private:
     void CreateConnection() override;
+
+    std::filesystem::path last_path_;
 };
