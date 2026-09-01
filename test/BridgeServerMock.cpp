@@ -23,10 +23,6 @@
 #include "BridgeServerMock.hpp"
 #include <system_error>
 
-#ifndef _WIN32
-#include <sys/fcntl.h>
-#endif
-
 using namespace std::chrono_literals;
 namespace fs = std::filesystem;
 
@@ -70,16 +66,7 @@ BridgeServerMock::BridgeServerMock(std::shared_ptr<Logger> logger,
         throw std::system_error(err, std::system_category(), "listen() failed");
     }
 
-    // Set it to non-blocking mode so accept() doesn't block.
-#ifdef _WIN32
-    {
-        u_long mode = 1;
-        ret = ioctlsocket(sock_fd_, FIONBIO, &mode);
-    }
-#else
-    ret = fcntl(sock_fd_, F_SETFL, O_NONBLOCK);
-#endif
-
+    ret = SetNonBlocking(sock_fd_);
     if (ret == SocketError) {
         int err = GetLastSocketError();
         logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());

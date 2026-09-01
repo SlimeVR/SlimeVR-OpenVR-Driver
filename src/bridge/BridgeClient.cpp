@@ -25,10 +25,6 @@
 
 #include <system_error>
 
-#ifndef _WIN32
-#include <fcntl.h>
-#endif
-
 using namespace std::literals::chrono_literals;
 namespace fs = std::filesystem;
 
@@ -62,15 +58,7 @@ void BridgeClient::CreateConnection() {
     logger_->Log("Connected to {}", path.string());
 
     // Set it to non-blocking mode so accept() doesn't block.
-#ifdef _WIN32
-    {
-        u_long mode = 1;
-        ret = ioctlsocket(fd, FIONBIO, &mode);
-    }
-#else
-    ret = fcntl(fd, F_SETFL, O_NONBLOCK);
-#endif
-
+    ret = SetNonBlocking(fd);
     if (ret == SocketError) {
         int err = GetLastSocketError();
         logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());

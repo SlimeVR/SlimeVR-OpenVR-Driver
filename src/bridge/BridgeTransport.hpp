@@ -40,6 +40,7 @@
 #undef ERROR
 #undef SendMessage
 #else
+#include <fcntl.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -105,6 +106,15 @@ public:
         return err == WSAEWOULDBLOCK;
 #else
         return err == EAGAIN || err == EWOULDBLOCK;
+#endif
+    }
+
+    static inline int SetNonBlocking(Socket fd) {
+#ifdef _WIN32
+        u_long mode = 1;
+        return ioctlsocket(fd, FIONBIO, &mode);
+#else
+        return fcntl(fd, F_SETFL, O_NONBLOCK);
 #endif
     }
 
