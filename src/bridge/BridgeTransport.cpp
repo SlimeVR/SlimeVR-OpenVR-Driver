@@ -61,7 +61,11 @@ fs::path BridgeTransport::GetSocketPath() {
     GetTempPathW(std::size(tmp_dir), tmp_dir);
     return fs::path(tmp_dir) / SOCKET_NAME;
 #else
-    return fs::path(UNIX_DEFAULT_TMP_DIR) / SOCKET_NAME;
+    if (const char* tmp_dir = std::getenv("TMPDIR")) {
+        return fs::path(tmp_dir) / SOCKET_NAME;
+    } else {
+        return fs::path(UNIX_DEFAULT_TMP_DIR) / SOCKET_NAME;
+    }
 #endif
 }
 
