@@ -69,19 +69,11 @@ public:
 
 #ifdef _WIN32
     using Socket = SOCKET;
-#else
-    using Socket = int;
-#endif
-
-#ifdef _WIN32
     constexpr static Socket InvalidSocket = INVALID_SOCKET;
-#else
-    constexpr static Socket InvalidSocket = -1;
-#endif
-
-#ifdef _WIN32
     constexpr static int SocketError = SOCKET_ERROR;
 #else
+    using Socket = int;
+    constexpr static Socket InvalidSocket = -1;
     constexpr static int SocketError = -1;
 #endif
 
