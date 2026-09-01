@@ -115,28 +115,15 @@ void BridgeTransport::RunThread(std::stop_token stop) {
                 break;
         }
 
-        ptrdiff_t ret = Poll(fd_, 1ms);
-        if (ret == SocketError) [[unlikely]] {
-            int err = GetLastSocketError();
-            logger_->Log("Error when polling socket: {}", std::error_code(err, std::system_category()).message());
-
-            fd_lock.unlock();
-            ResetConnection();
-            continue;
-        } else if (ret == 0) [[likely]] {
-            // No data on the socket after timeout
-            continue;
-        }
-
         try {
-            data.clear();
+            ptrdiff_t ret = Poll(fd_, 1ms);
+            if (ret == 0) [[likely]] {
+                // No data on the socket after timeout
+                continue;
+            }
 
             uint32_t msg_len;
             ret = ReadFully(fd_, stop, &msg_len, sizeof(msg_len));
-            if (ret == SocketError) [[unlikely]] {
-                int err = GetLastSocketError();
-                throw std::system_error(err, std::system_category(), "recv() for length failed");
-            }
             if (ret == 0) [[unlikely]] {
                 throw std::runtime_error("EOF");
             }
@@ -151,10 +138,6 @@ void BridgeTransport::RunThread(std::stop_token stop) {
             data.reserve(unwrapped_len);
 
             ret = ReadFully(fd_, stop, data.data(), unwrapped_len);
-            if (ret == SocketError) [[unlikely]] {
-                int err = GetLastSocketError();
-                throw std::system_error(err, std::system_category(), "recv() failed");
-            }
             if (ret == 0) [[unlikely]] {
                 throw std::runtime_error("EOF");
             }
@@ -228,19 +211,10 @@ void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
     const uint32_t size = static_cast<uint32_t>(fbb.GetSize());
     const uint32_t le_wrapped_size = ConvertEndianness<std::endian::little>(size + 4);
 
-    // Send size
-    int ret = WriteFully(fd_, &le_wrapped_size, sizeof(le_wrapped_size));
-    if (ret == SocketError) [[unlikely]] {
-        int err = GetLastSocketError();
-        logger_->Log("send() failed: {}", std::error_code(err, std::system_category()).message());
-        return;
-    }
-
-    // Send data
-    ret = WriteFully(fd_, fbb.GetBufferPointer(), size);
-    if (ret == SocketError) [[unlikely]] {
-        int err = GetLastSocketError();
-        logger_->Log("send() failed: {}", std::error_code(err, std::system_category()).message());
-        return;
+    try {
+        WriteFully(fd_, &le_wrapped_size, sizeof(le_wrapped_size));
+        WriteFully(fd_, fbb.GetBufferPointer(), size);
+    } catch (std::exception& e) {
+        logger_->Log("Failed to write message: {}", e.what());
     }
 }
