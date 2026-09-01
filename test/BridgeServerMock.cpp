@@ -48,6 +48,7 @@ BridgeServerMock::BridgeServerMock(std::shared_ptr<Logger> logger,
     const std::filesystem::path path = GetSocketPath();
     const std::u8string path_str = path.u8string();
     if (path_str.size() > std::size(addr.sun_path) - 1) {
+        CloseSocket(sock_fd_);
         throw std::runtime_error("Socket path too long to fit in sun_path");
     }
     memcpy(addr.sun_path, path_str.data(), path_str.size() + 1);
@@ -58,12 +59,14 @@ BridgeServerMock::BridgeServerMock(std::shared_ptr<Logger> logger,
     int ret = bind(sock_fd_, reinterpret_cast<const struct sockaddr*>(&addr), sizeof(addr));
     if (ret == SocketError) {
         int err = GetLastSocketError();
+        CloseSocket(sock_fd_);
         throw std::system_error(err, std::system_category(), "bind() failed");
     }
 
     ret = listen(sock_fd_, 5);
     if (ret == SocketError) {
         int err = GetLastSocketError();
+        CloseSocket(sock_fd_);
         throw std::system_error(err, std::system_category(), "listen() failed");
     }
 

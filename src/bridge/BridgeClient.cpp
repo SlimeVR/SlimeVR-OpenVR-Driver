@@ -47,6 +47,7 @@ void BridgeClient::CreateConnection() {
 
     const std::u8string path_str = path.u8string();
     if (path_str.size() > std::size(addr.sun_path) - 1) {
+        CloseSocket(fd);
         throw std::runtime_error("Socket path too long to fit in sun_path");
     }
     memcpy(addr.sun_path, path_str.data(), path_str.size() + 1);
