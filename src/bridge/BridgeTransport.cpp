@@ -26,10 +26,6 @@
 #include <solarxr_protocol/generated/all_generated.h>
 #include <system_error>
 
-#ifndef _WIN32
-#include <sys/socket.h>
-#endif
-
 using namespace std::chrono_literals;
 namespace fs = std::filesystem;
 
@@ -46,9 +42,9 @@ void BridgeTransport::Stop() {
 }
 
 void BridgeTransport::StopAsync() {
-    cv_.notify_all();
     thread_.request_stop();
     reconnect_thread_.request_stop();
+    cv_.notify_all();
 }
 
 fs::path BridgeTransport::GetSocketPath() {
@@ -119,64 +115,64 @@ void BridgeTransport::RunThread(std::stop_token stop) {
     ResetConnection();
 
     while (!stop.stop_requested()) {
-        Socket fd = fd_;
-        if (fd == InvalidSocket) {
-            std::unique_lock lk(m_);
-            cv_.wait(lk);
-            fd = fd_;
-            if (fd == InvalidSocket)
-                continue;
+        std::shared_lock fd_lock(fd_mutex_);
+
+        if (fd_ == InvalidSocket) [[unlikely]] {
+            cv_.wait(fd_lock, stop, [this] { return fd_ != InvalidSocket; });
+            if (stop.stop_requested())
+                break;
         }
 
-        if (!Poll(fd, 1ms)) {
+        ptrdiff_t ret = Poll(fd_, 1ms);
+        if (ret == SocketError) [[unlikely]] {
             int err = GetLastSocketError();
             logger_->Log("Error when polling socket: {}", std::error_code(err, std::system_category()).message());
+
+            fd_lock.unlock();
             ResetConnection();
+            continue;
+        } else if (ret == 0) [[likely]] {
+            // No data on the socket after timeout
+            continue;
         }
 
-        int ret;
         try {
             data.clear();
 
             uint32_t msg_len;
-            // need cast for winsock
-            ret = recv(fd, reinterpret_cast<char*>(&msg_len), sizeof(msg_len), 0);
-            if (ret == SocketError) {
+            ret = ReadFully(fd_, stop, &msg_len, sizeof(msg_len));
+            if (ret == SocketError) [[unlikely]] {
                 int err = GetLastSocketError();
-                if (IsBlockingError(err))
-                    continue;
-
                 throw std::system_error(err, std::system_category(), "recv() for length failed");
             }
+            if (ret == 0) [[unlikely]] {
+                throw std::runtime_error("EOF");
+            }
+
             msg_len = ConvertEndianness<std::endian::little>(msg_len);
             // If we get something bigger than this, something's probably up
-            if (msg_len > 0x40000) {
+            if (msg_len > 0x40000) [[unlikely]] {
                 throw std::runtime_error(std::format("Got too large message ({} bytes)", msg_len));
             }
-            data.reserve(msg_len);
 
             const uint32_t unwrapped_len = msg_len - 4;
-            uint32_t received{ 0 };
-            while (received < unwrapped_len) {
-                // need cast for winsock
-                ret = recv(fd, reinterpret_cast<char*>(&data[received]), unwrapped_len - received, 0);
-                if (ret == SocketError) {
-                    int err = GetLastSocketError();
-                    if (IsBlockingError(err))
-                        continue;
+            data.reserve(unwrapped_len);
 
-                    throw std::system_error(err, std::system_category(), "recv() failed");
-                }
-                if (ret == 0) {
-                    throw std::runtime_error("EOF on socket");
-                }
-
-                received += ret;
+            ret = ReadFully(fd_, stop, data.data(), unwrapped_len);
+            if (ret == SocketError) [[unlikely]] {
+                int err = GetLastSocketError();
+                throw std::system_error(err, std::system_category(), "recv() failed");
+            }
+            if (ret == 0) [[unlikely]] {
+                throw std::runtime_error("EOF");
             }
 
-            OnRecv({ data.data(), received });
+            OnRecv({ data.data(), unwrapped_len });
+        } catch (Cancelled&) {
+            continue;
         } catch (std::exception& e) {
             logger_->Log("Error on socket: {}", e.what());
+            fd_lock.unlock();
             ResetConnection();
         }
     }
@@ -186,15 +182,24 @@ void BridgeTransport::RunThread(std::stop_token stop) {
 
 void BridgeTransport::ResetConnection() {
     CloseConnectionHandles();
+
     reconnect_thread_ = std::jthread([this](std::stop_token stop) {
         while (!stop.stop_requested()) {
             try {
+                std::unique_lock fd_lock(fd_mutex_);
                 CreateConnection();
-                if (fd_ != InvalidSocket)
-                    return;
+                assert(fd_ != InvalidSocket);
+
+                cv_.notify_all();
+
+                // connect callback may call a function that needs to block on the fd
+                fd_lock.unlock();
+                OnConnect();
+
+                return;
             } catch (std::system_error& e) {
                 if (last_error_ != e.code()) {
-                    logger_->Log("Error when trying to reconnect: {}", e.what());
+                    logger_->Log("Error when trying to connect: {}", e.what());
                     last_error_ = e.code();
                 }
             } catch (std::exception& e) {
@@ -207,41 +212,49 @@ void BridgeTransport::ResetConnection() {
 }
 
 void BridgeTransport::CloseConnectionHandles() {
-    Socket fd = fd_.exchange(InvalidSocket);
-    if (fd == InvalidSocket)
+    std::unique_lock fd_lock(fd_mutex_);
+    if (fd_ == InvalidSocket)
         return;
 
-    CloseSocket(fd);
+    CloseSocket(fd_);
     OnDisconnect();
+    fd_ = InvalidSocket;
 }
 
 void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
-    Socket fd = fd_;
-    if (fd == InvalidSocket)
+    std::shared_lock fd_lock(fd_mutex_);
+    if (fd_ == InvalidSocket) [[unlikely]]
         return;
 
-    uint8_t message[0x10000];
-    const uint32_t size = static_cast<uint32_t>(fbb.GetSize());
-    const uint32_t wrapped_size = size + 4;
+    std::lock_guard write_lock(write_mutex_);
 
-    if (wrapped_size > std::size(message)) {
-        logger_->Log("Skipping send of message because it's too large ({} > {})", wrapped_size, std::size(message));
+    if (fbb.GetSize() + 4 > std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+        logger_->Log("Skipping send of message (wrapped size larger than 32-bit unsigned integer limit)");
         return;
     }
 
-    *reinterpret_cast<uint32_t*>(&message[0]) = ConvertEndianness<std::endian::little>(wrapped_size);
-    memcpy(&message[4], fbb.GetBufferPointer(), size);
+    const uint32_t size = static_cast<uint32_t>(fbb.GetSize());
+    const uint32_t le_wrapped_size = ConvertEndianness<std::endian::little>(size + 4);
 
-#ifndef _WIN32
+#ifdef __linux__
     constexpr int flags = MSG_NOSIGNAL;
 #else
     constexpr int flags = 0;
 #endif
 
-    // need cast for winsock
-    int ret = send(fd, reinterpret_cast<char*>(message), wrapped_size, flags);
-    if (ret == SocketError) {
+    // Send size
+    int ret = WriteFully(fd_, &le_wrapped_size, sizeof(le_wrapped_size));
+    if (ret == SocketError) [[unlikely]] {
         int err = GetLastSocketError();
         logger_->Log("send() failed: {}", std::error_code(err, std::system_category()).message());
+        return;
+    }
+
+    // Send data
+    ret = WriteFully(fd_, fbb.GetBufferPointer(), size);
+    if (ret == SocketError) [[unlikely]] {
+        int err = GetLastSocketError();
+        logger_->Log("send() failed: {}", std::error_code(err, std::system_category()).message());
+        return;
     }
 }

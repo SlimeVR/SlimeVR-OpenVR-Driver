@@ -89,8 +89,7 @@ BridgeServerMock::~BridgeServerMock() {
 }
 
 void BridgeServerMock::CreateConnection() {
-    if (sock_fd_ == InvalidSocket)
-        return;
+    assert(sock_fd_ != InvalidSocket);
 
     Socket fd = accept(sock_fd_, nullptr, nullptr);
     if (fd == InvalidSocket) {
@@ -99,7 +98,4 @@ void BridgeServerMock::CreateConnection() {
     }
 
     fd_ = fd;
-    cv_.notify_all();
-
-    OnConnect();
 }
