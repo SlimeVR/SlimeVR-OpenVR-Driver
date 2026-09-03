@@ -447,7 +447,9 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessa
             logger_->Log("Sending HandshakeRequest");
             flatbuffers::FlatBufferBuilder fbb(256);
 
-            auto handshake_msg = driver_protocol::CreateHandshakeRequest(fbb, fbb.CreateString("SteamVR"), datatypes::CreateBoneMask(fbb, true, true, false, true, true));
+            auto handshake_msg = driver_protocol::CreateHandshakeRequest(fbb,
+                                                                         fbb.CreateString("SteamVR"),
+                                                                         datatypes::CreateBoneMask(fbb, true, false, false, true, false, true, true, true));
             auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::HandshakeRequest, handshake_msg.Union());
             auto msgs = fbb.CreateVector({ msg_header });
             auto bundle = CreateMessageBundle(fbb, 0, 0, msgs);
@@ -534,25 +536,12 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessa
             }
             device->UpdateStatus(TrackerStatus::OK);
 
-            const datatypes::math::Vec3f* head_position_fbs = bone->head_position_g();
-            const datatypes::math::Quat* orientation_quat_fbs = bone->orientation_g();
-            if (head_position_fbs == nullptr) {
-                logger_->Log("Got BodyPart::{} with head_position_g=null, continuing", EnumNameBodyPart(body_part));
-                continue;
-            }
-            if (orientation_quat_fbs == nullptr) {
-                logger_->Log("Got BodyPart::{} with orientation_g=null, continuing", EnumNameBodyPart(body_part));
-                continue;
-            }
+            const datatypes::math::Quat* orientation = bone->orientation();
+            const datatypes::math::Vec3f* tail_position = bone->tail_position();
+            const datatypes::math::Vec3f* linear_velocity = bone->linear_velocity();
+            const datatypes::math::Vec3f* angular_velocity = bone->angular_velocity();
 
-            // Compute tail position
-            linalg::vec<float, 3> head_position(head_position_fbs->x(), head_position_fbs->y(), head_position_fbs->z());
-            linalg::vec<float, 4> orientation(orientation_quat_fbs->x(), orientation_quat_fbs->y(), orientation_quat_fbs->z(), orientation_quat_fbs->w());
-            linalg::vec<float, 3> towards_tail(0.f, -bone->bone_length(), 0.f);
-
-            linalg::vec<float, 3> tail_offset = linalg::qrot(orientation, towards_tail);
-            linalg::vec<float, 3> tail_position = head_position + tail_offset;
-            device->UpdatePose(std::move(orientation), std::move(tail_position));
+            device->UpdatePose(orientation, tail_position, linear_velocity, angular_velocity);
         }
 
         break;

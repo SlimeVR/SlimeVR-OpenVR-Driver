@@ -85,7 +85,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                                    flatbuffers::FlatBufferBuilder fbb;
                                    math::Quat rot(0.f, 0.f, 0.f, 1.f);
                                    math::Vec3f pos(0.f, 0.f, 0.f);
-                                   auto bone = CreateBone(fbb, BodyPart::UPPER_CHEST, &rot, &rot, 1.f, &pos);
+                                   auto bone = CreateBone(fbb, BodyPart::UPPER_CHEST, 1.f, &rot, &rot, &pos, &pos);
                                    auto bones = fbb.CreateVector({ bone });
                                    auto skeleton_update_msg = CreateSkeletonUpdate(fbb, bones);
                                    auto msg_header = CreateDriverMessageHeader(fbb, 0, 0, DriverMessage::SkeletonUpdate, skeleton_update_msg.Union());

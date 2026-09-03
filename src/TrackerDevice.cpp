@@ -2,7 +2,10 @@
 // SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include "TrackerDevice.hpp"
 #include "DriverFactory.hpp"
+
+#include <algorithm>
 #include <cmath>
+
 #include <solarxr_protocol/generated/all_generated.h>
 
 using namespace solarxr_protocol;
@@ -45,7 +48,10 @@ void SlimeVRDriver::TrackerDevice::Update() {
     }
 }
 
-void SlimeVRDriver::TrackerDevice::UpdatePose(linalg::vec<float, 4>&& orientation, linalg::vec<float, 3>&& position) {
+void SlimeVRDriver::TrackerDevice::UpdatePose(const solarxr_protocol::datatypes::math::Quat* orientation,
+                                              const solarxr_protocol::datatypes::math::Vec3f* position,
+                                              const solarxr_protocol::datatypes::math::Vec3f* linear_velocity,
+                                              const solarxr_protocol::datatypes::math::Vec3f* angular_velocity) {
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
@@ -64,35 +70,47 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(linalg::vec<float, 4>&& orientatio
     // Setup pose for this frame
     vr::DriverPose_t pose = last_pose_;
     // send the new position and rotation from the pipe to the tracker object
-    pose.vecPosition[0] = position.x;
-    pose.vecPosition[1] = position.y;
-    pose.vecPosition[2] = position.z;
-    CHECK_CLASSIFICATION(pose.vecPosition[0]);
-    CHECK_CLASSIFICATION(pose.vecPosition[1]);
-    CHECK_CLASSIFICATION(pose.vecPosition[2]);
+    if (position != nullptr) {
+        pose.vecPosition[0] = position->x();
+        pose.vecPosition[1] = position->y();
+        pose.vecPosition[2] = position->z();
+        CHECK_CLASSIFICATION(pose.vecPosition[0]);
+        CHECK_CLASSIFICATION(pose.vecPosition[1]);
+        CHECK_CLASSIFICATION(pose.vecPosition[2]);
+    }
 
-    // logger_->Log("rotation x={} y={} z={} w={}", rot.x, rot.y, rot.z, rot.w);
-    pose.qRotation.w = orientation.w;
-    pose.qRotation.x = orientation.x;
-    pose.qRotation.y = orientation.y;
-    pose.qRotation.z = orientation.z;
-    CHECK_CLASSIFICATION(pose.qRotation.w);
-    CHECK_CLASSIFICATION(pose.qRotation.x);
-    CHECK_CLASSIFICATION(pose.qRotation.y);
-    CHECK_CLASSIFICATION(pose.qRotation.z);
+    if (orientation != nullptr) {
+        pose.qRotation.w = orientation->w();
+        pose.qRotation.x = orientation->x();
+        pose.qRotation.y = orientation->y();
+        pose.qRotation.z = orientation->z();
+        CHECK_CLASSIFICATION(pose.qRotation.w);
+        CHECK_CLASSIFICATION(pose.qRotation.x);
+        CHECK_CLASSIFICATION(pose.qRotation.y);
+        CHECK_CLASSIFICATION(pose.qRotation.z);
+    }
 
-    /*if (position.has_vx()) {
-        pose.vecVelocity[0] = position.vx();
-        pose.vecVelocity[1] = position.vy();
-        pose.vecVelocity[2] = position.vz();
+    if (linear_velocity != nullptr) {
+        pose.vecVelocity[0] = linear_velocity->x();
+        pose.vecVelocity[1] = linear_velocity->y();
+        pose.vecVelocity[2] = linear_velocity->z();
         CHECK_CLASSIFICATION(pose.vecVelocity[0]);
         CHECK_CLASSIFICATION(pose.vecVelocity[1]);
         CHECK_CLASSIFICATION(pose.vecVelocity[2]);
-    } else { // If velocity isn't being sent, don't keep stale values
-        pose.vecVelocity[0] = 0.0f;
-        pose.vecVelocity[1] = 0.0f;
-        pose.vecVelocity[2] = 0.0f;
-    }*/
+    } else {
+        std::ranges::fill(pose.vecVelocity, 0.0);
+    }
+
+    if (angular_velocity != nullptr) {
+        pose.vecAngularVelocity[0] = angular_velocity->x();
+        pose.vecAngularVelocity[1] = angular_velocity->y();
+        pose.vecAngularVelocity[2] = angular_velocity->z();
+        CHECK_CLASSIFICATION(pose.vecAngularVelocity[0]);
+        CHECK_CLASSIFICATION(pose.vecAngularVelocity[1]);
+        CHECK_CLASSIFICATION(pose.vecAngularVelocity[2]);
+    } else {
+        std::ranges::fill(pose.vecAngularVelocity, 0.0);
+    }
 
     auto current_universe = GetDriver()->GetCurrentUniverse();
     if (current_universe.has_value()) {
