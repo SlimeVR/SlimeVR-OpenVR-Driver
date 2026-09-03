@@ -70,7 +70,11 @@ public:
     /**
      * Updates device pose from a received message.
      */
-    virtual void UpdatePose(linalg::vec<float, 4>&& orientation, linalg::vec<float, 3>&& position) = 0;
+    virtual void UpdatePose(const solarxr_protocol::datatypes::math::Quat* orientation,
+                            const solarxr_protocol::datatypes::math::Vec3f* position,
+                            const solarxr_protocol::datatypes::math::Vec3f* linear_velocity,
+                            const solarxr_protocol::datatypes::math::Vec3f* angular_velocity)
+        = 0;
 
     /**
      * Updates device status from a received message.

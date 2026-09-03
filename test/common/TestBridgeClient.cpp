@@ -40,7 +40,7 @@ void TestBridgeClient() {
                                switch (type) {
                                case DriverMessage::HandshakeAvailable: {
                                    flatbuffers::FlatBufferBuilder fbb;
-                                   auto handshake = CreateHandshakeRequest(fbb, fbb.CreateString("TestClient"), solarxr_protocol::datatypes::CreateBoneMask(fbb, true, true, false, true, true));
+                                   auto handshake = CreateHandshakeRequest(fbb, fbb.CreateString("TestClient"), CreateBoneMask(fbb, true, false, false, true, false, true, true, true));
                                    auto msg_header = CreateDriverMessageHeader(fbb, 0, 0, DriverMessage::HandshakeRequest, handshake.Union());
                                    auto bundle = solarxr_protocol::CreateMessageBundle(fbb, 0, 0, fbb.CreateVector({ msg_header }));
                                    fbb.Finish(bundle);
