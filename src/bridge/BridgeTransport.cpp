@@ -15,6 +15,8 @@ namespace fs = std::filesystem;
 #define SOCKET_NAME "SlimeVRRpc"
 
 void BridgeTransport::Stop() {
+    if (!thread_.joinable() && !reconnect_thread_.joinable())
+        return;
     logger_->Log("stopping");
     StopAsync();
     thread_ = std::jthread();
