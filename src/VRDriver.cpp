@@ -20,10 +20,7 @@ using namespace solarxr_protocol;
 using namespace solarxr_protocol::datatypes;
 
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext) {
-    // Perform driver context initialisation
-    if (vr::EVRInitError init_error = vr::InitServerDriverContext(pDriverContext); init_error != vr::EVRInitError::VRInitError_None) {
-        return init_error;
-    }
+    VR_INIT_SERVER_DRIVER_CONTEXT(pDriverContext);
 
     logger_->Log("version " GIT_DESC);
 
@@ -68,6 +65,8 @@ void SlimeVRDriver::VRDriver::Cleanup() {
     pose_request_thread_ = std::jthread();
     logger_->Log("Stopping bridge");
     bridge_->Stop();
+
+    VR_CLEANUP_SERVER_DRIVER_CONTEXT();
 }
 
 const char* const* SlimeVRDriver::VRDriver::GetInterfaceVersions() {
