@@ -1,93 +1,52 @@
-/*
-    SlimeVR Code is placed under the MIT license
-    Copyright (c) 2022 SlimeVR Contributors
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include "BridgeClient.hpp"
+#include "bridge/BridgeTransport.hpp"
+
+#include <system_error>
 
 using namespace std::literals::chrono_literals;
+namespace fs = std::filesystem;
 
 void BridgeClient::CreateConnection() {
-    ResetBuffers();
+    fs::path path = GetSocketPath();
 
-    if (!last_error_.has_value()) {
-        logger_->Log("connecting");
+    Socket fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd == InvalidSocket) {
+        int err = GetLastSocketError();
+        throw std::system_error(err, std::system_category(), "socket() failed");
     }
 
-    std::string path = GetBridgePath();
+    if (last_path_ != path) {
+        logger_->Log("Trying to connect to socket {}", path.string());
+        last_path_ = path;
+    }
 
-    /* ipc = false -> pipe will be used for handle passing between processes? no */
-    connection_handle_ = GetLoop()->resource<uvw::pipe_handle>(false);
-    connection_handle_->on<uvw::connect_event>([this, path](const uvw::connect_event&, uvw::pipe_handle&) {
-        connection_handle_->read();
-        logger_->Log("[{}] connected", path);
-        connected_ = true;
-        last_error_ = std::nullopt;
-        OnConnect();
-    });
-    connection_handle_->on<uvw::end_event>([this, path](const uvw::end_event&, uvw::pipe_handle&) {
-        logger_->Log("[{}] disconnected", path);
-        Reconnect();
-    });
-    connection_handle_->on<uvw::data_event>([this](const uvw::data_event& event, uvw::pipe_handle&) {
-        OnRecv(event);
-    });
-    connection_handle_->on<uvw::error_event>([this, path](const uvw::error_event& event, uvw::pipe_handle&) {
-        if (!last_error_.has_value() || last_error_ != event.what() || last_path_ != path) {
-            logger_->Log("[{}] pipe error: {}", path, event.what());
-            last_error_ = event.what();
-            last_path_ = path;
-        }
-        Reconnect();
-    });
+    struct sockaddr_un addr{
+        .sun_family = AF_UNIX,
+    };
 
-    connection_handle_->connect(path);
-}
+    const std::u8string path_str = path.u8string();
+    if (path_str.size() > std::size(addr.sun_path) - 1) {
+        CloseSocket(fd);
+        throw std::runtime_error("Socket path too long to fit in sun_path");
+    }
+    memcpy(addr.sun_path, path_str.data(), path_str.size() + 1);
 
-void BridgeClient::ResetConnection() {
-    Reconnect();
-}
+    int ret = connect(fd, reinterpret_cast<const struct sockaddr*>(&addr), sizeof(addr));
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        CloseSocket(fd);
+        throw std::system_error(err, std::system_category(), "connect() failed");
+    }
 
-void BridgeClient::Reconnect() {
-    CloseConnectionHandles();
-    reconnect_timeout_ = GetLoop()->resource<uvw::timer_handle>();
-    reconnect_timeout_->start(1000ms, 0ms);
-    reconnect_timeout_->on<uvw::timer_event>([this](const uvw::timer_event&, uvw::timer_handle& handle) {
-        CreateConnection();
-        handle.close();
-    });
-}
+    logger_->Log("Connected to {}", path.string());
 
-void BridgeClient::CloseConnectionHandles() {
-    if (connection_handle_)
-        connection_handle_->close();
-    if (reconnect_timeout_)
-        reconnect_timeout_->close();
-    connected_ = false;
-}
+    ret = SetNonBlocking(fd);
+    if (ret == SocketError) {
+        int err = GetLastSocketError();
+        logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
+    }
 
-void BridgeClient::SendVersion() {
-    messages::ProtobufMessage* message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena_);
-    messages::Version* version = google::protobuf::Arena::Create<messages::Version>(&arena_);
-    message->set_allocated_version(version);
-    version->set_protocol_version(PROTOCOL_VERSION);
-    SendBridgeMessage(*message);
-    arena_.Reset();
+    fd_ = fd;
 }

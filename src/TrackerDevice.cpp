@@ -1,12 +1,22 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include "TrackerDevice.hpp"
 #include "DriverFactory.hpp"
+
+#include <algorithm>
 #include <cmath>
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, int device_id, TrackerRole tracker_role)
-    : serial_(serial)
-    , device_id_(device_id)
-    , tracker_role_(tracker_role) { }
+#include <solarxr_protocol/generated/all_generated.h>
 
+using namespace solarxr_protocol;
+
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, datatypes::BodyPart body_part)
+    : serial_(serial)
+    , body_part_(body_part) { }
+
+datatypes::BodyPart SlimeVRDriver::TrackerDevice::GetBodyPart() {
+    return body_part_;
+}
 std::string SlimeVRDriver::TrackerDevice::GetSerial() {
     return serial_;
 }
@@ -38,7 +48,10 @@ void SlimeVRDriver::TrackerDevice::Update() {
     }
 }
 
-void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position) {
+void SlimeVRDriver::TrackerDevice::UpdatePose(const solarxr_protocol::datatypes::math::Quat* orientation,
+                                              const solarxr_protocol::datatypes::math::Vec3f* position,
+                                              const solarxr_protocol::datatypes::math::Vec3f* linear_velocity,
+                                              const solarxr_protocol::datatypes::math::Vec3f* angular_velocity) {
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
@@ -55,37 +68,48 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
 #endif
 
     // Setup pose for this frame
-    auto pose = last_pose_;
+    vr::DriverPose_t pose = last_pose_;
     // send the new position and rotation from the pipe to the tracker object
-    if (position.has_x()) {
-        pose.vecPosition[0] = position.x();
-        pose.vecPosition[1] = position.y();
-        pose.vecPosition[2] = position.z();
+    if (position != nullptr) {
+        pose.vecPosition[0] = position->x();
+        pose.vecPosition[1] = position->y();
+        pose.vecPosition[2] = position->z();
         CHECK_CLASSIFICATION(pose.vecPosition[0]);
         CHECK_CLASSIFICATION(pose.vecPosition[1]);
         CHECK_CLASSIFICATION(pose.vecPosition[2]);
     }
 
-    pose.qRotation.w = position.qw();
-    pose.qRotation.x = position.qx();
-    pose.qRotation.y = position.qy();
-    pose.qRotation.z = position.qz();
-    CHECK_CLASSIFICATION(pose.qRotation.w);
-    CHECK_CLASSIFICATION(pose.qRotation.x);
-    CHECK_CLASSIFICATION(pose.qRotation.y);
-    CHECK_CLASSIFICATION(pose.qRotation.z);
+    if (orientation != nullptr) {
+        pose.qRotation.w = orientation->w();
+        pose.qRotation.x = orientation->x();
+        pose.qRotation.y = orientation->y();
+        pose.qRotation.z = orientation->z();
+        CHECK_CLASSIFICATION(pose.qRotation.w);
+        CHECK_CLASSIFICATION(pose.qRotation.x);
+        CHECK_CLASSIFICATION(pose.qRotation.y);
+        CHECK_CLASSIFICATION(pose.qRotation.z);
+    }
 
-    if (position.has_vx()) {
-        pose.vecVelocity[0] = position.vx();
-        pose.vecVelocity[1] = position.vy();
-        pose.vecVelocity[2] = position.vz();
+    if (linear_velocity != nullptr) {
+        pose.vecVelocity[0] = linear_velocity->x();
+        pose.vecVelocity[1] = linear_velocity->y();
+        pose.vecVelocity[2] = linear_velocity->z();
         CHECK_CLASSIFICATION(pose.vecVelocity[0]);
         CHECK_CLASSIFICATION(pose.vecVelocity[1]);
         CHECK_CLASSIFICATION(pose.vecVelocity[2]);
-    } else { // If velocity isn't being sent, don't keep stale values
-        pose.vecVelocity[0] = 0.0f;
-        pose.vecVelocity[1] = 0.0f;
-        pose.vecVelocity[2] = 0.0f;
+    } else {
+        std::ranges::fill(pose.vecVelocity, 0.0);
+    }
+
+    if (angular_velocity != nullptr) {
+        pose.vecAngularVelocity[0] = angular_velocity->x();
+        pose.vecAngularVelocity[1] = angular_velocity->y();
+        pose.vecAngularVelocity[2] = angular_velocity->z();
+        CHECK_CLASSIFICATION(pose.vecAngularVelocity[0]);
+        CHECK_CLASSIFICATION(pose.vecAngularVelocity[1]);
+        CHECK_CLASSIFICATION(pose.vecAngularVelocity[2]);
+    } else {
+        std::ranges::fill(pose.vecAngularVelocity, 0.0);
     }
 
     auto current_universe = GetDriver()->GetCurrentUniverse();
@@ -108,65 +132,62 @@ void SlimeVRDriver::TrackerDevice::PositionMessage(messages::Position& position)
         CHECK_CLASSIFICATION(pose.qWorldFromDriverRotation.y);
     }
 
-    pose.deviceIsConnected = true;
-    pose.poseIsValid = true;
-    pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
-
-    // Notify SteamVR that pose was updated
-    last_pose_atomic_ = (last_pose_ = pose);
     vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
+    last_pose_ = pose;
 }
 
-void SlimeVRDriver::TrackerDevice::BatteryMessage(messages::Battery& battery) {
+void SlimeVRDriver::TrackerDevice::UpdateBattery(float battery_percentage, bool charging) {
     if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
     // Get the properties handle
     auto props = vr::VRProperties()->TrackedDeviceToPropertyContainer(this->device_index_);
 
-    vr::ETrackedPropertyError err;
-
     // Set that the tracker reports battery level in case it has not already been set to true
     // It's a given that the tracker supports reporting battery life because otherwise a BatteryMessage would not be received
-    if (vr::VRProperties()->GetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, &err) != true) {
+    if (!vr::VRProperties()->GetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
         vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceProvidesBatteryStatus_Bool, true);
     }
 
-    if (battery.is_charging()) {
-        vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, true);
-    } else {
-        vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, false);
-    }
+    vr::VRProperties()->SetBoolProperty(props, vr::Prop_DeviceIsCharging_Bool, charging);
 
     // Set the battery Level; 0 = 0%, 1 = 100%
-    vr::VRProperties()->SetFloatProperty(props, vr::Prop_DeviceBatteryPercentage_Float, battery.battery_level());
+    vr::VRProperties()->SetFloatProperty(props, vr::Prop_DeviceBatteryPercentage_Float, battery_percentage);
 }
 
-void SlimeVRDriver::TrackerDevice::StatusMessage(messages::TrackerStatus& status) {
-    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
+void SlimeVRDriver::TrackerDevice::UpdateStatus(datatypes::TrackerStatus status) {
+    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid || status_ == status)
         return;
 
-    vr::DriverPose_t pose = last_pose_;
-    switch (status.status()) {
-    case messages::TrackerStatus_Status_OK:
+    status_ = status;
+
+    auto& pose = last_pose_;
+    switch (status_) {
+    case datatypes::TrackerStatus::OK:
         pose.deviceIsConnected = true;
         pose.poseIsValid = true;
+        pose.result = vr::ETrackingResult::TrackingResult_Running_OK;
         break;
-    case messages::TrackerStatus_Status_DISCONNECTED:
+
+    case datatypes::TrackerStatus::DISCONNECTED:
         pose.deviceIsConnected = false;
         pose.poseIsValid = false;
+        pose.result = vr::ETrackingResult::TrackingResult_Uninitialized;
         break;
-    case messages::TrackerStatus_Status_ERROR:
-    case messages::TrackerStatus_Status_BUSY:
+    case datatypes::TrackerStatus::BUSY:
+    case datatypes::TrackerStatus::OCCLUDED:
+        pose.deviceIsConnected = true;
+        pose.poseIsValid = true;
+        pose.result = vr::ETrackingResult::TrackingResult_Calibrating_OutOfRange;
+        break;
+    case datatypes::TrackerStatus::ERROR:
     default:
         pose.deviceIsConnected = true;
         pose.poseIsValid = false;
+        pose.result = vr::ETrackingResult::TrackingResult_Uninitialized;
         break;
     }
 
-    // TODO: send position/rotation of 0 instead of last pose?
-
-    last_pose_atomic_ = (last_pose_ = pose);
     vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
@@ -196,12 +217,6 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     std::string input_profile_path = emulate_vives ? "{htc}/input/vive_tracker_profile.json" : "{slimevr}/input/slimevr_tracker_profile.json";
     vr::VRProperties()->SetStringProperty(props, vr::Prop_InputProfilePath_String, input_profile_path.c_str());
 
-    // Doesn't apply until restart of SteamVR
-    auto role = GetViveRole(tracker_role_);
-    if (role != "") {
-        vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial_).c_str(), role.c_str());
-    }
-
     return vr::EVRInitError::VRInitError_None;
 }
 
@@ -220,16 +235,4 @@ void SlimeVRDriver::TrackerDevice::DebugRequest(const char* pchRequest, char* pc
     if (unResponseBufferSize >= 1) {
         pchResponseBuffer[0] = 0;
     }
-}
-
-vr::DriverPose_t SlimeVRDriver::TrackerDevice::GetPose() {
-    return last_pose_atomic_;
-}
-
-int SlimeVRDriver::TrackerDevice::GetDeviceId() {
-    return device_id_;
-}
-
-void SlimeVRDriver::TrackerDevice::SetDeviceId(int device_id) {
-    device_id_ = device_id;
 }

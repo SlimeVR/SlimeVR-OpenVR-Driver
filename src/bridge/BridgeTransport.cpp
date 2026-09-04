@@ -1,169 +1,222 @@
-/*
-    SlimeVR Code is placed under the MIT license
-    Copyright (c) 2022 SlimeVR Contributors
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include "BridgeTransport.hpp"
-#include <bit>
+#include "Endianness.hpp"
 
-void BridgeTransport::Start() {
-    thread_ = std::make_unique<std::thread>(&BridgeTransport::RunThread, this);
-}
+#include <solarxr_protocol/generated/all_generated.h>
+#include <system_error>
+
+using namespace std::chrono_literals;
+namespace fs = std::filesystem;
+
+#define UNIX_XDG_DATA_HOME_DEFAULT ".local/share/"
+#define SLIMEVR_IDENTIFIER "dev.slimevr.SlimeVR"
+#define UNIX_DEFAULT_TMP_DIR "/tmp"
+#define SOCKET_NAME "SlimeVRRpc"
 
 void BridgeTransport::Stop() {
-    if (!thread_ || !thread_->joinable())
+    if (!thread_.joinable() && !reconnect_thread_.joinable())
         return;
-    StopAsync();
     logger_->Log("stopping");
-    thread_->join();
-    thread_.reset();
+    StopAsync();
+    thread_ = std::jthread();
+    reconnect_thread_ = std::jthread();
 }
 
 void BridgeTransport::StopAsync() {
-    if (!stop_signal_handle_ || stop_signal_handle_->closing())
-        return;
-    stop_signal_handle_->send();
+    thread_.request_stop();
+    reconnect_thread_.request_stop();
+    cv_.notify_all();
 }
 
-void BridgeTransport::RunThread() {
-    logger_->Log("thread started");
-    loop_ = uvw::loop::create();
-    stop_signal_handle_ = GetLoop()->resource<uvw::async_handle>();
-    write_signal_handle_ = GetLoop()->resource<uvw::async_handle>();
+fs::path BridgeTransport::GetSocketPath() {
+    std::vector<fs::path> paths = {};
 
-    stop_signal_handle_->on<uvw::async_event>([this](const uvw::async_event&, uvw::async_handle& handle) {
-        logger_->Log("closing handles");
-        CloseConnectionHandles();
-        write_signal_handle_->close();
-        stop_signal_handle_->close();
-    });
-
-    write_signal_handle_->on<uvw::async_event>([this](const uvw::async_event&, uvw::async_handle& handle) {
-        SendWrites();
-    });
-
-    CreateConnection();
-    GetLoop()->run();
-    GetLoop()->close();
-    logger_->Log("thread exited");
-}
-
-void BridgeTransport::ResetBuffers() {
-    recv_buf_.Clear();
-    send_buf_.Clear();
-}
-
-void BridgeTransport::OnConnect() {
-    if (connect_callback_)
-        (*connect_callback_)();
-}
-void BridgeTransport::OnRecv(const uvw::data_event& event) {
-    if (!recv_buf_.Push(event.data.get(), event.length)) {
-        logger_->Log("recv_buf_.Push({}) failed", event.length);
-        ResetConnection();
-        return;
+    if (const char* dir_override = std::getenv("SLIMEVR_SOCKET_DIR")) {
+        paths.push_back(fs::path(dir_override) / SOCKET_NAME);
     }
 
-    size_t available;
-    while ((available = recv_buf_.BytesAvailable())) {
-        if (available < 4)
-            return;
-
-        char len_buf[4];
-        recv_buf_.Peek(len_buf, 4);
-        uint32_t msg_len = *reinterpret_cast<uint32_t*>(&len_buf[0]);
-        if constexpr (std::endian::native != std::endian::little) {
-            msg_len = std::byteswap(msg_len);
-        }
-
-        if (available < msg_len)
-            return;
-
-        char message_buf[VRBRIDGE_MAX_MESSAGE_SIZE];
-        if (msg_len > std::size(message_buf)) {
-            logger_->Log(
-                "message size overflow: {} > {}",
-                msg_len, VRBRIDGE_MAX_MESSAGE_SIZE);
-            ResetConnection();
-            return;
-        }
-
-        auto unwrapped_size = msg_len - 4;
-        if (!recv_buf_.Skip(4) || !recv_buf_.Pop(message_buf, unwrapped_size)) {
-            logger_->Log("recv_buf_.Pop({}) failed", msg_len - 4);
-            ResetConnection();
-            return;
-        }
-
-        messages::ProtobufMessage message;
-        if (message.ParseFromArray(message_buf, unwrapped_size)) {
-            message_callback_(message);
-        } else {
-            logger_->Log("receivedMessage.ParseFromArray failed");
-            ResetConnection();
-            return;
-        }
-    }
-}
-
-void BridgeTransport::SendBridgeMessage(const messages::ProtobufMessage& message) {
-    if (!IsConnected())
-        return;
-
-    uint32_t size = static_cast<uint32_t>(message.ByteSizeLong());
-    uint32_t wrapped_size = size + 4;
-
-    char message_buf[VRBRIDGE_MAX_MESSAGE_SIZE];
-    if (wrapped_size > std::size(message_buf)) {
-        logger_->Log("Skipping protobuf message send because it's too large ({} > {})", wrapped_size, std::size(message_buf));
-        return;
+#ifndef _WIN32
+    if (const char* xdg_runtime = std::getenv("XDG_RUNTIME_DIR")) {
+        paths.push_back(fs::path(xdg_runtime) / SOCKET_NAME);
     }
 
-    uint32_t* out_size = reinterpret_cast<uint32_t*>(&message_buf[0]);
-    if constexpr (std::endian::native != std::endian::little) {
-        *out_size = std::byteswap(wrapped_size);
+    if (const char* xdg_data = std::getenv("XDG_DATA_HOME")) {
+        paths.push_back(fs::path(xdg_data) / SLIMEVR_IDENTIFIER / SOCKET_NAME);
+    }
+
+    if (const char* home = std::getenv("HOME")) {
+        paths.push_back(fs::path(home) / UNIX_XDG_DATA_HOME_DEFAULT / SLIMEVR_IDENTIFIER / SOCKET_NAME);
+    }
+#endif
+
+    for (auto path : paths) {
+        if (fs::exists(path)) {
+            return path;
+        }
+    }
+
+#ifdef _WIN32
+    // This should work as long as the user's machine does not have
+    // the java.io.tmpdir system property overriden.
+    WCHAR tmp_dir[MAX_PATH + 1];
+    GetTempPathW(std::size(tmp_dir), tmp_dir);
+    return fs::path(tmp_dir) / SOCKET_NAME;
+#else
+    if (const char* tmp_dir = std::getenv("TMPDIR")) {
+        return fs::path(tmp_dir) / SOCKET_NAME;
     } else {
-        *out_size = wrapped_size;
+        return fs::path(UNIX_DEFAULT_TMP_DIR) / SOCKET_NAME;
     }
-    if (!message.SerializeToArray(&message_buf[4], std::size(message_buf) - 4)) {
-        logger_->Log("Failed to serialise protobuf message");
-        return;
-    }
-
-    if (!send_buf_.Push(message_buf, wrapped_size)) {
-        ResetConnection();
-        return;
-    }
-
-    write_signal_handle_->send();
+#endif
 }
 
-void BridgeTransport::SendWrites() {
-    if (!IsConnected())
+void BridgeTransport::OnRecv(std::span<uint8_t> event) {
+    if (!message_callback_)
         return;
 
-    auto available = send_buf_.BytesAvailable();
-    if (!available)
+    auto bundle = flatbuffers::GetRoot<solarxr_protocol::MessageBundle>(event.data());
+
+    if (auto data_feed_msgs = bundle->data_feed_msgs()) {
+        for (auto msg : *data_feed_msgs) {
+            // logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
+            message_callback_(msg);
+        }
+    }
+    if (auto rpc_msgs = bundle->rpc_msgs()) {
+        for (auto msg : *rpc_msgs) {
+            logger_->Log("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
+            message_callback_(msg);
+        }
+    }
+    if (auto driver_msgs = bundle->driver_msgs()) {
+        for (auto msg : *driver_msgs) {
+            // logger_->Log("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
+            message_callback_(msg);
+        }
+    }
+}
+
+void BridgeTransport::Start() {
+    thread_ = std::jthread([this](std::stop_token stop) { return RunThread(stop); });
+}
+
+void BridgeTransport::RunThread(std::stop_token stop) {
+    std::vector<uint8_t> data;
+    data.reserve(0x10000);
+
+    // Kick off connection.
+    ResetConnection();
+
+    while (!stop.stop_requested()) {
+        std::shared_lock fd_lock(fd_mutex_);
+
+        if (fd_ == InvalidSocket) [[unlikely]] {
+            cv_.wait(fd_lock, stop, [this] { return fd_ != InvalidSocket; });
+            if (stop.stop_requested())
+                break;
+        }
+
+        try {
+            ptrdiff_t ret = Poll(fd_, 1ms);
+            if (ret == 0) [[likely]] {
+                // No data on the socket after timeout
+                continue;
+            }
+
+            uint32_t msg_len;
+            ret = ReadFully(fd_, stop, &msg_len, sizeof(msg_len));
+            if (ret == 0) [[unlikely]] {
+                throw std::runtime_error("EOF");
+            }
+
+            msg_len = ConvertEndianness<std::endian::little>(msg_len);
+            // If we get something bigger than this, something's probably up
+            if (msg_len > 0x40000) [[unlikely]] {
+                throw std::runtime_error(std::format("Got too large message ({} bytes)", msg_len));
+            }
+
+            const uint32_t unwrapped_len = msg_len - 4;
+            data.reserve(unwrapped_len);
+
+            ret = ReadFully(fd_, stop, data.data(), unwrapped_len);
+            if (ret == 0) [[unlikely]] {
+                throw std::runtime_error("EOF");
+            }
+
+            OnRecv({ data.data(), unwrapped_len });
+        } catch (Cancelled&) {
+            continue;
+        } catch (std::exception& e) {
+            logger_->Log("Error on socket: {}", e.what());
+            fd_lock.unlock();
+            ResetConnection();
+        }
+    }
+
+    CloseConnectionHandles();
+}
+
+void BridgeTransport::ResetConnection() {
+    CloseConnectionHandles();
+
+    reconnect_thread_ = std::jthread([this](std::stop_token stop) {
+        while (!stop.stop_requested()) {
+            try {
+                std::unique_lock fd_lock(fd_mutex_);
+                CreateConnection();
+                assert(fd_ != InvalidSocket);
+
+                cv_.notify_all();
+
+                // connect callback may call a function that needs to block on the fd
+                fd_lock.unlock();
+                OnConnect();
+
+                return;
+            } catch (std::system_error& e) {
+                if (last_error_ != e.code()) {
+                    logger_->Log("Error when trying to connect: {}", e.what());
+                    last_error_ = e.code();
+                }
+            } catch (std::exception& e) {
+                logger_->Log("Error when trying to connect: {}", e.what());
+            }
+
+            std::this_thread::sleep_for(100ms);
+        }
+    });
+}
+
+void BridgeTransport::CloseConnectionHandles() {
+    std::unique_lock fd_lock(fd_mutex_);
+    if (fd_ == InvalidSocket)
         return;
 
-    char write_buf[VRBRIDGE_BUFFERS_SIZE];
-    send_buf_.Pop(write_buf, available);
-    connection_handle_->write(write_buf, static_cast<unsigned int>(available));
+    CloseSocket(fd_);
+    OnDisconnect();
+    fd_ = InvalidSocket;
+}
+
+void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
+    std::shared_lock fd_lock(fd_mutex_);
+    if (fd_ == InvalidSocket) [[unlikely]]
+        return;
+
+    std::lock_guard write_lock(write_mutex_);
+
+    if (fbb.GetSize() + 4 > std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+        logger_->Log("Skipping send of message (wrapped size larger than 32-bit unsigned integer limit)");
+        return;
+    }
+
+    const uint32_t size = static_cast<uint32_t>(fbb.GetSize());
+    const uint32_t le_wrapped_size = ConvertEndianness<std::endian::little>(size + 4);
+
+    try {
+        WriteFully(fd_, &le_wrapped_size, sizeof(le_wrapped_size));
+        WriteFully(fd_, fbb.GetBufferPointer(), size);
+    } catch (std::exception& e) {
+        logger_->Log("Failed to write message: {}", e.what());
+    }
 }

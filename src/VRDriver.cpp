@@ -1,17 +1,26 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include "VRDriver.hpp"
 #include "Consts.hpp"
 #include "Paths.hpp"
+#include "PreciseSleeper.hpp"
+#include "TrackerDevice.hpp"
 #include "TrackerRole.hpp"
-#include <TrackerDevice.hpp>
-#include <google/protobuf/arena.h>
-#include <simdjson.h>
+
+#include <cmath>
+#include <limits>
+#include <mutex>
 #include <utility>
 
+#include <linalg.h>
+#include <simdjson.h>
+#include <solarxr_protocol/generated/all_generated.h>
+
+using namespace solarxr_protocol;
+using namespace solarxr_protocol::datatypes;
+
 vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext) {
-    // Perform driver context initialisation
-    if (vr::EVRInitError init_error = vr::InitServerDriverContext(pDriverContext); init_error != vr::EVRInitError::VRInitError_None) {
-        return init_error;
-    }
+    VR_INIT_SERVER_DRIVER_CONTEXT(pDriverContext);
 
     logger_->Log("version " GIT_DESC);
 
@@ -34,54 +43,51 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
 
     bridge_ = std::make_shared<BridgeClient>(
         std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
-        std::bind(&SlimeVRDriver::VRDriver::OnBridgeMessage, this, std::placeholders::_1),
-        std::bind(&SlimeVRDriver::VRDriver::OnBridgeConnect, this));
+        [this](BridgeTransport::MessageHeader&& v) { OnBridgeMessage(std::move(v)); },
+        nullptr,
+        [this] { driver_connection_active_.store(false); });
     bridge_->Start();
 
-    pose_request_thread_ = std::jthread([this](std::stop_token stop) { return RunPoseRequestThread(stop); });
+    pose_request_thread_ = std::jthread([this](std::stop_token stop) { return RunPoseRequestThread(stop); }, stop_source_.get_token());
 
     return vr::VRInitError_None;
 }
 
 void SlimeVRDriver::VRDriver::Cleanup() {
-    // Wake up all threads waiting on init, if SteamVR exits before an HMD is connected
-    pose_request_thread_.request_stop();
+    // Wake up all threads waiting on init, if SteamVR exits before an HMD is connected and/or before a connection is established
+    stop_source_.request_stop();
     steamvr_init_guard_.store(true);
     steamvr_init_guard_.notify_all();
+    driver_connection_active_.store(true);
+    driver_connection_active_.notify_all();
 
     logger_->Log("Waiting for pose request thread to exit");
     pose_request_thread_ = std::jthread();
     logger_->Log("Stopping bridge");
     bridge_->Stop();
+
+    VR_CLEANUP_SERVER_DRIVER_CONTEXT();
 }
 
 const char* const* SlimeVRDriver::VRDriver::GetInterfaceVersions() {
     return vr::k_InterfaceVersions;
 }
 
-struct DeviceData {
-    vr::TrackedDeviceIndex_t index{ vr::k_unTrackedDeviceIndexInvalid };
-    TrackerRole role{ TrackerRole::NONE };
-    messages::TrackerStatus_Status status{ messages::TrackerStatus_Status::TrackerStatus_Status_DISCONNECTED };
-    bool sent_add_message{ false };
-    std::chrono::steady_clock::time_point battery_sent_at{};
-};
-
-TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
+BodyPart SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
     vr::PropertyContainerHandle_t container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
     auto device_class = vr::VRProperties()->GetInt32Property(container, vr::Prop_DeviceClass_Int32);
     switch (device_class) {
     case vr::TrackedDeviceClass_HMD:
-        return TrackerRole::HMD;
+        return BodyPart::HEAD;
     case vr::TrackedDeviceClass_Controller: {
         auto controller_role_hint = vr::VRProperties()->GetInt32Property(container, vr::Prop_ControllerRoleHint_Int32);
         if (controller_role_hint == vr::ETrackedControllerRole::TrackedControllerRole_LeftHand) {
-            return TrackerRole::LEFT_HAND;
+            return BodyPart::LEFT_HAND;
         } else if (controller_role_hint == vr::ETrackedControllerRole::TrackedControllerRole_RightHand) {
-            return TrackerRole::RIGHT_HAND;
+            return BodyPart::RIGHT_HAND;
         } else {
             logger_->Log("Unknown controller role hint {} for device {}", controller_role_hint, index);
-            return TrackerRole::NONE;
+            return BodyPart::NONE;
         }
     }
     case vr::TrackedDeviceClass_GenericTracker: {
@@ -89,47 +95,66 @@ TrackerRole SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t i
         auto controller_type = vr::VRProperties()->GetStringProperty(container, vr::Prop_ControllerType_String, &error);
         if (controller_type.empty()) {
             logger_->Log("Unable to get controller type for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-            return TrackerRole::NONE;
+            return BodyPart::NONE;
         }
 
-        for (TrackerRole role = TrackerRole::WAIST; role < TrackerRole::KEYBOARD; role = static_cast<TrackerRole>(static_cast<uint8_t>(role) + 1)) {
-            if (auto role_hint = GetViveRoleHint(role); !role_hint.empty() && role_hint == controller_type) {
-                return role;
+        for (auto part : EnumValuesBodyPart()) {
+            if (auto role_hint = GetViveControllerType(part); !role_hint.empty() && role_hint == controller_type) {
+                return part;
             }
         }
 
         logger_->Log("Couldn't determine role for device {} (Prop_ControllerType_String='{}')", index, controller_type);
-        return TrackerRole::NONE;
+        return BodyPart::NONE;
     }
     default:
-        return TrackerRole::NONE;
+        return BodyPart::NONE;
     }
 }
 
 void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     using namespace std::chrono_literals;
 
-    std::array<DeviceData, vr::k_unMaxTrackedDeviceCount> devices{};
+    flatbuffers::FlatBufferBuilder fbb;
+    std::vector<flatbuffers::Offset<driver_protocol::DriverMessageHeader>> driver_msgs{};
+    driver_msgs.reserve(64);
+
+    auto notify_status_changed = [this, &fbb, &driver_msgs](DeviceData& device, uint16_t id, TrackerStatus status) {
+        if (device.status != status) {
+            logger_->Log("Status for device {} changing {}->{}", device.index, std::to_underlying(device.status), std::to_underlying(status));
+
+            auto update_status_msg = driver_protocol::CreateUpdateTrackerStatus(fbb, id, status);
+            auto header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerStatus, update_status_msg.Union());
+
+            driver_msgs.push_back(header);
+            device.status = status;
+        }
+    };
+
     logger_->Log("Pose request thread started");
     steamvr_init_guard_.wait(false);
     // If SteamVR exited before initialisation completed, we'll just
     // skip past the loop body on the first iteration anyway
 
+    PreciseSleeper sleeper;
     logger_->Log("Entering pose request loop");
     while (!stop.stop_requested()) {
-        if (!bridge_->IsConnected()) {
+        if (!bridge_->IsConnected() || !driver_connection_active_) {
             // If bridge not connected, assume we need to resend device add messages
-            for (auto& device : devices) {
+            for (auto& device : feeder_devices_) {
                 device.sent_add_message = false;
-                device.status = messages::TrackerStatus_Status_DISCONNECTED;
+                device.tracker_id.store(0);
+                device.status = TrackerStatus::DISCONNECTED;
             }
-            std::this_thread::sleep_for(100ms);
+            driver_connection_active_.wait(false);
             continue;
         }
 
+        auto tick_start_time = std::chrono::steady_clock::now();
+
         vr::PropertyContainerHandle_t hmd_prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
-        vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount]{};
-        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, poses, std::size(poses));
+        std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> poses{};
+        vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, poses.data(), poses.size());
 
         vr::ETrackedPropertyError universe_error;
         uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
@@ -147,24 +172,11 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
         }
         last_universe_error_ = universe_error;
 
-        auto notify_status_changed = [this](DeviceData& device, messages::ProtobufMessage* message, messages::TrackerStatus_Status status) {
-            if (device.status != status) {
-                logger_->Log("Status for device {} changing {}->{}", device.index, std::to_underlying(device.status), std::to_underlying(status));
-                messages::TrackerStatus* tracker_status = google::protobuf::Arena::Create<messages::TrackerStatus>(&arena_);
-                message->set_allocated_tracker_status(tracker_status);
-                tracker_status->set_tracker_id(device.index);
-                tracker_status->set_status(status);
-                bridge_->SendBridgeMessage(*message);
-                device.status = status;
-            }
-        };
-
         for (uint32_t index = 0; index < vr::k_unMaxTrackedDeviceCount; index++) {
-            DeviceData& device = devices[index];
+            DeviceData& device = feeder_devices_[index];
             device.index = index;
             vr::TrackedDevicePose_t& pose = poses[index];
             vr::PropertyContainerHandle_t prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
-            messages::ProtobufMessage* message = google::protobuf::Arena::Create<messages::ProtobufMessage>(&arena_);
 
             {
                 vr::ETrackedPropertyError error{};
@@ -192,14 +204,6 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                 }
             }
 
-            if (device.sent_add_message && !pose.bDeviceIsConnected) {
-                notify_status_changed(device, message, messages::TrackerStatus_Status_DISCONNECTED);
-                continue;
-            } else if (!pose.bDeviceIsConnected) {
-                // ignore device as it's not connected
-                continue;
-            }
-
             if (!device.sent_add_message) {
                 vr::ETrackedPropertyError error{};
                 auto serial = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_SerialNumber_String, &error);
@@ -223,27 +227,35 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                 if (manufacturer.empty())
                     manufacturer = "OpenVR";
 
-                TrackerRole role = GetRoleForDevice(index);
+                BodyPart role = GetRoleForDevice(index);
 
                 // Send add message for device
-                messages::TrackerAdded* tracker_added = google::protobuf::Arena::Create<messages::TrackerAdded>(&arena_);
-                message->set_allocated_tracker_added(tracker_added);
-                tracker_added->set_tracker_id(index);
-                tracker_added->set_tracker_role(role);
-                tracker_added->set_tracker_serial(serial);
-                tracker_added->set_tracker_name(name);
-                tracker_added->set_manufacturer(manufacturer);
-                bridge_->SendBridgeMessage(*message);
+                auto add_tracker_msg = driver_protocol::CreateAddTrackerRequest(fbb, fbb.CreateString(serial), fbb.CreateString(name), fbb.CreateString(manufacturer), role);
+                auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, index, 0, driver_protocol::DriverMessage::AddTrackerRequest, add_tracker_msg.Union());
 
+                driver_msgs.push_back(msg_header);
                 device.sent_add_message = true;
-                logger_->Log("Sent add message for device {}: serial={}, model={}, manufacturer={}, role={}", index, serial, name, manufacturer, GetRoleName(role));
+                logger_->Log("Sent add message for device {}: serial={}, model={}, manufacturer={}, role=BodyPart::{}", index, serial, name, manufacturer, EnumNameBodyPart(role));
+            }
+
+            uint16_t tracker_id = device.tracker_id.load();
+            // Didn't get tracker ID yet...
+            if (tracker_id == 0)
+                continue;
+
+            if (device.sent_add_message && !pose.bDeviceIsConnected) {
+                notify_status_changed(device, tracker_id, TrackerStatus::DISCONNECTED);
+                continue;
+            } else if (!pose.bDeviceIsConnected) {
+                // ignore device as it's not connected
+                continue;
             }
 
             if (pose.bPoseIsValid || pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly) {
-                messages::TrackerStatus_Status status = pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly
-                    ? messages::TrackerStatus_Status_OCCLUDED
-                    : messages::TrackerStatus_Status_OK;
-                notify_status_changed(device, message, status);
+                auto status = pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly
+                    ? TrackerStatus::OCCLUDED
+                    : TrackerStatus::OK;
+                notify_status_changed(device, tracker_id, status);
 
                 vr::HmdQuaternion_t q = GetRotation(pose.mDeviceToAbsoluteTracking);
                 vr::HmdVector3_t pos = GetPosition(pose.mDeviceToAbsoluteTracking);
@@ -278,44 +290,55 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                     pos.v[2] = pos_z;
                 }
 
-                messages::Position* position = google::protobuf::Arena::Create<messages::Position>(&arena_);
-                message->set_allocated_position(position);
-                position->set_tracker_id(index);
-                position->set_data_source(status == messages::TrackerStatus_Status_OCCLUDED ? messages::Position_DataSource_IMU : messages::Position_DataSource_FULL);
-                position->set_x(pos.v[0]);
-                position->set_y(pos.v[1]);
-                position->set_z(pos.v[2]);
-                position->set_qx((float)q.x);
-                position->set_qy((float)q.y);
-                position->set_qz((float)q.z);
-                position->set_qw((float)q.w);
-                bridge_->SendBridgeMessage(*message);
+                auto quat_fbs = math::Quat(q.x, q.y, q.z, q.w);
+                auto position_fbs = math::Vec3f(pos.v[0], pos.v[1], pos.v[2]);
+                auto update_pos_msg = driver_protocol::CreateUpdateTrackerPosition(fbb, tracker_id, &quat_fbs, &position_fbs);
+                auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerPosition, update_pos_msg.Union());
+
+                driver_msgs.push_back(msg_header);
             } else {
                 notify_status_changed(
                     device,
-                    message,
+                    tracker_id,
                     pose.eTrackingResult == vr::TrackingResult_Calibrating_OutOfRange
-                        ? messages::TrackerStatus_Status_OCCLUDED
-                        : messages::TrackerStatus_Status_DISCONNECTED);
+                        ? TrackerStatus::OCCLUDED
+                        : TrackerStatus::DISCONNECTED);
             }
 
             auto now = std::chrono::steady_clock::now();
             if (now - device.battery_sent_at > 100ms) {
                 if (vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
-                    messages::Battery* battery = google::protobuf::Arena::Create<messages::Battery>(&arena_);
-                    message->set_allocated_battery(battery);
-                    battery->set_tracker_id(index);
-                    battery->set_battery_level(vr::VRProperties()->GetFloatProperty(prop_container, vr::Prop_DeviceBatteryPercentage_Float) * 100.f);
-                    battery->set_is_charging(vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceIsCharging_Bool));
-                    bridge_->SendBridgeMessage(*message);
+                    float battery_percentage = vr::VRProperties()->GetFloatProperty(prop_container, vr::Prop_DeviceBatteryPercentage_Float);
+                    if (std::fabs(device.last_battery_percentage - battery_percentage) > std::numeric_limits<float>::epsilon()) {
+                        uint8_t battery_level = uint8_t(battery_percentage * 100.f);
+                        bool charging = vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceIsCharging_Bool);
+
+                        auto update_battery_msg = driver_protocol::CreateUpdateTrackerBattery(fbb, tracker_id, battery_level, charging);
+                        auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerBattery, update_battery_msg.Union());
+
+                        driver_msgs.push_back(msg_header);
+                        device.last_battery_percentage = battery_percentage;
+                    }
                 }
                 device.battery_sent_at = now;
             }
         }
 
-        arena_.Reset();
+        if (!driver_msgs.empty()) {
+            auto driver_msgs_fbs = fbb.CreateVector(driver_msgs);
+            auto bundle = CreateMessageBundle(fbb, 0, 0, driver_msgs_fbs);
+            fbb.Finish(bundle);
+            bridge_->SendMessage(fbb);
 
-        std::this_thread::sleep_for(2ms);
+            driver_msgs.clear();
+            fbb.Clear();
+        }
+
+        auto tick_end_time = std::chrono::steady_clock::now();
+        auto elapsed = tick_end_time - tick_start_time;
+        if (elapsed < 2ms) {
+            sleeper.SleepFor(2ms - elapsed);
+        }
     }
     logger_->Log("Pose request thread exiting");
 }
@@ -376,62 +399,187 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     }
 }
 
-void SlimeVRDriver::VRDriver::OnBridgeConnect() {
-    std::thread t{ [this]() {
-        steamvr_init_guard_.wait(false);
-        // We woke up because SteamVR exited before initialisation.
-        if (pose_request_thread_.get_stop_token().stop_requested()) {
-            logger_->Log("Exiting OnBridgeConnect early");
-            return;
+void SlimeVRDriver::VRDriver::OnBridgeMessage(const data_feed::DataFeedMessageHeader*) {
+    // Ignored
+}
+void SlimeVRDriver::VRDriver::OnBridgeMessage(const rpc::RpcMessageHeader* msg) {
+    using solarxr_protocol::rpc::RpcMessage;
+    switch (msg->message_type()) {
+    case RpcMessage::BoneRoutingSettingsResponse: {
+        auto resp = msg->message_as<rpc::BoneRoutingSettingsResponse>();
+        auto routes = resp->routes();
+        if (!routes) {
+            logger_->Log("Got BoneRoutingSettingsResponse without routes");
+            body_part_mask_ = 0;
+            break;
         }
 
-        logger_->Log("Sending version message");
-        bridge_->SendVersion();
-    } };
-    t.detach();
-}
-void SlimeVRDriver::VRDriver::OnBridgeMessage(const messages::ProtobufMessage& message) {
-    std::lock_guard<std::mutex> lock(devices_mutex_);
-    if (message.has_tracker_added()) {
-        messages::TrackerAdded ta = message.tracker_added();
-        auto role = static_cast<TrackerRole>(ta.tracker_role());
-        switch (GetDeviceType(role)) {
-        case DeviceType::TRACKER:
-        case DeviceType::CONTROLLER:
-            AddDevice(std::make_shared<TrackerDevice>(ta.tracker_serial(), ta.tracker_id(), role));
-            break;
-        default:
-            logger_->Log("Got tracker added message for unhandled device type {} (role {})", std::to_underlying(GetDeviceType(role)), std::to_underlying(role));
-            break;
-        }
-    } else if (message.has_position()) {
-        messages::Position pos = message.position();
-        auto device = devices_by_id_.find(pos.tracker_id());
-        if (device != devices_by_id_.end()) {
-            device->second->PositionMessage(pos);
-        }
-    } else if (message.has_tracker_status()) {
-        messages::TrackerStatus status = message.tracker_status();
-        auto device = devices_by_id_.find(status.tracker_id());
-        if (device != devices_by_id_.end()) {
-            device->second->StatusMessage(status);
-            static const std::unordered_map<messages::TrackerStatus_Status, std::string> status_map = {
-                { messages::TrackerStatus_Status_OK, "OK" },
-                { messages::TrackerStatus_Status_DISCONNECTED, "DISCONNECTED" },
-                { messages::TrackerStatus_Status_ERROR, "ERROR" },
-                { messages::TrackerStatus_Status_BUSY, "BUSY" },
-            };
-            if (status_map.count(status.status())) {
-                logger_->Log("Tracker status id {} status {}", status.tracker_id(), status_map.at(status.status()));
+        body_part_mask_ = 0;
+        for (auto route : *routes) {
+            auto outputs = route->outputs();
+            if (!outputs) {
+                logger_->Log("Got route with no outputs");
+                continue;
+            }
+            for (auto output : *outputs) {
+                if (output == rpc::RoutingOutput::DRIVER) {
+                    datatypes::BodyPart body_part = route->bone();
+                    logger_->Log("Bone {} is enabled", EnumNameBodyPart(body_part));
+                    body_part_mask_ |= static_cast<uint64_t>(1) << std::to_underlying(body_part);
+                }
             }
         }
-    } else if (message.has_battery()) {
-        messages::Battery bat = message.battery();
-        auto device = this->devices_by_id_.find(bat.tracker_id());
-        if (device != this->devices_by_id_.end()) {
-            device->second->BatteryMessage(bat);
-        }
+
+        logger_->Log("Body part mask changed to {:#b}", body_part_mask_);
+
+        break;
     }
+    default:
+        break;
+    }
+}
+
+void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessageHeader* msg) {
+    using solarxr_protocol::driver_protocol::DriverMessage;
+    switch (msg->message_type()) {
+    case DriverMessage::HandshakeAvailable: {
+        logger_->Log("Got HandshakeAvailable, firing off thread");
+        std::thread t([this] {
+            steamvr_init_guard_.wait(false);
+            if (stop_source_.stop_requested()) {
+                // Cleanup was called
+                return;
+            }
+
+            logger_->Log("Sending HandshakeRequest");
+            flatbuffers::FlatBufferBuilder fbb(256);
+
+            auto handshake_msg = driver_protocol::CreateHandshakeRequest(fbb,
+                                                                         fbb.CreateString("SteamVR"),
+                                                                         datatypes::CreateBoneMask(fbb, true, false, false, true, false, true, true, true));
+            auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::HandshakeRequest, handshake_msg.Union());
+            auto msgs = fbb.CreateVector({ msg_header });
+            auto bundle = CreateMessageBundle(fbb, 0, 0, msgs);
+            fbb.Finish(bundle);
+            bridge_->SendMessage(fbb);
+        });
+        t.detach();
+
+        break;
+    }
+    case DriverMessage::HandshakeResponse: {
+        auto resp = msg->message_as<driver_protocol::HandshakeResponse>();
+        auto status = resp->status();
+        logger_->Log("Got HandshakeResponse with status={}", driver_protocol::EnumNameHandshakeStatus(status));
+        if (status == driver_protocol::HandshakeStatus::ACCEPTED) {
+            flatbuffers::FlatBufferBuilder fbb(256);
+
+            auto bone_routing_req = rpc::CreateBoneRoutingSettingsRequest(fbb);
+            auto rpc_msg_header = rpc::CreateRpcMessageHeader(fbb, 0, 0, rpc::RpcMessage::BoneRoutingSettingsRequest, bone_routing_req.Union());
+            auto msgs = fbb.CreateVector({ rpc_msg_header });
+            auto bundle = CreateMessageBundle(fbb, 0, msgs, 0);
+            fbb.Finish(bundle);
+            bridge_->SendMessage(fbb);
+
+            driver_connection_active_.store(true);
+            driver_connection_active_.notify_all();
+        } else {
+            for (auto& [_, device] : devices_by_role_) {
+                if (!device)
+                    continue; // ??
+
+                device->UpdateStatus(TrackerStatus::DISCONNECTED);
+            }
+            driver_connection_active_.store(false);
+        }
+
+        break;
+    }
+    case DriverMessage::AddTrackerResponse: {
+        auto resp = msg->message_as<driver_protocol::AddTrackerResponse>();
+        uint32_t reply_to = msg->reply_to();
+        auto status = resp->status();
+        if (status == driver_protocol::AddTrackerStatus::ERROR) {
+            logger_->Log("Got AddTrackerResponse with status=ERROR reply_to={}", reply_to);
+            break;
+        }
+
+        uint16_t tracker_id = resp->tracker_id();
+        logger_->Log("Got AddTrackerResponse with reply_to={} tracker_id={}", reply_to, tracker_id);
+        auto& device = feeder_devices_[reply_to];
+
+        device.tracker_id.store(tracker_id);
+        break;
+    }
+    case DriverMessage::SkeletonUpdate: {
+        std::lock_guard lock(devices_mutex_);
+
+        auto update = msg->message_as<driver_protocol::SkeletonUpdate>();
+        auto bones = update->bones();
+        for (auto bone : *bones) {
+            auto body_part = bone->body_part();
+            if (body_part == BodyPart::NONE || body_part == BodyPart::HEAD)
+                continue;
+
+            bool tracker_enabled = body_part_mask_ & (static_cast<uint64_t>(1) << std::to_underlying(body_part));
+            std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
+            if (!tracker_enabled) {
+                if (device) {
+                    device->UpdateStatus(TrackerStatus::DISCONNECTED);
+                }
+                continue;
+            }
+
+            if (!device) {
+                device = std::make_shared<TrackerDevice>(GetSerial(body_part), body_part);
+                if (!AddDevice(device)) {
+                    continue;
+                }
+
+                if (const auto battery = queued_bone_battery_.extract(body_part)) {
+                    const BatteryInfo& info = battery.mapped();
+                    device->UpdateBattery(static_cast<float>(info.level) / 100.f, info.charging);
+                }
+            }
+            device->UpdateStatus(TrackerStatus::OK);
+
+            const datatypes::math::Quat* orientation = bone->orientation();
+            const datatypes::math::Vec3f* tail_position = bone->tail_position();
+            const datatypes::math::Vec3f* linear_velocity = bone->linear_velocity();
+            const datatypes::math::Vec3f* angular_velocity = bone->angular_velocity();
+
+            device->UpdatePose(orientation, tail_position, linear_velocity, angular_velocity);
+        }
+
+        break;
+    }
+    case DriverMessage::BoneBatteryUpdate: {
+        auto update = msg->message_as<driver_protocol::BoneBatteryUpdate>();
+        datatypes::BodyPart body_part = update->bone();
+        uint8_t battery_level = update->battery_level();
+        bool charging = update->charging();
+
+        std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
+        if (!device) {
+            logger_->Log("Got BoneBatteryUpdate(bone=BodyPart::{} battery_level={} charging={}) with no device", EnumNameBodyPart(body_part), battery_level, charging);
+            queued_bone_battery_.try_emplace(body_part, battery_level, charging);
+            break;
+        }
+
+        logger_->Log("Got BoneBatteryUpdate(bone=BodyPart::{} battery_level={} charging={})", EnumNameBodyPart(body_part), battery_level, charging);
+        device->UpdateBattery(static_cast<float>(battery_level) / 100.f, charging);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void SlimeVRDriver::VRDriver::OnBridgeMessage(BridgeTransport::MessageHeader&& message) {
+    std::visit([this](const auto* msg) {
+        OnBridgeMessage(msg);
+    },
+               message);
 }
 
 bool SlimeVRDriver::VRDriver::ShouldBlockStandbyMode() {
@@ -478,27 +626,33 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
     default:
         return false;
     }
-    if (!devices_by_serial_.count(device->GetSerial())) {
-        bool result = vr::VRServerDriverHost()->TrackedDeviceAdded(device->GetSerial().c_str(), openvr_device_class, device.get());
-        if (result) {
-            devices_.push_back(device);
-            devices_by_id_[device->GetDeviceId()] = device;
-            devices_by_serial_[device->GetSerial()] = device;
-            logger_->Log("New tracker device added {} (id {})", device->GetSerial(), device->GetDeviceId());
-        } else {
-            logger_->Log("Failed to add tracker device {} (id {})", device->GetSerial(), device->GetDeviceId());
-            return false;
-        }
-    } else {
-        std::shared_ptr<IVRDevice> oldDevice = devices_by_serial_[device->GetSerial()];
-        if (oldDevice->GetDeviceId() != device->GetDeviceId()) {
-            devices_by_id_[device->GetDeviceId()] = oldDevice;
-            oldDevice->SetDeviceId(device->GetDeviceId());
-            logger_->Log("Device overridden from id {} to {} for serial {}", oldDevice->GetDeviceId(), device->GetDeviceId(), device->GetSerial());
-        } else {
-            logger_->Log("Device readded id {}, serial {}", device->GetDeviceId(), device->GetSerial());
-        }
+
+    auto body_part = device->GetBodyPart();
+    if (devices_by_role_.contains(body_part)) {
+        logger_->Log("Tried to re-add device with role BodyPart::{}", EnumNameBodyPart(body_part));
+        return false;
     }
+
+    auto serial = device->GetSerial();
+    if (serial.empty()) {
+        logger_->Log("Tried to add device for role BodyPart::{} with empty serial number (unhandled)", EnumNameBodyPart(body_part));
+        return false;
+    }
+
+    // Doesn't apply until restart of SteamVR
+    auto role = GetTrackerRole(body_part);
+    if (!role.empty()) {
+        vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, ("/devices/slimevr/" + serial).c_str(), role.c_str());
+    }
+
+    if (!vr::VRServerDriverHost()->TrackedDeviceAdded(serial.c_str(), openvr_device_class, device.get())) {
+        logger_->Log("Failed to add device for BodyPart::{} (\"{}\")", EnumNameBodyPart(body_part), device->GetSerial());
+        return false;
+    }
+
+    devices_.push_back(device);
+    devices_by_role_[body_part] = device;
+    logger_->Log("Added device {} for BodyPart::{}", device->GetSerial(), EnumNameBodyPart(body_part));
     return true;
 }
 

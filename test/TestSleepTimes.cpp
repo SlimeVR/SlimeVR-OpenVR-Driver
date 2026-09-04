@@ -1,31 +1,39 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include <catch2/catch_test_macros.hpp>
 
-#include <Logger.hpp>
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <numeric>
-#include <thread>
 #include <vector>
 
+#include <Logger.hpp>
+#include <PreciseSleeper.hpp>
+
+using namespace std::chrono_literals;
+
 TEST_CASE("Sleep times") {
-    const int sleep_duration_ms = 2;
-    const int benchmark_duration_sec = 1;
+    constexpr auto sleep_duration_ms = 2ms;
+    constexpr auto benchmark_duration_sec = 1s;
     const int num_iterations = 1000000;
     std::vector<long long> sleep_times;
     sleep_times.reserve(num_iterations);
 
     auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>(""));
-    logger->Log("Benching std::this_thread::sleep_for(std::chrono::milliseconds({}));", sleep_duration_ms);
-    auto start_time = std::chrono::high_resolution_clock::now();
-    while (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start_time).count() < benchmark_duration_sec) {
-        auto iteration_start_time = std::chrono::high_resolution_clock::now();
-        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_duration_ms));
-        auto iteration_end_time = std::chrono::high_resolution_clock::now();
 
-        sleep_times.push_back(std::chrono::duration_cast<std::chrono::microseconds>(iteration_end_time - iteration_start_time).count());
+    logger->Log("Benching PreciseSleeper::SleepFor({});", sleep_duration_ms);
+    {
+        PreciseSleeper sleeper;
+        auto start_time = std::chrono::high_resolution_clock::now();
+        while (std::chrono::high_resolution_clock::now() - start_time < benchmark_duration_sec) {
+            auto iteration_start_time = std::chrono::high_resolution_clock::now();
+            sleeper.SleepFor(sleep_duration_ms);
+            auto iteration_end_time = std::chrono::high_resolution_clock::now();
+
+            sleep_times.push_back(std::chrono::duration_cast<std::chrono::microseconds>(iteration_end_time - iteration_start_time).count());
+        }
+        std::sort(sleep_times.begin(), sleep_times.end());
     }
-    std::sort(sleep_times.begin(), sleep_times.end());
 
     const size_t num_samples = sleep_times.size();
     const size_t p1_index = num_samples * 1 / 100;
