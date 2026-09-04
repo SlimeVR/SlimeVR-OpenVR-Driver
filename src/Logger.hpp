@@ -56,6 +56,10 @@ class VRLogger : public Logger {
 
 protected:
     void LogImpl(const char* message) override {
+        /// Protect against segfault if trying to log after @ref vr::IServerTrackedDeviceProvider::Cleanup
+        if (vr::VRDriverContext() == nullptr)
+            return;
+
         vr::VRDriverLog()->Log(message);
     }
 };
