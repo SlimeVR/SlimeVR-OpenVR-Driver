@@ -150,6 +150,8 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
             continue;
         }
 
+        auto tick_start_time = std::chrono::steady_clock::now();
+
         vr::PropertyContainerHandle_t hmd_prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
         std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> poses{};
         vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, poses.data(), poses.size());
@@ -332,7 +334,11 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
             fbb.Clear();
         }
 
-        sleeper.SleepFor(2ms);
+        auto tick_end_time = std::chrono::steady_clock::now();
+        auto elapsed = tick_end_time - tick_start_time;
+        if (elapsed < 2ms) {
+            sleeper.SleepFor(2ms - elapsed);
+        }
     }
     logger_->Log("Pose request thread exiting");
 }
