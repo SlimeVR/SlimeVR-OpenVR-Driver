@@ -3,6 +3,7 @@
 #include "VRDriver.hpp"
 #include "Consts.hpp"
 #include "Paths.hpp"
+#include "PreciseSleeper.hpp"
 #include "TrackerDevice.hpp"
 #include "TrackerRole.hpp"
 
@@ -136,6 +137,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     // If SteamVR exited before initialisation completed, we'll just
     // skip past the loop body on the first iteration anyway
 
+    PreciseSleeper sleeper;
     logger_->Log("Entering pose request loop");
     while (!stop.stop_requested()) {
         if (!bridge_->IsConnected() || !driver_connection_active_) {
@@ -331,7 +333,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
             fbb.Clear();
         }
 
-        std::this_thread::sleep_for(2ms);
+        sleeper.SleepFor(2ms);
     }
     logger_->Log("Pose request thread exiting");
 }
