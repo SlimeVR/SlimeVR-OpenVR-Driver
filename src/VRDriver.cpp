@@ -31,7 +31,9 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         auto json = simdjson::padded_string::load(config_path).value();
         simdjson::ondemand::document doc = json_parser_.iterate(json);
         auto path = std::filesystem::path(doc.get_object()["config"].at(0).get_string().value()) / "chaperone_info.vrchap";
-        if (std::filesystem::exists(path)) {
+
+        std::error_code ec; // so exists doesn't throw
+        if (std::filesystem::exists(path, ec)) {
             default_chap_path_ = path;
             logger_->Log("Found chaperone info file at {}", path.string());
         } else {
@@ -780,7 +782,8 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
         }
     }
 
-    if (default_chap_path_.has_value() && std::filesystem::exists(default_chap_path_.value())) {
+    std::error_code ec; // so exists doesn't throw
+    if (default_chap_path_.has_value() && std::filesystem::exists(default_chap_path_.value(), ec)) {
         try {
             return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value().string()).take_value(), target);
         } catch (simdjson::simdjson_error& e) {
