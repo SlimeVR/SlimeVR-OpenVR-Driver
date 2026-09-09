@@ -6,6 +6,10 @@
 #include <solarxr_protocol/generated/all_generated.h>
 #include <system_error>
 
+#ifdef _WIN32
+#include <winerror.h>
+#endif
+
 using namespace std::chrono_literals;
 namespace fs = std::filesystem;
 
@@ -50,8 +54,13 @@ fs::path BridgeTransport::GetSocketPath() {
     }
 #endif
 
+    std::error_code ec;
     for (auto path : paths) {
-        if (fs::exists(path)) {
+        if (fs::exists(path, ec)
+#ifdef _WIN32
+            || ec.value() == ERROR_CANT_ACCESS_FILE // Windows moment???
+#endif
+        ) {
             return path;
         }
     }
