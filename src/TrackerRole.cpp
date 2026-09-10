@@ -7,7 +7,6 @@ using solarxr_protocol::datatypes::BodyPart;
 std::string GetSerial(BodyPart role) {
     switch (role) {
     case BodyPart::UPPER_CHEST:
-    case BodyPart::CHEST:
         return "human://CHEST";
     case BodyPart::LEFT_SHOULDER:
         return "human://LEFT_SHOULDER";
@@ -25,7 +24,6 @@ std::string GetSerial(BodyPart role) {
         return "human://LEFT_HAND";
     case BodyPart::RIGHT_HAND:
         return "human://RIGHT_HAND";
-    case BodyPart::WAIST:
     case BodyPart::HIP:
         return "human://WAIST";
     case BodyPart::LEFT_UPPER_LEG:
@@ -45,7 +43,6 @@ std::string GetSerial(BodyPart role) {
 std::string GetViveControllerType(BodyPart role) {
     switch (role) {
     case BodyPart::UPPER_CHEST:
-    case BodyPart::CHEST:
         return "vive_tracker_chest";
     case BodyPart::LEFT_SHOULDER:
         return "vive_tracker_left_shoulder";
@@ -62,7 +59,6 @@ std::string GetViveControllerType(BodyPart role) {
     case BodyPart::LEFT_HAND:
     case BodyPart::RIGHT_HAND:
         return "vive_tracker_handed";
-    case BodyPart::WAIST:
     case BodyPart::HIP:
         return "vive_tracker_waist";
     case BodyPart::LEFT_UPPER_LEG:
@@ -82,7 +78,6 @@ std::string GetViveControllerType(BodyPart role) {
 std::string GetTrackerRole(BodyPart role) {
     switch (role) {
     case BodyPart::UPPER_CHEST:
-    case BodyPart::CHEST:
         return "TrackerRole_Chest";
     case BodyPart::LEFT_SHOULDER:
         return "TrackerRole_LeftShoulder";
@@ -100,7 +95,6 @@ std::string GetTrackerRole(BodyPart role) {
         return "TrackerRole_Handed,TrackedControllerRole_LeftHand";
     case BodyPart::RIGHT_HAND:
         return "TrackerRole_Handed,TrackedControllerRole_RightHand";
-    case BodyPart::WAIST:
     case BodyPart::HIP:
         return "TrackerRole_Waist";
     case BodyPart::LEFT_UPPER_LEG:
