@@ -36,11 +36,12 @@ public:
 typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
 
 struct DeviceData {
-    vr::TrackedDeviceIndex_t index{ vr::k_unTrackedDeviceIndexInvalid };
-    solarxr_protocol::datatypes::BodyPart role{ solarxr_protocol::datatypes::BodyPart::NONE };
-    bool sent_add_message{ false };
-    std::atomic_uint16_t tracker_id{};
+    bool blacklisted{ false };
 
+    bool sent_add_message{ false };
+    solarxr_protocol::datatypes::BodyPart role{ solarxr_protocol::datatypes::BodyPart::NONE };
+
+    std::atomic_uint16_t tracker_id{};
     solarxr_protocol::datatypes::TrackerStatus status{ solarxr_protocol::datatypes::TrackerStatus::DISCONNECTED };
     float last_battery_percentage{ -1.f };
     std::chrono::steady_clock::time_point battery_sent_at{};
