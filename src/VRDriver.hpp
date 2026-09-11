@@ -75,9 +75,9 @@ public:
 private:
     // set to true if initialisation is done, or we're exiting
     // if we're exiting, this will be true and stop tokens will be signaled
-    std::atomic<bool> steamvr_init_guard_ = false;
+    std::atomic_flag steamvr_init_guard_ = ATOMIC_FLAG_INIT;
     // set to true when we have a valid driver connection (handshake was successful), or we're exiting, see above
-    std::atomic<bool> driver_connection_active_ = false;
+    std::atomic_flag driver_connection_active_ = ATOMIC_FLAG_INIT;
     std::stop_source stop_source_;
 
     std::jthread pose_request_thread_;
