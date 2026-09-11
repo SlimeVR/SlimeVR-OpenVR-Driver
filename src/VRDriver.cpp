@@ -48,7 +48,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
         [this](BridgeTransport::MessageHeader&& v) { OnBridgeMessage(std::move(v)); },
         nullptr,
-        [this] { driver_connection_active_.store(false); });
+        [this] { driver_connection_active_.clear(); });
     bridge_->Start();
 
     pose_request_thread_ = std::jthread([this](std::stop_token stop) { return RunPoseRequestThread(stop); }, stop_source_.get_token());
@@ -59,9 +59,9 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
 void SlimeVRDriver::VRDriver::Cleanup() {
     // Wake up all threads waiting on init, if SteamVR exits before an HMD is connected and/or before a connection is established
     stop_source_.request_stop();
-    steamvr_init_guard_.store(true);
+    steamvr_init_guard_.test_and_set();
     steamvr_init_guard_.notify_all();
-    driver_connection_active_.store(true);
+    driver_connection_active_.test_and_set();
     driver_connection_active_.notify_all();
 
     logger_->Log("Waiting for pose request thread to exit");
@@ -153,7 +153,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     PreciseSleeper sleeper;
     logger_->Log("Entering pose request loop");
     while (!stop.stop_requested()) {
-        if (!bridge_->IsConnected() || !driver_connection_active_) {
+        if (!bridge_->IsConnected() || !driver_connection_active_.test()) {
             // If bridge not connected, assume we need to resend device add messages
             for (auto& device : feeder_devices_) {
                 device.sent_add_message = false;
@@ -361,7 +361,7 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     while (vr::VRServerDriverHost()->PollNextEvent(&event, sizeof(event))) {
         events.push_back(event);
 
-        if (steamvr_init_guard_) {
+        if (steamvr_init_guard_.test()) {
             // We already signaled init was done.
             continue;
         }
@@ -388,7 +388,7 @@ void SlimeVRDriver::VRDriver::RunFrame() {
         }
         if (signal_steamvr_init_done) {
             logger_->Log("Signaling that SteamVR is done initialising");
-            steamvr_init_guard_.store(true);
+            steamvr_init_guard_.test_and_set();
             steamvr_init_guard_.notify_all();
         }
     }
@@ -490,7 +490,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessa
             fbb.Finish(bundle);
             bridge_->SendMessage(fbb);
 
-            driver_connection_active_.store(true);
+            driver_connection_active_.test_and_set();
             driver_connection_active_.notify_all();
         } else {
             for (auto& [_, device] : devices_by_role_) {
@@ -499,7 +499,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessa
 
                 device->UpdateStatus(TrackerStatus::DISCONNECTED);
             }
-            driver_connection_active_.store(false);
+            driver_connection_active_.clear();
         }
 
         break;
