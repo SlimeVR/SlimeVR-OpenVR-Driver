@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #pragma once
 #include <format>
 #include <iostream>
@@ -54,6 +56,10 @@ class VRLogger : public Logger {
 
 protected:
     void LogImpl(const char* message) override {
+        /// Protect against segfault if trying to log after @ref vr::IServerTrackedDeviceProvider::Cleanup
+        if (vr::VRDriverContext() == nullptr)
+            return;
+
         vr::VRDriverLog()->Log(message);
     }
 };
