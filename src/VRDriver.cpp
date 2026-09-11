@@ -7,6 +7,7 @@
 #include "TrackerDevice.hpp"
 #include "TrackerRole.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -76,28 +77,37 @@ const char* const* SlimeVRDriver::VRDriver::GetInterfaceVersions() {
 }
 
 BodyPart SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
-    vr::PropertyContainerHandle_t container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
-    auto device_class = vr::VRProperties()->GetInt32Property(container, vr::Prop_DeviceClass_Int32);
+    auto* properties = vr::VRProperties();
+    auto* properties_raw = vr::VRPropertiesRaw();
+
+    vr::PropertyContainerHandle_t container = properties->TrackedDeviceToPropertyContainer(index);
+    auto device_class = properties->GetInt32Property(container, vr::Prop_DeviceClass_Int32);
     switch (device_class) {
     case vr::TrackedDeviceClass_HMD:
         return BodyPart::HEAD;
     case vr::TrackedDeviceClass_Controller: {
-        auto controller_role_hint = vr::VRProperties()->GetInt32Property(container, vr::Prop_ControllerRoleHint_Int32);
+        vr::ETrackedPropertyError error;
+        auto controller_role_hint = properties->GetInt32Property(container, vr::Prop_ControllerRoleHint_Int32, &error);
+        if (error != vr::TrackedProp_Success) {
+            logger_->Log("Failed to get device {}'s Prop_ControllerRoleHint_Int32: {}", index, properties_raw->GetPropErrorNameFromEnum(error));
+            break;
+        }
+
         if (controller_role_hint == vr::ETrackedControllerRole::TrackedControllerRole_LeftHand) {
             return BodyPart::LEFT_HAND;
         } else if (controller_role_hint == vr::ETrackedControllerRole::TrackedControllerRole_RightHand) {
             return BodyPart::RIGHT_HAND;
         } else {
             logger_->Log("Unknown controller role hint {} for device {}", controller_role_hint, index);
-            return BodyPart::NONE;
+            break;
         }
     }
     case vr::TrackedDeviceClass_GenericTracker: {
-        vr::ETrackedPropertyError error{ vr::TrackedProp_Success };
-        auto controller_type = vr::VRProperties()->GetStringProperty(container, vr::Prop_ControllerType_String, &error);
-        if (controller_type.empty()) {
-            logger_->Log("Unable to get controller type for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-            return BodyPart::NONE;
+        vr::ETrackedPropertyError error;
+        auto controller_type = properties->GetStringProperty(container, vr::Prop_ControllerType_String, &error);
+        if (error != vr::TrackedProp_Success) {
+            logger_->Log("Failed to get device {}'s Prop_ControllerType_String: {}", index, properties_raw->GetPropErrorNameFromEnum(error));
+            break;
         }
 
         for (auto part : EnumValuesBodyPart()) {
@@ -107,11 +117,13 @@ BodyPart SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t inde
         }
 
         logger_->Log("Couldn't determine role for device {} (Prop_ControllerType_String='{}')", index, controller_type);
-        return BodyPart::NONE;
+        break;
     }
     default:
-        return BodyPart::NONE;
+        break;
     }
+
+    return BodyPart::NONE;
 }
 
 void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
@@ -121,11 +133,11 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     std::vector<flatbuffers::Offset<driver_protocol::DriverMessageHeader>> driver_msgs{};
     driver_msgs.reserve(64);
 
-    auto notify_status_changed = [this, &fbb, &driver_msgs](DeviceData& device, uint16_t id, TrackerStatus status) {
+    auto notify_status_changed = [this, &fbb, &driver_msgs](DeviceData& device, vr::TrackedDeviceIndex_t index, uint16_t tracker_id, TrackerStatus status) {
         if (device.status != status) {
-            logger_->Log("Status for device {} changing {}->{}", device.index, std::to_underlying(device.status), std::to_underlying(status));
+            logger_->Log("Status for tracker {} (device {}) changing {}->{}", tracker_id, index, EnumNameTrackerStatus(device.status), EnumNameTrackerStatus(status));
 
-            auto update_status_msg = driver_protocol::CreateUpdateTrackerStatus(fbb, id, status);
+            auto update_status_msg = driver_protocol::CreateUpdateTrackerStatus(fbb, tracker_id, status);
             auto header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerStatus, update_status_msg.Union());
 
             driver_msgs.push_back(header);
@@ -154,12 +166,15 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
 
         auto tick_start_time = std::chrono::steady_clock::now();
 
-        vr::PropertyContainerHandle_t hmd_prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
+        auto* properties = vr::VRProperties();
+        auto* properties_raw = vr::VRPropertiesRaw();
+
+        vr::PropertyContainerHandle_t hmd_prop_container = properties->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
         std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> poses{};
         vr::VRServerDriverHost()->GetRawTrackedDevicePoses(0.0f, poses.data(), poses.size());
 
         vr::ETrackedPropertyError universe_error;
-        uint64_t universe = vr::VRProperties()->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
+        uint64_t universe = properties->GetUint64Property(hmd_prop_container, vr::Prop_CurrentUniverseId_Uint64, &universe_error);
         if (universe_error == vr::ETrackedPropertyError::TrackedProp_Success) {
             if (!current_universe_.has_value() || current_universe_.value().first != universe) {
                 auto result = SearchUniverses(universe);
@@ -170,64 +185,61 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
             }
         } else if (universe_error != last_universe_error_) {
             logger_->Log("Failed to find current universe: Prop_CurrentUniverseId_Uint64 error = {}",
-                         vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(universe_error));
+                         properties_raw->GetPropErrorNameFromEnum(universe_error));
         }
         last_universe_error_ = universe_error;
 
         for (uint32_t index = 0; index < vr::k_unMaxTrackedDeviceCount; index++) {
             DeviceData& device = feeder_devices_[index];
-            device.index = index;
+            if (device.blacklisted)
+                continue;
+
             vr::TrackedDevicePose_t& pose = poses[index];
-            vr::PropertyContainerHandle_t prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
-
-            {
-                vr::ETrackedPropertyError error{};
-
-                // Don't feed data about our own trackers and Standable's fake ones
-                auto driver_name = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_TrackingSystemName_String, &error);
-                if (error != vr::TrackedProp_Success) {
-                    if (error != vr::TrackedProp_InvalidDevice && error != vr::TrackedProp_UnknownProperty)
-                        logger_->Log("Failed to get Prop_TrackingSystemName_String for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-
-                    continue;
-                }
-                if (driver_name == "slimevr" || driver_name == "standable")
-                    continue;
-
-                auto device_class = (vr::ETrackedDeviceClass)vr::VRProperties()->GetInt32Property(prop_container, vr::Prop_DeviceClass_Int32, &error);
-                if (error != vr::TrackedProp_Success) {
-                    logger_->Log("Failed to get Prop_DeviceClass_Int32 for device {}: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-                    continue;
-                }
-
-                // Ignore devices that aren't HMD, controllers, or generic trackers
-                if (device_class == vr::TrackedDeviceClass_Invalid || device_class >= vr::TrackedDeviceClass_TrackingReference) {
-                    continue;
-                }
-            }
+            vr::PropertyContainerHandle_t prop_container = properties->TrackedDeviceToPropertyContainer(index);
+            if (prop_container == vr::k_ulInvalidPropertyContainer)
+                continue;
 
             if (!device.sent_add_message) {
-                vr::ETrackedPropertyError error{};
-                auto serial = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_SerialNumber_String, &error);
-                if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
-                    logger_->Log("Failed to get device {}'s Prop_SerialNumber_String: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
-                }
-                if (serial.empty())
-                    serial = std::format("Device {}", index);
+                if (!pose.bDeviceIsConnected)
+                    continue;
 
-                auto name = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_ModelNumber_String, &error);
-                if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
-                    logger_->Log("Failed to get device {}'s Prop_ModelNumber_String: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
+                vr::ETrackedPropertyError error;
+
+                std::string driver_name = properties->GetStringProperty(prop_container, vr::Prop_TrackingSystemName_String, &error);
+                if (error != vr::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_TrackingSystemName_String: {}", index, properties_raw->GetPropErrorNameFromEnum(error));
+                    continue;
                 }
-                if (name.empty())
+                vr::ETrackedDeviceClass device_class = static_cast<vr::ETrackedDeviceClass>(properties->GetInt32Property(prop_container, vr::Prop_DeviceClass_Int32, &error));
+                if (error != vr::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_DeviceClass_Int32: {}", index, properties_raw->GetPropErrorNameFromEnum(error));
+                    continue;
+                }
+
+                // Ignore devices that aren't an HMD, controller, or tracker
+                const bool class_blacklisted = device_class == vr::TrackedDeviceClass_Invalid || device_class > vr::TrackedDeviceClass_GenericTracker;
+                // Ignore trackers from us or Standable
+                const bool driver_blacklisted = driver_name == "slimevr" || driver_name == "standable";
+
+                device.blacklisted = class_blacklisted || driver_blacklisted;
+                if (device.blacklisted)
+                    continue;
+
+                std::string serial = properties->GetStringProperty(prop_container, vr::Prop_SerialNumber_String, &error);
+                if (error != vr::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_SerialNumber_String: {}", index, properties_raw->GetPropErrorNameFromEnum(error));
+                    continue;
+                }
+                std::string name = properties->GetStringProperty(prop_container, vr::Prop_ModelNumber_String, &error);
+                if (error != vr::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_ModelNumber_String: {}", index, properties_raw->GetPropErrorNameFromEnum(error));
                     name = std::format("Device {}", index);
-
-                auto manufacturer = vr::VRProperties()->GetStringProperty(prop_container, vr::Prop_ManufacturerName_String, &error);
-                if (error != vr::ETrackedPropertyError::TrackedProp_Success) {
-                    logger_->Log("Failed to get device {}'s Prop_ManufacturerName_String: {}", index, vr::VRPropertiesRaw()->GetPropErrorNameFromEnum(error));
                 }
-                if (manufacturer.empty())
+                std::string manufacturer = properties->GetStringProperty(prop_container, vr::Prop_ManufacturerName_String, &error);
+                if (error != vr::TrackedProp_Success) {
+                    logger_->Log("Failed to get device {}'s Prop_ManufacturerName_String: {}", index, properties_raw->GetPropErrorNameFromEnum(error));
                     manufacturer = "OpenVR";
+                }
 
                 BodyPart role = GetRoleForDevice(index);
 
@@ -245,19 +257,11 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
             if (tracker_id == 0)
                 continue;
 
-            if (device.sent_add_message && !pose.bDeviceIsConnected) {
-                notify_status_changed(device, tracker_id, TrackerStatus::DISCONNECTED);
-                continue;
-            } else if (!pose.bDeviceIsConnected) {
-                // ignore device as it's not connected
-                continue;
-            }
-
-            if (pose.bPoseIsValid || pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly) {
+            if (pose.bDeviceIsConnected && (pose.bPoseIsValid || pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly)) {
                 auto status = pose.eTrackingResult == vr::TrackingResult_Fallback_RotationOnly
                     ? TrackerStatus::OCCLUDED
                     : TrackerStatus::OK;
-                notify_status_changed(device, tracker_id, status);
+                notify_status_changed(device, index, tracker_id, status);
 
                 vr::HmdQuaternion_t q = GetRotation(pose.mDeviceToAbsoluteTracking);
                 vr::HmdVector3_t pos = GetPosition(pose.mDeviceToAbsoluteTracking);
@@ -298,22 +302,25 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                 auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerPosition, update_pos_msg.Union());
 
                 driver_msgs.push_back(msg_header);
-            } else {
+            } else if (pose.bDeviceIsConnected) {
                 notify_status_changed(
                     device,
+                    index,
                     tracker_id,
                     pose.eTrackingResult == vr::TrackingResult_Calibrating_OutOfRange
                         ? TrackerStatus::OCCLUDED
                         : TrackerStatus::DISCONNECTED);
+            } else {
+                notify_status_changed(device, index, tracker_id, TrackerStatus::DISCONNECTED);
             }
 
             auto now = std::chrono::steady_clock::now();
             if (now - device.battery_sent_at > 100ms) {
-                if (vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
-                    float battery_percentage = vr::VRProperties()->GetFloatProperty(prop_container, vr::Prop_DeviceBatteryPercentage_Float);
+                if (properties->GetBoolProperty(prop_container, vr::Prop_DeviceProvidesBatteryStatus_Bool)) {
+                    float battery_percentage = properties->GetFloatProperty(prop_container, vr::Prop_DeviceBatteryPercentage_Float);
                     if (std::fabs(device.last_battery_percentage - battery_percentage) > std::numeric_limits<float>::epsilon()) {
                         uint8_t battery_level = uint8_t(battery_percentage * 100.f);
-                        bool charging = vr::VRProperties()->GetBoolProperty(prop_container, vr::Prop_DeviceIsCharging_Bool);
+                        bool charging = properties->GetBoolProperty(prop_container, vr::Prop_DeviceIsCharging_Bool);
 
                         auto update_battery_msg = driver_protocol::CreateUpdateTrackerBattery(fbb, tracker_id, battery_level, charging);
                         auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerBattery, update_battery_msg.Union());
