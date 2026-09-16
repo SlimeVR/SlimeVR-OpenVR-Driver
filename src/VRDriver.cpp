@@ -48,7 +48,13 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
         std::static_pointer_cast<Logger>(std::make_shared<VRLogger>("Bridge")),
         [this](BridgeTransport::MessageHeader&& v) { OnBridgeMessage(std::move(v)); },
         nullptr,
-        [this] { driver_connection_active_.clear(); });
+        [this] {
+            body_part_mask_ = 0;
+            for (auto device : devices_) {
+                device->UpdateStatus(TrackerStatus::DISCONNECTED);
+            }
+            driver_connection_active_.clear();
+        });
     bridge_->Start();
 
     pose_request_thread_ = std::jthread([this](std::stop_token stop) { return RunPoseRequestThread(stop); }, stop_source_.get_token());
@@ -416,26 +422,48 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const rpc::RpcMessageHeader* msg) 
     switch (msg->message_type()) {
     case RpcMessage::BoneRoutingSettingsResponse: {
         auto resp = msg->message_as<rpc::BoneRoutingSettingsResponse>();
+
+        body_part_mask_ = 0;
+
         auto routes = resp->routes();
         if (!routes) {
             logger_->Log("Got BoneRoutingSettingsResponse without routes");
-            body_part_mask_ = 0;
+            for (auto device : devices_) {
+                device->UpdateStatus(TrackerStatus::DISCONNECTED);
+            }
             break;
         }
 
-        body_part_mask_ = 0;
         for (auto route : *routes) {
+            datatypes::BodyPart body_part = route->bone();
+            std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
+
             auto outputs = route->outputs();
             if (!outputs) {
-                logger_->Log("Got route with no outputs");
+                logger_->Log("Got route for bone {} with no outputs", EnumNameBodyPart(body_part));
+                if (device)
+                    device->UpdateStatus(TrackerStatus::DISCONNECTED);
                 continue;
             }
+
+            bool enabled = false;
+
             for (auto output : *outputs) {
                 if (output == rpc::RoutingOutput::DRIVER) {
-                    datatypes::BodyPart body_part = route->bone();
-                    logger_->Log("Bone {} is enabled", EnumNameBodyPart(body_part));
-                    body_part_mask_ |= static_cast<uint64_t>(1) << std::to_underlying(body_part);
+                    enabled = true;
+                    break;
                 }
+            }
+
+            if (enabled) {
+                logger_->Log("Bone {} is enabled", EnumNameBodyPart(body_part));
+                body_part_mask_ |= static_cast<uint64_t>(1) << std::to_underlying(body_part);
+
+                if (device)
+                    device->UpdateStatus(TrackerStatus::OK);
+            } else {
+                if (device)
+                    device->UpdateStatus(TrackerStatus::DISCONNECTED);
             }
         }
 
@@ -531,26 +559,22 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessa
                 continue;
 
             bool tracker_enabled = body_part_mask_ & (static_cast<uint64_t>(1) << std::to_underlying(body_part));
-            std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
-            if (!tracker_enabled) {
-                if (device) {
-                    device->UpdateStatus(TrackerStatus::DISCONNECTED);
-                }
+            if (!tracker_enabled)
                 continue;
-            }
 
+            std::shared_ptr<IVRDevice> device = devices_by_role_.contains(body_part) ? devices_by_role_.at(body_part) : nullptr;
             if (!device) {
                 device = std::make_shared<TrackerDevice>(GetSerial(body_part), body_part);
                 if (!AddDevice(device)) {
                     continue;
                 }
 
+                device->UpdateStatus(TrackerStatus::OK);
                 if (const auto battery = queued_bone_battery_.extract(body_part)) {
                     const BatteryInfo& info = battery.mapped();
                     device->UpdateBattery(static_cast<float>(info.level) / 100.f, info.charging);
                 }
             }
-            device->UpdateStatus(TrackerStatus::OK);
 
             const datatypes::math::Quat* orientation = bone->orientation();
             const datatypes::math::Vec3f* tail_position = bone->tail_position();
