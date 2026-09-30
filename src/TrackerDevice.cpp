@@ -157,7 +157,7 @@ void SlimeVRDriver::TrackerDevice::UpdateBattery(float battery_percentage, bool 
 }
 
 void SlimeVRDriver::TrackerDevice::UpdateStatus(datatypes::TrackerStatus status) {
-    if (device_index_ == vr::k_unTrackedDeviceIndexInvalid || status_ == status)
+    if (status_ == status)
         return;
 
     status_ = status;
@@ -189,7 +189,8 @@ void SlimeVRDriver::TrackerDevice::UpdateStatus(datatypes::TrackerStatus status)
         break;
     }
 
-    vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
+    if (device_index_ != vr::k_unTrackedDeviceIndexInvalid)
+        vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
 DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType() {
