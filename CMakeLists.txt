@@ -84,8 +84,8 @@ set(DEPS_LIBS simdjson::simdjson)
 configure_file(src/Consts.hpp.in src/Consts.hpp @ONLY)
 
 # compile into a static lib
-file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} "${FLATBUFFERS_GENERATED_ROOT}/protocol.cpp")
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
 set_target_properties("${PROJECT_NAME}_static" PROPERTIES CXX_STANDARD 23)
