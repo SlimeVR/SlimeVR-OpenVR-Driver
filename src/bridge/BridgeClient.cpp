@@ -18,7 +18,7 @@ void BridgeClient::CreateConnection() {
     }
 
     if (last_path_ != path) {
-        logger_->Log("Trying to connect to socket {}", path.string());
+        logger_->Info("Trying to connect to socket {}", path.string());
         last_path_ = path;
     }
 
@@ -40,12 +40,12 @@ void BridgeClient::CreateConnection() {
         throw std::system_error(err, std::system_category(), "connect() failed");
     }
 
-    logger_->Log("Connected to {}", path.string());
+    logger_->Info("Connected to {}", path.string());
 
     ret = SetNonBlocking(fd);
     if (ret == SocketError) {
         int err = GetLastSocketError();
-        logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
+        logger_->Warn("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
     }
 
     fd_ = fd;

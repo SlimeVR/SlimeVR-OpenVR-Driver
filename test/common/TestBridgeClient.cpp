@@ -12,16 +12,18 @@ void TestBridgeClient() {
 
     const uint32_t tx_id = *reinterpret_cast<const uint32_t*>("svr");
     std::atomic_uint16_t hmd_id = 0;
+
     std::atomic<steady_clock::time_point> position_requested_at = steady_clock::now();
-    double latency_nanos_sum;
-    int latency_nanos_count;
+
+    double latency_nanos_sum = 0;
+    int latency_nanos_count = 0;
 
     int invalid_messages = 0;
     int positions = 0;
 
     bool last_logged_position = false;
 
-    auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>("Test"));
+    auto logger = std::make_shared<Logger>(std::nullopt, "Test");
     std::shared_ptr<BridgeClient> bridge = std::make_shared<BridgeClient>(
         logger,
         [&](BridgeTransport::MessageHeader&& message) {
@@ -84,7 +86,7 @@ void TestBridgeClient() {
                                    break;
                                case DriverMessage::SkeletonUpdate: {
                                    if (!last_logged_position) {
-                                       logger->Log("... skeleton update");
+                                       logger->Info("... skeleton update");
                                        last_logged_position = true;
                                    }
                                    positions++;
@@ -146,7 +148,7 @@ void TestBridgeClient() {
 
     auto avg_latency_nanos = static_cast<int>(latency_nanos_count ? latency_nanos_sum / latency_nanos_count : -1);
     auto avg_latency_ms = duration_cast<duration<double, std::milli>>(nanoseconds(avg_latency_nanos));
-    logger->Log("avg latency: {:.3f}ms", avg_latency_ms.count());
+    logger->Info("avg latency: {:.3f}ms", avg_latency_ms.count());
 
     if (invalid_messages)
         FAIL("Invalid messages received");

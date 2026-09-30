@@ -92,7 +92,7 @@ private:
     solarxr_protocol::datatypes::BodyPart GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
 
     std::shared_ptr<BridgeClient> bridge_ = nullptr;
-    std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
+    std::shared_ptr<Logger> logger_ = std::make_shared<Logger>("slimevr-openvr-driver.log");
     std::mutex devices_mutex_;
     std::vector<std::shared_ptr<IVRDevice>> devices_;
     std::vector<vr::VREvent_t> openvr_events_;

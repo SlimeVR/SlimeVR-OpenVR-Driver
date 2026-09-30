@@ -18,7 +18,7 @@ namespace SlimeVRDriver {
 
 class TrackerDevice : public IVRDevice {
 public:
-    TrackerDevice(std::string serial, solarxr_protocol::datatypes::BodyPart body_part);
+    TrackerDevice(std::shared_ptr<Logger> logger, std::string serial, solarxr_protocol::datatypes::BodyPart body_part);
     ~TrackerDevice() = default;
 
     // Inherited via IVRDevice
@@ -42,7 +42,7 @@ public:
     virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) override;
 
 private:
-    std::shared_ptr<VRLogger> logger_ = std::make_shared<VRLogger>();
+    std::shared_ptr<Logger> logger_;
 
     std::atomic<vr::TrackedDeviceIndex_t> device_index_ = vr::k_unTrackedDeviceIndexInvalid;
     std::string serial_;

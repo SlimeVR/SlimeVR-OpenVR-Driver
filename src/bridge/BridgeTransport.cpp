@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include "BridgeTransport.hpp"
 #include "Endianness.hpp"
+#include "Paths.hpp"
 
 #include <solarxr_protocol/generated/all_generated.h>
 #include <system_error>
@@ -13,15 +14,12 @@
 using namespace std::chrono_literals;
 namespace fs = std::filesystem;
 
-#define UNIX_XDG_DATA_HOME_DEFAULT ".local/share/"
-#define SLIMEVR_IDENTIFIER "dev.slimevr.SlimeVR"
-#define UNIX_DEFAULT_TMP_DIR "/tmp"
 #define SOCKET_NAME "SlimeVRRpc"
 
 void BridgeTransport::Stop() {
     if (!thread_.joinable() && !reconnect_thread_.joinable())
         return;
-    logger_->Log("stopping");
+    logger_->Info("Bridge is stopping");
     StopAsync();
     thread_ = std::jthread();
     reconnect_thread_ = std::jthread();
@@ -44,14 +42,7 @@ fs::path BridgeTransport::GetSocketPath() {
     if (const char* xdg_runtime = std::getenv("XDG_RUNTIME_DIR")) {
         paths.push_back(fs::path(xdg_runtime) / SOCKET_NAME);
     }
-
-    if (const char* xdg_data = std::getenv("XDG_DATA_HOME")) {
-        paths.push_back(fs::path(xdg_data) / SLIMEVR_IDENTIFIER / SOCKET_NAME);
-    }
-
-    if (const char* home = std::getenv("HOME")) {
-        paths.push_back(fs::path(home) / UNIX_XDG_DATA_HOME_DEFAULT / SLIMEVR_IDENTIFIER / SOCKET_NAME);
-    }
+    paths.push_back(Paths::GetDataPath() / SOCKET_NAME);
 #endif
 
     std::error_code ec;
@@ -65,19 +56,7 @@ fs::path BridgeTransport::GetSocketPath() {
         }
     }
 
-#ifdef _WIN32
-    // This should work as long as the user's machine does not have
-    // the java.io.tmpdir system property overriden.
-    WCHAR tmp_dir[MAX_PATH + 1];
-    GetTempPathW(std::size(tmp_dir), tmp_dir);
-    return fs::path(tmp_dir) / SOCKET_NAME;
-#else
-    if (const char* tmp_dir = std::getenv("TMPDIR")) {
-        return fs::path(tmp_dir) / SOCKET_NAME;
-    } else {
-        return fs::path(UNIX_DEFAULT_TMP_DIR) / SOCKET_NAME;
-    }
-#endif
+    return Paths::GetTempPath() / SOCKET_NAME;
 }
 
 void BridgeTransport::OnRecv(std::span<uint8_t> event) {
@@ -88,19 +67,19 @@ void BridgeTransport::OnRecv(std::span<uint8_t> event) {
 
     if (auto data_feed_msgs = bundle->data_feed_msgs()) {
         for (auto msg : *data_feed_msgs) {
-            // logger_->Log("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
+            // logger_->Trace("Got message DataFeedMessage::{}", EnumNameDataFeedMessage(msg->message_type()));
             message_callback_(msg);
         }
     }
     if (auto rpc_msgs = bundle->rpc_msgs()) {
         for (auto msg : *rpc_msgs) {
-            logger_->Log("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
+            logger_->Info("Got message RpcMessage::{}", EnumNameRpcMessage(msg->message_type()));
             message_callback_(msg);
         }
     }
     if (auto driver_msgs = bundle->driver_msgs()) {
         for (auto msg : *driver_msgs) {
-            // logger_->Log("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
+            // logger_->Trace("Got message DriverMessage::{}", EnumNameDriverMessage(msg->message_type()));
             message_callback_(msg);
         }
     }
@@ -157,7 +136,7 @@ void BridgeTransport::RunThread(std::stop_token stop) {
         } catch (Cancelled&) {
             continue;
         } catch (std::exception& e) {
-            logger_->Log("Error on socket: {}", e.what());
+            logger_->Error("Error on socket: {}", e.what());
             fd_lock.unlock();
             ResetConnection();
         }
@@ -185,11 +164,11 @@ void BridgeTransport::ResetConnection() {
                 return;
             } catch (std::system_error& e) {
                 if (last_error_ != e.code()) {
-                    logger_->Log("Error when trying to connect: {}", e.what());
+                    logger_->Error("Error when trying to connect: {}", e.what());
                     last_error_ = e.code();
                 }
             } catch (std::exception& e) {
-                logger_->Log("Error when trying to connect: {}", e.what());
+                logger_->Error("Error when trying to connect: {}", e.what());
             }
 
             std::this_thread::sleep_for(100ms);
@@ -215,7 +194,7 @@ void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
     std::lock_guard write_lock(write_mutex_);
 
     if (fbb.GetSize() + 4 > std::numeric_limits<uint32_t>::max()) [[unlikely]] {
-        logger_->Log("Skipping send of message (wrapped size larger than 32-bit unsigned integer limit)");
+        logger_->Warn("Skipping send of message (wrapped size larger than 32-bit unsigned integer limit)");
         return;
     }
 
@@ -226,6 +205,6 @@ void BridgeTransport::SendMessage(const flatbuffers::FlatBufferBuilder& fbb) {
         WriteFully(fd_, &le_wrapped_size, sizeof(le_wrapped_size));
         WriteFully(fd_, fbb.GetBufferPointer(), size);
     } catch (std::exception& e) {
-        logger_->Log("Failed to write message: {}", e.what());
+        logger_->Error("Failed to write message: {}", e.what());
     }
 }

@@ -17,7 +17,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
 
     bool last_logged_position = false;
 
-    auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>("ServerMock"));
+    auto logger = std::make_shared<Logger>(std::nullopt, "ServerMock");
 
     std::shared_ptr<BridgeServerMock> server_mock = std::make_shared<BridgeServerMock>(
         logger,
@@ -33,7 +33,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                                DriverMessage type = msg->message_type();
                                switch (type) {
                                case DriverMessage::HandshakeRequest: {
-                                   logger->Log("Sending HandshakeResponse");
+                                   logger->Info("Sending HandshakeResponse");
 
                                    flatbuffers::FlatBufferBuilder fbb;
                                    auto handshake_response_msg = CreateHandshakeResponse(fbb, HandshakeStatus::ACCEPTED);
@@ -50,11 +50,11 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                                    auto display_name = add_msg->display_name();
                                    auto manufacturer = add_msg->manufacturer();
                                    BodyPart body_part = add_msg->body_part();
-                                   logger->Log("Got AddTrackerRequest with hardware_identifier={} display_name={} manufacturer={} body_part={}",
-                                               hardware_identifier ? hardware_identifier->c_str() : "null",
-                                               display_name ? display_name->c_str() : "null",
-                                               manufacturer ? manufacturer->c_str() : "null",
-                                               solarxr_protocol::datatypes::EnumNameBodyPart(body_part));
+                                   logger->Info("Got AddTrackerRequest with hardware_identifier={} display_name={} manufacturer={} body_part={}",
+                                                hardware_identifier ? hardware_identifier->c_str() : "null",
+                                                display_name ? display_name->c_str() : "null",
+                                                manufacturer ? manufacturer->c_str() : "null",
+                                                solarxr_protocol::datatypes::EnumNameBodyPart(body_part));
 
                                    flatbuffers::FlatBufferBuilder fbb;
                                    auto add_tracker_resp_msg = CreateAddTrackerResponse(fbb,
@@ -77,7 +77,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
                                        FAIL("Got UpdateTrackerPosition for non-HMD tracker");
 
                                    if (!last_logged_position) {
-                                       logger->Log("... tracker position update");
+                                       logger->Info("... tracker position update");
                                        last_logged_position = true;
                                    }
                                    positions++;
@@ -106,7 +106,7 @@ TEST_CASE("IO with a mock server", "[Bridge]") {
         },
         [&] {
             using namespace solarxr_protocol::driver_protocol;
-            logger->Log("Sending HandshakeAvailable");
+            logger->Info("Sending HandshakeAvailable");
 
             flatbuffers::FlatBufferBuilder fbb;
             auto handshake_available_msg = CreateHandshakeAvailable(fbb);

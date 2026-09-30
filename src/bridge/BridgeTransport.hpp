@@ -235,7 +235,7 @@ public:
 #ifdef _WIN32
         WSADATA _ws_data;
         if (int ret = WSAStartup(MAKEWORD(2, 2), &_ws_data); ret != 0) {
-            logger_->Log("WSAStartup failed with code {}", ret);
+            logger_->Error("WSAStartup failed with code {}", ret);
             return;
         }
 #endif

@@ -19,9 +19,9 @@ TEST_CASE("Sleep times") {
     std::vector<long long> sleep_times;
     sleep_times.reserve(num_iterations);
 
-    auto logger = std::static_pointer_cast<Logger>(std::make_shared<ConsoleLogger>(""));
+    auto logger = std::make_shared<Logger>();
 
-    logger->Log("Benching PreciseSleeper::SleepFor({});", sleep_duration_ms);
+    logger->Info("Benching PreciseSleeper::SleepFor({});", sleep_duration_ms);
     {
         PreciseSleeper sleeper;
         auto start_time = std::chrono::high_resolution_clock::now();
@@ -41,7 +41,7 @@ TEST_CASE("Sleep times") {
     const double avg_time_ms = static_cast<double>(std::accumulate(sleep_times.begin(), sleep_times.end(), 0LL)) / num_samples / 1000;
     const double p1_time_ms = static_cast<double>(sleep_times[p1_index]) / 1000;
     const double p99_time_ms = static_cast<double>(sleep_times[p99_index]) / 1000;
-    logger->Log("p1:  {:.3f} ms {:.3f} tps", p1_time_ms, 1e3 / p1_time_ms);
-    logger->Log("avg: {:.3f} ms {:.3f} tps", avg_time_ms, 1e3 / avg_time_ms);
-    logger->Log("p99: {:.3f} ms {:.3f} tps", p99_time_ms, 1e3 / p99_time_ms);
+    logger->Info("p1:  {:.3f} ms {:.3f} tps", p1_time_ms, 1e3 / p1_time_ms);
+    logger->Info("avg: {:.3f} ms {:.3f} tps", avg_time_ms, 1e3 / avg_time_ms);
+    logger->Info("p99: {:.3f} ms {:.3f} tps", p99_time_ms, 1e3 / p99_time_ms);
 }

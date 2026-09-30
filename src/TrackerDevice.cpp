@@ -10,8 +10,9 @@
 
 using namespace solarxr_protocol;
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::string serial, datatypes::BodyPart body_part)
-    : serial_(serial)
+SlimeVRDriver::TrackerDevice::TrackerDevice(std::shared_ptr<Logger> logger, std::string serial, datatypes::BodyPart body_part)
+    : logger_(logger)
+    , serial_(serial)
     , body_part_(body_part) { }
 
 datatypes::BodyPart SlimeVRDriver::TrackerDevice::GetBodyPart() {
@@ -56,10 +57,10 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(const solarxr_protocol::datatypes:
         return;
 
 #ifndef NDEBUG
-#define CHECK_CLASSIFICATION(D)                                                                    \
-    if (auto classification = std::fpclassify((D)); classification == FP_NAN) {                    \
-        logger_->Log("Uh oh! fpclassify(" #D ") returned FP_NAN for {}: {}, zeroing", D, serial_); \
-        D = 0.0;                                                                                   \
+#define CHECK_CLASSIFICATION(D)                                                                     \
+    if (auto classification = std::fpclassify((D)); classification == FP_NAN) {                     \
+        logger_->Warn("Uh oh! fpclassify(" #D ") returned FP_NAN for {}: {}, zeroing", D, serial_); \
+        D = 0.0;                                                                                    \
     }
 #else
 #define CHECK_CLASSIFICATION(D)                                               \
@@ -202,7 +203,7 @@ vr::TrackedDeviceIndex_t SlimeVRDriver::TrackerDevice::GetDeviceIndex() {
 vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     device_index_ = unObjectId;
 
-    logger_->Log("Activating tracker {}", serial_);
+    logger_->Info("Activating tracker {}, unObjectId {}", serial_, unObjectId);
 
     auto props = vr::VRProperties()->TrackedDeviceToPropertyContainer(device_index_);
 

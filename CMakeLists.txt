@@ -89,6 +89,7 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
 add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} "${FLATBUFFERS_GENERATED_ROOT}/protocol.cpp")
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
 set_target_properties("${PROJECT_NAME}_static" PROPERTIES CXX_STANDARD 23)
+target_compile_definitions("${PROJECT_NAME}_static" PRIVATE SLIMEVR_LOGGER_USE_DRIVER_LOG)
 target_include_directories("${PROJECT_NAME}_static" BEFORE PUBLIC "${SOLARXR_PROTOCOL_ROOT}/lib/flatbuffers/include" "${FLATBUFFERS_GENERATED_ROOT}/include")
 target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/src")
 if(UNIX)

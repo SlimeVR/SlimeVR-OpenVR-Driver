@@ -49,10 +49,10 @@ BridgeServerMock::BridgeServerMock(std::shared_ptr<Logger> logger,
     ret = SetNonBlocking(sock_fd_);
     if (ret == SocketError) {
         int err = GetLastSocketError();
-        logger_->Log("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
+        logger_->Warn("Failed to set socket into non-blocking mode: {}", std::error_code(err, std::system_category()).message());
     }
 
-    logger_->Log("Listening on socket {}", path.string());
+    logger_->Info("Listening on socket {}", path.string());
 }
 
 BridgeServerMock::~BridgeServerMock() {
@@ -60,7 +60,7 @@ BridgeServerMock::~BridgeServerMock() {
         int ret = CloseSocket(sock_fd_);
         if (ret == SocketError) {
             int err = GetLastSocketError();
-            logger_->Log("CloseSocket() failed: {}", std::error_code(err, std::system_category()).message());
+            logger_->Error("CloseSocket() failed: {}", std::error_code(err, std::system_category()).message());
         }
 
         std::error_code ec;
