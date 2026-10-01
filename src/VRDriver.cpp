@@ -4,6 +4,7 @@
 #include "Consts.hpp"
 #include "Paths.hpp"
 #include "PreciseSleeper.hpp"
+#include "Threading.hpp"
 #include "TrackerDevice.hpp"
 #include "TrackerRole.hpp"
 
@@ -138,6 +139,8 @@ BodyPart SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t inde
 
 void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     using namespace std::chrono_literals;
+
+    Threading::SetThisThreadName("Pose request");
 
     flatbuffers::FlatBufferBuilder fbb;
     std::vector<flatbuffers::Offset<driver_protocol::DriverMessageHeader>> driver_msgs{};
@@ -486,6 +489,8 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessa
     case DriverMessage::HandshakeAvailable: {
         logger_->Info("Got HandshakeAvailable, firing off thread");
         std::thread t([this] {
+            Threading::SetThisThreadName("Handshake request");
+
             steamvr_init_guard_.wait(false);
             if (stop_source_.stop_requested()) {
                 // Cleanup was called

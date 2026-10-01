@@ -3,6 +3,7 @@
 #include "BridgeTransport.hpp"
 #include "Endianness.hpp"
 #include "Paths.hpp"
+#include "Threading.hpp"
 
 #include <solarxr_protocol/generated/all_generated.h>
 #include <system_error>
@@ -93,6 +94,8 @@ void BridgeTransport::RunThread(std::stop_token stop) {
     std::vector<uint8_t> data;
     data.reserve(0x10000);
 
+    Threading::SetThisThreadName("Bridge RX");
+
     // Kick off connection.
     ResetConnection();
 
@@ -149,6 +152,8 @@ void BridgeTransport::ResetConnection() {
     CloseConnectionHandles();
 
     reconnect_thread_ = std::jthread([this](std::stop_token stop) {
+        Threading::SetThisThreadName("Bridge reconnect");
+
         while (!stop.stop_requested()) {
             try {
                 std::unique_lock fd_lock(fd_mutex_);
