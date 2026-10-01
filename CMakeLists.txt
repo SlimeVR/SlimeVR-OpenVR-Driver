@@ -96,7 +96,7 @@ if(UNIX)
     target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")
     target_link_libraries("${PROJECT_NAME}_static" PUBLIC atomic)
 elseif(WIN32)
-    target_link_libraries("${PROJECT_NAME}_static" PUBLIC ws2_32 winmm)
+    target_link_libraries("${PROJECT_NAME}_static" PUBLIC ws2_32 winmm onecore)
 endif()
 
 # compile driver

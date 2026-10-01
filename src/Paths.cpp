@@ -4,8 +4,11 @@
 #include <stdexcept>
 
 #ifdef _WIN32
+#include <system_error>
+
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include <Shlobj.h>
 #include <Windows.h>
 #undef GetTempPath
 #endif
@@ -14,17 +17,25 @@
 
 namespace fs = std::filesystem;
 
+#ifdef _WIN32
+static fs::path getKnownFolderPath(KNOWNFOLDERID id) noexcept(false) {
+    PWSTR path_str;
+    HRESULT ret = SHGetKnownFolderPath(id, KF_FLAG_CREATE, NULL, &path_str);
+    if (ret != S_OK) {
+        throw std::system_error(ret, std::system_category(), "SHGetKnownFolderPath() failed");
+    }
+    fs::path path(path_str);
+    CoTaskMemFree(path_str);
+    return path;
+}
+#endif
+
 static fs::path getOpenVRConfigFolder() {
 #if defined(_WIN32)
-    const char* appData = getenv("LOCALAPPDATA");
-    if (!appData) {
-        throw std::runtime_error("LOCALAPPDATA is unset");
-    }
-
-    return appData;
-#elif defined(__linux__)
-    if (const char* dataHome = getenv("XDG_CONFIG_HOME")) {
-        return dataHome;
+    return getKnownFolderPath(FOLDERID_LocalAppData);
+#else
+    if (const char* config_home = getenv("XDG_CONFIG_HOME")) {
+        return config_home;
     }
 
     const char* home = getenv("HOME");
@@ -33,8 +44,6 @@ static fs::path getOpenVRConfigFolder() {
     }
 
     return fs::path(home) / ".config";
-#else
-#error "Unsupported platform"
 #endif
 }
 
@@ -43,31 +52,23 @@ std::filesystem::path Paths::GetOpenVRConfigPath() {
 }
 
 fs::path Paths::GetDataPath() {
-    fs::path basePath{};
+    fs::path base{};
 
-#if defined(__linux__)
-    if (const char* dataHomeOverride = getenv("XDG_DATA_HOME")) {
-        basePath = dataHomeOverride;
+#ifndef _WIN32
+    if (const char* data_home = getenv("XDG_DATA_HOME")) {
+        base = data_home;
     } else {
-        const char* homeDir = getenv("HOME");
-        if (homeDir == nullptr)
+        const char* home = getenv("HOME");
+        if (home == nullptr)
             throw std::runtime_error("HOME is unset");
 
-        basePath = fs::path(homeDir) / ".local" / "share";
-    }
-#elif defined(_WIN32)
-    {
-        const char* appData = getenv("APPDATA");
-        if (appData == nullptr)
-            throw std::runtime_error("APPDATA is unset");
-
-        basePath = appData;
+        base = fs::path(home) / ".local" / "share";
     }
 #else
-#error "Unsupported platform"
+    base = getKnownFolderPath(FOLDERID_RoamingAppData);
 #endif
 
-    return basePath / SLIMEVR_IDENTIFIER;
+    return base / SLIMEVR_IDENTIFIER;
 }
 
 fs::path Paths::GetLogPath() { return Paths::GetDataPath() / "logs"; }

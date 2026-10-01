@@ -9,7 +9,7 @@
 #endif
 
 namespace Paths {
-std::filesystem::path GetOpenVRConfigPath();
+std::filesystem::path GetOpenVRConfigPath() noexcept(false);
 
 // Throws when path cannot be found
 std::filesystem::path GetDataPath() noexcept(false);
