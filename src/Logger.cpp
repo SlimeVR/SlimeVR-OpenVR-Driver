@@ -59,10 +59,6 @@ void Logger::UpdateLogLevel() {
 }
 
 void Logger::Log(LogLevel level, const std::string& str) {
-    if (level < minimum_log_level_) {
-        return;
-    }
-
     std::lock_guard lock(mutex_);
 
     if (log_stream_ || log_to_std_streams_) {

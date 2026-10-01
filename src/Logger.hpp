@@ -80,13 +80,15 @@ public:
 
     void UpdateLogLevel();
 
-#define LOG_LEVEL_WRAPPER_BOILERPLATE(LEVEL)                           \
-    template <typename... Args>                                        \
-    void LEVEL(std::format_string<Args...> fmt, Args&&... args) {      \
-        std::string s = std::format(fmt, std::forward<Args>(args)...); \
-        if (prefix_)                                                   \
-            s = *prefix_ + ": " + s;                                   \
-        Log(LogLevel::LEVEL, s);                                       \
+#define LOG_LEVEL_WRAPPER_BOILERPLATE(LEVEL)                             \
+    template <typename... Args>                                          \
+    inline void LEVEL(std::format_string<Args...> fmt, Args&&... args) { \
+        if (LogLevel::LEVEL < minimum_log_level_)                        \
+            return;                                                      \
+        std::string s = std::format(fmt, std::forward<Args>(args)...);   \
+        if (prefix_)                                                     \
+            s = *prefix_ + ": " + s;                                     \
+        Log(LogLevel::LEVEL, s);                                         \
     }
 
     LOG_LEVEL_WRAPPER_BOILERPLATE(Trace);
