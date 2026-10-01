@@ -309,9 +309,11 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
                     pos.v[2] = pos_z;
                 }
 
-                auto quat_fbs = math::Quat(q.x, q.y, q.z, q.w);
-                auto position_fbs = math::Vec3f(pos.v[0], pos.v[1], pos.v[2]);
-                auto update_pos_msg = driver_protocol::CreateUpdateTrackerPosition(fbb, tracker_id, &quat_fbs, &position_fbs);
+                math::Quat quat_fbs(q.x, q.y, q.z, q.w);
+                math::Vec3f position_fbs(pos.v[0], pos.v[1], pos.v[2]);
+                math::Vec3f angular_velocity_fbs(pose.vAngularVelocity.v[0], pose.vAngularVelocity.v[1], pose.vAngularVelocity.v[2]);
+                math::Vec3f linear_velocity_fbs(pose.vVelocity.v[0], pose.vVelocity.v[1], pose.vVelocity.v[2]);
+                auto update_pos_msg = driver_protocol::CreateUpdateTrackerPosition(fbb, tracker_id, &quat_fbs, &position_fbs, &angular_velocity_fbs, &linear_velocity_fbs);
                 auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerPosition, update_pos_msg.Union());
 
                 driver_msgs.push_back(msg_header);
