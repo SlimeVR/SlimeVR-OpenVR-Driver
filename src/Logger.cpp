@@ -68,7 +68,7 @@ void Logger::Log(LogLevel level, const std::string& str) {
     if (log_stream_ || log_to_std_streams_) {
         auto now = std::chrono::system_clock::now();
 
-        std::string s = std::format("[{:%F %T%z}] [{}] {}", now, GetLogLevelName(level), str);
+        std::string s = std::format("[{:%F %T%z}] [{}] {}", std::chrono::zoned_time{ std::chrono::current_zone(), now }, GetLogLevelName(level), str);
 
         if (log_stream_) {
             log_stream_ << s << std::endl;
