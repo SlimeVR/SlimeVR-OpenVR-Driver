@@ -86,11 +86,7 @@ void Logger::Log(LogLevel level, const std::string& str) {
 #ifdef SLIMEVR_LOGGER_USE_DRIVER_LOG
     // Protect against segfault if we're logging before driver is activated or after cleanup
     if (vr::VRDriverContext() != nullptr) {
-        if (prefix_) {
-            vr::VRDriverLog()->Log(std::format("{}: {}", *prefix_, str).c_str());
-        } else {
-            vr::VRDriverLog()->Log(str.c_str());
-        }
+        vr::VRDriverLog()->Log(str.c_str());
     }
 #endif
 }
