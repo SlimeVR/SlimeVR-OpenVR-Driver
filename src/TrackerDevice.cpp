@@ -10,19 +10,21 @@
 
 using namespace solarxr_protocol;
 
-SlimeVRDriver::TrackerDevice::TrackerDevice(std::shared_ptr<Logger> logger, std::string serial, datatypes::BodyPart body_part)
+namespace SlimeVRDriver {
+
+TrackerDevice::TrackerDevice(std::shared_ptr<Logger> logger, std::string serial, datatypes::BodyPart body_part)
     : logger_(logger)
     , serial_(serial)
     , body_part_(body_part) { }
 
-datatypes::BodyPart SlimeVRDriver::TrackerDevice::GetBodyPart() {
+datatypes::BodyPart TrackerDevice::GetBodyPart() {
     return body_part_;
 }
-std::string SlimeVRDriver::TrackerDevice::GetSerial() {
+std::string TrackerDevice::GetSerial() {
     return serial_;
 }
 
-void SlimeVRDriver::TrackerDevice::Update() {
+void TrackerDevice::Update() {
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
@@ -49,10 +51,10 @@ void SlimeVRDriver::TrackerDevice::Update() {
     }
 }
 
-void SlimeVRDriver::TrackerDevice::UpdatePose(const solarxr_protocol::datatypes::math::Quat* orientation,
-                                              const solarxr_protocol::datatypes::math::Vec3f* position,
-                                              const solarxr_protocol::datatypes::math::Vec3f* linear_velocity,
-                                              const solarxr_protocol::datatypes::math::Vec3f* angular_velocity) {
+void TrackerDevice::UpdatePose(const solarxr_protocol::datatypes::math::Quat* orientation,
+                               const solarxr_protocol::datatypes::math::Vec3f* position,
+                               const solarxr_protocol::datatypes::math::Vec3f* linear_velocity,
+                               const solarxr_protocol::datatypes::math::Vec3f* angular_velocity) {
     if (device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
@@ -137,7 +139,7 @@ void SlimeVRDriver::TrackerDevice::UpdatePose(const solarxr_protocol::datatypes:
     last_pose_ = pose;
 }
 
-void SlimeVRDriver::TrackerDevice::UpdateBattery(float battery_percentage, bool charging) {
+void TrackerDevice::UpdateBattery(float battery_percentage, bool charging) {
     if (this->device_index_ == vr::k_unTrackedDeviceIndexInvalid)
         return;
 
@@ -156,7 +158,7 @@ void SlimeVRDriver::TrackerDevice::UpdateBattery(float battery_percentage, bool 
     vr::VRProperties()->SetFloatProperty(props, vr::Prop_DeviceBatteryPercentage_Float, battery_percentage);
 }
 
-void SlimeVRDriver::TrackerDevice::UpdateStatus(datatypes::TrackerStatus status) {
+void TrackerDevice::UpdateStatus(datatypes::TrackerStatus status) {
     if (status_ == status)
         return;
 
@@ -193,15 +195,15 @@ void SlimeVRDriver::TrackerDevice::UpdateStatus(datatypes::TrackerStatus status)
         vr::VRServerDriverHost()->TrackedDevicePoseUpdated(device_index_, pose, sizeof(vr::DriverPose_t));
 }
 
-DeviceType SlimeVRDriver::TrackerDevice::GetDeviceType() {
+DeviceType TrackerDevice::GetDeviceType() {
     return DeviceType::TRACKER;
 }
 
-vr::TrackedDeviceIndex_t SlimeVRDriver::TrackerDevice::GetDeviceIndex() {
+vr::TrackedDeviceIndex_t TrackerDevice::GetDeviceIndex() {
     return device_index_;
 }
 
-vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
+vr::EVRInitError TrackerDevice::Activate(uint32_t unObjectId) {
     device_index_ = unObjectId;
 
     logger_->Info("Activating tracker {}, unObjectId {}", serial_, unObjectId);
@@ -222,19 +224,21 @@ vr::EVRInitError SlimeVRDriver::TrackerDevice::Activate(uint32_t unObjectId) {
     return vr::EVRInitError::VRInitError_None;
 }
 
-void SlimeVRDriver::TrackerDevice::Deactivate() {
+void TrackerDevice::Deactivate() {
     device_index_ = vr::k_unTrackedDeviceIndexInvalid;
 }
 
-void SlimeVRDriver::TrackerDevice::EnterStandby() {
+void TrackerDevice::EnterStandby() {
 }
 
-void* SlimeVRDriver::TrackerDevice::GetComponent(const char* pchComponentNameAndVersion) {
+void* TrackerDevice::GetComponent(const char* pchComponentNameAndVersion) {
     return nullptr;
 }
 
-void SlimeVRDriver::TrackerDevice::DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) {
+void TrackerDevice::DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize) {
     if (unResponseBufferSize >= 1) {
         pchResponseBuffer[0] = 0;
     }
 }
+
+} // namespace SlimeVRDriver

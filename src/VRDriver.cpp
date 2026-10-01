@@ -21,7 +21,9 @@
 using namespace solarxr_protocol;
 using namespace solarxr_protocol::datatypes;
 
-vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverContext) {
+namespace SlimeVRDriver {
+
+vr::EVRInitError VRDriver::Init(vr::IVRDriverContext* pDriverContext) {
     VR_INIT_SERVER_DRIVER_CONTEXT(pDriverContext);
 
     // The logger can only retrieve the log level from VRSettings after we've
@@ -67,7 +69,7 @@ vr::EVRInitError SlimeVRDriver::VRDriver::Init(vr::IVRDriverContext* pDriverCont
     return vr::VRInitError_None;
 }
 
-void SlimeVRDriver::VRDriver::Cleanup() {
+void VRDriver::Cleanup() {
     // Wake up all threads waiting on init, if SteamVR exits before an HMD is connected and/or before a connection is established
     stop_source_.request_stop();
     steamvr_init_guard_.test_and_set();
@@ -83,11 +85,11 @@ void SlimeVRDriver::VRDriver::Cleanup() {
     VR_CLEANUP_SERVER_DRIVER_CONTEXT();
 }
 
-const char* const* SlimeVRDriver::VRDriver::GetInterfaceVersions() {
+const char* const* VRDriver::GetInterfaceVersions() {
     return vr::k_InterfaceVersions;
 }
 
-BodyPart SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
+BodyPart VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
     auto* properties = vr::VRProperties();
     auto* properties_raw = vr::VRPropertiesRaw();
 
@@ -137,7 +139,7 @@ BodyPart SlimeVRDriver::VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t inde
     return BodyPart::NONE;
 }
 
-void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
+void VRDriver::RunPoseRequestThread(std::stop_token stop) {
     using namespace std::chrono_literals;
 
     Threading::SetThisThreadName("Pose request");
@@ -367,7 +369,7 @@ void SlimeVRDriver::VRDriver::RunPoseRequestThread(std::stop_token stop) {
     logger_->Info("Pose request thread exiting");
 }
 
-void SlimeVRDriver::VRDriver::RunFrame() {
+void VRDriver::RunFrame() {
     // Collect events
     vr::VREvent_t event;
     std::vector<vr::VREvent_t> events;
@@ -423,10 +425,10 @@ void SlimeVRDriver::VRDriver::RunFrame() {
     }
 }
 
-void SlimeVRDriver::VRDriver::OnBridgeMessage(const data_feed::DataFeedMessageHeader*) {
+void VRDriver::OnBridgeMessage(const data_feed::DataFeedMessageHeader*) {
     // Ignored
 }
-void SlimeVRDriver::VRDriver::OnBridgeMessage(const rpc::RpcMessageHeader* msg) {
+void VRDriver::OnBridgeMessage(const rpc::RpcMessageHeader* msg) {
     using solarxr_protocol::rpc::RpcMessage;
     switch (msg->message_type()) {
     case RpcMessage::BoneRoutingSettingsResponse: {
@@ -485,7 +487,7 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const rpc::RpcMessageHeader* msg) 
     }
 }
 
-void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessageHeader* msg) {
+void VRDriver::OnBridgeMessage(const driver_protocol::DriverMessageHeader* msg) {
     using solarxr_protocol::driver_protocol::DriverMessage;
     switch (msg->message_type()) {
     case DriverMessage::HandshakeAvailable: {
@@ -619,39 +621,39 @@ void SlimeVRDriver::VRDriver::OnBridgeMessage(const driver_protocol::DriverMessa
     }
 }
 
-void SlimeVRDriver::VRDriver::OnBridgeMessage(BridgeTransport::MessageHeader&& message) {
+void VRDriver::OnBridgeMessage(BridgeTransport::MessageHeader&& message) {
     std::visit([this](const auto* msg) {
         OnBridgeMessage(msg);
     },
                message);
 }
 
-bool SlimeVRDriver::VRDriver::ShouldBlockStandbyMode() {
+bool VRDriver::ShouldBlockStandbyMode() {
     return false;
 }
 
-void SlimeVRDriver::VRDriver::EnterStandby() {
+void VRDriver::EnterStandby() {
 }
 
-void SlimeVRDriver::VRDriver::LeaveStandby() {
+void VRDriver::LeaveStandby() {
 }
 
-std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> SlimeVRDriver::VRDriver::GetDevices() {
+std::vector<std::shared_ptr<IVRDevice>> VRDriver::GetDevices() {
     std::lock_guard<std::mutex> lock(devices_mutex_);
-    std::vector<std::shared_ptr<SlimeVRDriver::IVRDevice>> devices;
+    std::vector<std::shared_ptr<IVRDevice>> devices;
     devices.assign(devices.begin(), devices.end());
     return devices;
 }
 
-const std::vector<vr::VREvent_t>& SlimeVRDriver::VRDriver::GetOpenVREvents() {
+const std::vector<vr::VREvent_t>& VRDriver::GetOpenVREvents() {
     return openvr_events_;
 }
 
-std::chrono::milliseconds SlimeVRDriver::VRDriver::GetLastFrameTime() {
+std::chrono::milliseconds VRDriver::GetLastFrameTime() {
     return frame_timing_;
 }
 
-bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
+bool VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
     vr::ETrackedDeviceClass openvr_device_class;
     // Remember to update this switch when new device types are added
     switch (device->GetDeviceType()) {
@@ -700,7 +702,7 @@ bool SlimeVRDriver::VRDriver::AddDevice(std::shared_ptr<IVRDevice> device) {
     return true;
 }
 
-SlimeVRDriver::SettingsValue SlimeVRDriver::VRDriver::GetSettingsValue(std::string key) {
+SettingsValue VRDriver::GetSettingsValue(std::string key) {
     vr::EVRSettingsError err = vr::EVRSettingsError::VRSettingsError_None;
     int int_value = vr::VRSettings()->GetInt32(settings_key_.c_str(), key.c_str(), &err);
     if (err == vr::EVRSettingsError::VRSettingsError_None) {
@@ -732,7 +734,7 @@ SlimeVRDriver::SettingsValue SlimeVRDriver::VRDriver::GetSettingsValue(std::stri
 // from: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
 //-----------------------------------------------------------------------------
 
-vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t& matrix) {
+vr::HmdQuaternion_t VRDriver::GetRotation(vr::HmdMatrix34_t& matrix) {
     vr::HmdQuaternion_t q;
 
     q.w = sqrt(fmax(0, 1 + matrix.m[0][0] + matrix.m[1][1] + matrix.m[2][2])) / 2;
@@ -749,7 +751,7 @@ vr::HmdQuaternion_t SlimeVRDriver::VRDriver::GetRotation(vr::HmdMatrix34_t& matr
 // from: https://github.com/Omnifinity/OpenVR-Tracking-Example/blob/master/HTC%20Lighthouse%20Tracking%20Example/LighthouseTracking.cpp
 //-----------------------------------------------------------------------------
 
-vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t& matrix) {
+vr::HmdVector3_t VRDriver::GetPosition(vr::HmdMatrix34_t& matrix) {
     vr::HmdVector3_t vector;
 
     vector.v[0] = matrix.m[0][3];
@@ -759,8 +761,8 @@ vr::HmdVector3_t SlimeVRDriver::VRDriver::GetPosition(vr::HmdMatrix34_t& matrix)
     return vector;
 }
 
-SlimeVRDriver::UniverseTranslation SlimeVRDriver::UniverseTranslation::parse(simdjson::ondemand::object& obj) {
-    SlimeVRDriver::UniverseTranslation res;
+UniverseTranslation UniverseTranslation::parse(simdjson::ondemand::object& obj) {
+    UniverseTranslation res;
     int iii = 0;
     for (auto component : obj["translation"]) {
         if (iii > 2) {
@@ -774,7 +776,7 @@ SlimeVRDriver::UniverseTranslation SlimeVRDriver::UniverseTranslation::parse(sim
     return res;
 }
 
-std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverse(const simdjson::padded_string& json, uint64_t target) {
+std::optional<UniverseTranslation> VRDriver::SearchUniverse(const simdjson::padded_string& json, uint64_t target) {
     simdjson::ondemand::document doc = json_parser_.iterate(json);
 
     for (simdjson::ondemand::object uni : doc["universes"]) {
@@ -791,14 +793,14 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
 
         if (parsed_universe == target) {
             auto standing_uni = uni["standing"].get_object();
-            return SlimeVRDriver::UniverseTranslation::parse(standing_uni.value());
+            return UniverseTranslation::parse(standing_uni.value());
         }
     }
 
     return std::nullopt;
 }
 
-std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::SearchUniverses(uint64_t target) {
+std::optional<UniverseTranslation> VRDriver::SearchUniverses(uint64_t target) {
     vr::PropertyContainerHandle_t hmd_prop_container = vr::VRProperties()->TrackedDeviceToPropertyContainer(vr::k_unTrackedDeviceIndex_Hmd);
     auto driver_chap_json = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_DriverProvidedChaperoneJson_String);
     if (driver_chap_json != "") {
@@ -836,10 +838,12 @@ std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::Searc
     return std::nullopt;
 }
 
-std::optional<SlimeVRDriver::UniverseTranslation> SlimeVRDriver::VRDriver::GetCurrentUniverse() {
+std::optional<UniverseTranslation> VRDriver::GetCurrentUniverse() {
     if (current_universe_.has_value()) {
         return current_universe_.value().second;
     }
 
     return std::nullopt;
 }
+
+} // namespace SlimeVRDriver
