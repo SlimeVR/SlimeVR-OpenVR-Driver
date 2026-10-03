@@ -18,7 +18,7 @@
 namespace fs = std::filesystem;
 
 #ifdef _WIN32
-static fs::path getKnownFolderPath(KNOWNFOLDERID id) noexcept(false) {
+static fs::path GetKnownFolderPath(KNOWNFOLDERID id) noexcept(false) {
     PWSTR path_str;
     HRESULT ret = SHGetKnownFolderPath(id, KF_FLAG_CREATE, NULL, &path_str);
     if (ret != S_OK) {
@@ -30,9 +30,9 @@ static fs::path getKnownFolderPath(KNOWNFOLDERID id) noexcept(false) {
 }
 #endif
 
-static fs::path getOpenVRConfigFolder() {
+static fs::path GetOpenVRConfigFolder() {
 #if defined(_WIN32)
-    return getKnownFolderPath(FOLDERID_LocalAppData);
+    return GetKnownFolderPath(FOLDERID_LocalAppData);
 #else
     if (const char* config_home = getenv("XDG_CONFIG_HOME")) {
         return config_home;
@@ -48,7 +48,7 @@ static fs::path getOpenVRConfigFolder() {
 }
 
 std::filesystem::path Paths::GetOpenVRConfigPath() {
-    return getOpenVRConfigFolder() / "openvr" / "openvrpaths.vrpath";
+    return GetOpenVRConfigFolder() / "openvr" / "openvrpaths.vrpath";
 }
 
 fs::path Paths::GetDataPath() {
@@ -65,7 +65,7 @@ fs::path Paths::GetDataPath() {
         base = fs::path(home) / ".local" / "share";
     }
 #else
-    base = getKnownFolderPath(FOLDERID_RoamingAppData);
+    base = GetKnownFolderPath(FOLDERID_RoamingAppData);
 #endif
 
     return base / SLIMEVR_IDENTIFIER;
