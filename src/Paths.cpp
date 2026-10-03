@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #include "Paths.hpp"
-#include <stdexcept>
+
+#include <filesystem>
 
 #ifdef _WIN32
 #include <system_error>
@@ -11,11 +12,19 @@
 #include <Shlobj.h>
 #include <Windows.h>
 #undef GetTempPath
+#else // vvv !_WIN32
+#include <stdexcept>
 #endif
 
 #define SLIMEVR_IDENTIFIER "dev.slimevr.SlimeVR"
 
 namespace fs = std::filesystem;
+
+// Try to create the directory and its parents without throwing
+static void TryCreateDirectories(const fs::path& p) noexcept {
+    std::error_code ec;
+    fs::create_directories(p, ec);
+}
 
 #ifdef _WIN32
 static fs::path GetKnownFolderPath(KNOWNFOLDERID id) noexcept(false) {
@@ -52,7 +61,7 @@ std::filesystem::path Paths::GetOpenVRConfigPath() {
 }
 
 fs::path Paths::GetDataPath() {
-    fs::path base{};
+    fs::path base;
 
 #ifndef _WIN32
     if (const char* data_home = getenv("XDG_DATA_HOME")) {
@@ -68,10 +77,16 @@ fs::path Paths::GetDataPath() {
     base = GetKnownFolderPath(FOLDERID_RoamingAppData);
 #endif
 
-    return base / SLIMEVR_IDENTIFIER;
+    fs::path data_path = base / SLIMEVR_IDENTIFIER;
+    TryCreateDirectories(data_path);
+    return data_path;
 }
 
-fs::path Paths::GetLogPath() { return Paths::GetDataPath() / "logs"; }
+fs::path Paths::GetLogPath() {
+    fs::path log_path = Paths::GetDataPath() / "logs";
+    TryCreateDirectories(log_path);
+    return log_path;
+}
 
 fs::path Paths::GetTempPath() noexcept {
 #ifdef _WIN32
