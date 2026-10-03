@@ -23,16 +23,16 @@ class Logger {
 private:
     static constexpr LogLevel DefaultLogLevel = LogLevel::Info;
 
+    LogLevel minimum_log_level_ = DefaultLogLevel;
+    std::optional<std::string> prefix_;
+    std::ofstream log_stream_;
+    std::mutex mutex_;
+
     /**
      * @todo: Do we still need this? I think I had an issue with the bindings provider where
      * it would hang when writing log messages when there's no console window. - Sapphire
      */
     bool log_to_std_streams_ = true;
-
-    LogLevel minimum_log_level_ = DefaultLogLevel;
-    std::optional<std::string> prefix_;
-    std::ofstream log_stream_;
-    std::mutex mutex_;
 
     static inline LogLevel SanitiseLogLevel(uint64_t level) {
         if (level < std::to_underlying(LogLevel::Trace) || level > std::to_underlying(LogLevel::Fatal)) {

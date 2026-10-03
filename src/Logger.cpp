@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 
 #if defined(_WIN32) && !defined(SLIMEVR_LOGGER_USE_DRIVER_LOG)
@@ -17,21 +18,27 @@
 #include <openvr_driver.h>
 #endif
 
-Logger::Logger(std::optional<std::string> log_file_name, std::optional<std::string> prefix)
-    : prefix_(prefix) {
-    if (log_file_name) {
-        try {
-            log_stream_.open(Paths::GetLogPath() / *log_file_name, std::ios::out | std::ios::app);
-        } catch (std::exception& ex) {
-            // Oh well..
-        }
-    }
+namespace fs = std::filesystem;
 
+Logger::Logger(std::optional<std::string> log_file_name, std::optional<std::string> prefix)
+    : prefix_(prefix)
+#if defined(_WIN32) && !defined(SLIMEVR_LOGGER_USE_DRIVER_LOG)
+    , should_log_to_std_streams_ = GetConsoleWindow() != nullptr
+#endif
+{
     UpdateLogLevel();
 
-#if defined(_WIN32) && !defined(SLIMEVR_LOGGER_USE_DRIVER_LOG)
-    should_log_to_std_streams_ = GetConsoleWindow() != nullptr;
-#endif
+    if (log_file_name) {
+        fs::path log_path = Paths::GetLogPath() / *log_file_name;
+        log_stream_.open(log_path, std::ios::out | std::ios::app);
+        if (log_stream_.fail()) {
+            try {
+                Warn("Failed to open log file at path {}", log_path.string());
+            } catch (std::exception& e) {
+                Warn("Failed to open log file");
+            }
+        }
+    }
 }
 
 void Logger::UpdateLogLevel() {
