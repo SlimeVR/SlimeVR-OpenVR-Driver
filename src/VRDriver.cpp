@@ -345,6 +345,7 @@ void VRDriver::RunFrame() {
     auto* properties = vr::VRProperties();
 
     while (vr::VRServerDriverHost()->PollNextEvent(&event, sizeof(event))) {
+        logger_->Debug("Received VREvent {}", event.eventType);
         events.push_back(event);
 
         if (steamvr_init_guard_.test()) {
