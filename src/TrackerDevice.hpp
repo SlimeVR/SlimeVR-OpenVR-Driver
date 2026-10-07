@@ -6,8 +6,6 @@
 #include <memory>
 #include <string>
 
-#include <linalg.h>
-
 #include "IVRDevice.hpp"
 #include <openvr_driver.h>
 #include <solarxr_protocol/generated/all_generated.h>

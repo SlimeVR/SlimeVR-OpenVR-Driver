@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #pragma once
 
-#include <linalg.h>
 #include <openvr_driver.h>
 #include <solarxr_protocol/generated/all_generated.h>
 

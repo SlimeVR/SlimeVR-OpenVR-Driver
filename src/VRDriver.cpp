@@ -8,13 +8,8 @@
 #include "TrackerDevice.hpp"
 #include "TrackerRole.hpp"
 
-#include <chrono>
-#include <cmath>
-#include <limits>
-#include <mutex>
 #include <utility>
 
-#include <linalg.h>
 #include <simdjson.h>
 #include <solarxr_protocol/generated/all_generated.h>
 
