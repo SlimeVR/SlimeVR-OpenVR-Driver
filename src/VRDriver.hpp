@@ -37,11 +37,18 @@ public:
 
 typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
 
+//! @brief Translation from raw to palm pose.
+struct PoseTransformation {
+    vr::HmdVector3_t translation;
+    vr::HmdQuaternion_t orientation;
+};
+
 struct DeviceData {
     bool blacklisted{ false };
 
     bool sent_add_message{ false };
     solarxr_protocol::datatypes::BodyPart role{ solarxr_protocol::datatypes::BodyPart::NONE };
+    std::optional<PoseTransformation> raw_to_palm_transformation;
 
     std::atomic_uint16_t tracker_id{};
     solarxr_protocol::datatypes::TrackerStatus status{ solarxr_protocol::datatypes::TrackerStatus::DISCONNECTED };
@@ -91,7 +98,8 @@ private:
     void OnBridgeMessage(const solarxr_protocol::driver_protocol::DriverMessageHeader* msg);
     void OnBridgeMessage(BridgeTransport::MessageHeader&& message);
 
-    solarxr_protocol::datatypes::BodyPart GetRoleForDevice(vr::TrackedDeviceIndex_t index) const;
+    solarxr_protocol::datatypes::BodyPart DetermineDeviceRole(vr::TrackedDeviceIndex_t index) const;
+    PoseTransformation DetermineDevicePalmTransformation(vr::TrackedDeviceIndex_t index) const;
 
     std::shared_ptr<BridgeClient> bridge_ = nullptr;
     std::shared_ptr<Logger> logger_ = std::make_shared<Logger>("slimevr-openvr-driver.log");
@@ -112,7 +120,6 @@ private:
 
     bool sent_hmd_add_message_ = false;
 
-    simdjson::ondemand::parser json_parser_;
     std::optional<std::filesystem::path> default_chap_path_ = std::nullopt;
     // std::map<int, UniverseTranslation> universes;
 
