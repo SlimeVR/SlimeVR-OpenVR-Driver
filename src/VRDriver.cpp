@@ -282,33 +282,7 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
                 vr::HmdVector3_t pos = GetPosition(pose.mDeviceToAbsoluteTracking);
 
                 if (current_universe_.has_value()) {
-                    auto trans = current_universe_.value().second;
-                    pos.v[0] += trans.translation.v[0];
-                    pos.v[1] += trans.translation.v[1];
-                    pos.v[2] += trans.translation.v[2];
-
-                    // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
-                    auto tmp_w = cos(-trans.yaw / 2);
-                    auto tmp_y = sin(-trans.yaw / 2);
-                    auto new_w = tmp_w * q.w - tmp_y * q.y;
-                    auto new_x = tmp_w * q.x + tmp_y * q.z;
-                    auto new_y = tmp_w * q.y + tmp_y * q.w;
-                    auto new_z = tmp_w * q.z - tmp_y * q.x;
-
-                    q.w = new_w;
-                    q.x = new_x;
-                    q.y = new_y;
-                    q.z = new_z;
-
-                    // rotate point on the xz plane by -trans.yaw radians
-                    // this is equivilant to the quaternion multiplication, after applying the double angle formula.
-                    float tmp_sin = sin(-trans.yaw);
-                    float tmp_cos = cos(-trans.yaw);
-                    auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
-                    auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
-
-                    pos.v[0] = pos_x;
-                    pos.v[2] = pos_z;
+                    current_universe_->second.apply(pos, q);
                 }
 
                 math::Quat quat_fbs(q.x, q.y, q.z, q.w);
@@ -774,6 +748,34 @@ UniverseTranslation UniverseTranslation::parse(simdjson::ondemand::object& obj) 
     res.yaw = static_cast<float>(obj["yaw"].get_double());
 
     return res;
+}
+void UniverseTranslation::apply(vr::HmdVector3_t& pos, vr::HmdQuaternion_t& q) {
+    pos.v[0] += translation.v[0];
+    pos.v[1] += translation.v[1];
+    pos.v[2] += translation.v[2];
+
+    // rotate by quaternion w = cos(-trans.yaw / 2), x = 0, y = sin(-trans.yaw / 2), z = 0
+    auto tmp_w = cos(-yaw / 2);
+    auto tmp_y = sin(-yaw / 2);
+    auto new_w = tmp_w * q.w - tmp_y * q.y;
+    auto new_x = tmp_w * q.x + tmp_y * q.z;
+    auto new_y = tmp_w * q.y + tmp_y * q.w;
+    auto new_z = tmp_w * q.z - tmp_y * q.x;
+
+    q.w = new_w;
+    q.x = new_x;
+    q.y = new_y;
+    q.z = new_z;
+
+    // rotate point on the xz plane by -trans.yaw radians
+    // this is equivilant to the quaternion multiplication, after applying the double angle formula.
+    float tmp_sin = sin(-yaw);
+    float tmp_cos = cos(-yaw);
+    auto pos_x = pos.v[0] * tmp_cos + pos.v[2] * tmp_sin;
+    auto pos_z = pos.v[0] * -tmp_sin + pos.v[2] * tmp_cos;
+
+    pos.v[0] = pos_x;
+    pos.v[2] = pos_z;
 }
 
 std::optional<UniverseTranslation> VRDriver::SearchUniverse(const simdjson::padded_string& json, uint64_t target) {

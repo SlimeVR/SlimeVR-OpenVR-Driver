@@ -31,6 +31,8 @@ public:
     float yaw;
 
     static UniverseTranslation parse(simdjson::ondemand::object& obj);
+
+    void apply(vr::HmdVector3_t& pos, vr::HmdQuaternion_t& q);
 };
 
 typedef std::variant<std::monostate, std::string, int, float, bool> SettingsValue;
