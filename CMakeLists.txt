@@ -21,7 +21,7 @@ if (SLIMEVR_BUILD_TESTS)
     enable_testing()
 endif()
 
-set(OPENVR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr/headers")
+set(OPENVR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/libraries/openvr")
 
 set(SOLARXR_PROTOCOL_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/libraries/solarxr-protocol")
 set(FLATBUFFERS_GENERATED_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/libraries/solarxr-protocol/protocol/cpp")
@@ -75,8 +75,11 @@ endif()
 
 # Project
 set(DEPS_INCLUDES
-    "${OPENVR_INCLUDE_DIR}"
+    "${OPENVR_ROOT}/headers"
+    "${OPENVR_ROOT}/samples/drivers/utils"
     "${CMAKE_CURRENT_SOURCE_DIR}/libraries/linalg"
+    "${SOLARXR_PROTOCOL_ROOT}/lib/flatbuffers/include"
+    "${FLATBUFFERS_GENERATED_ROOT}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/"
 )
 set(DEPS_LIBS simdjson::simdjson)
@@ -90,7 +93,6 @@ add_library("${PROJECT_NAME}_static" STATIC ${SOURCES} "${FLATBUFFERS_GENERATED_
 target_link_libraries("${PROJECT_NAME}_static" PUBLIC ${DEPS_LIBS})
 set_target_properties("${PROJECT_NAME}_static" PROPERTIES CXX_STANDARD 23)
 target_compile_definitions("${PROJECT_NAME}_static" PRIVATE SLIMEVR_LOGGER_USE_DRIVER_LOG)
-target_include_directories("${PROJECT_NAME}_static" BEFORE PUBLIC "${SOLARXR_PROTOCOL_ROOT}/lib/flatbuffers/include" "${FLATBUFFERS_GENERATED_ROOT}/include")
 target_include_directories("${PROJECT_NAME}_static" PUBLIC ${DEPS_INCLUDES} "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/src")
 if(UNIX)
     target_compile_options("${PROJECT_NAME}_static" PRIVATE "-fPIC")

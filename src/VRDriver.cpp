@@ -8,13 +8,18 @@
 #include "TrackerDevice.hpp"
 #include "TrackerRole.hpp"
 
+#include <filesystem>
 #include <utility>
 
+#include <linalg.h>
 #include <simdjson.h>
+#include <vrmath/vrmath.h>
+
 #include <solarxr_protocol/generated/all_generated.h>
 
 using namespace solarxr_protocol;
 using namespace solarxr_protocol::datatypes;
+namespace fs = std::filesystem;
 
 namespace SlimeVRDriver {
 
@@ -32,7 +37,8 @@ vr::EVRInitError VRDriver::Init(vr::IVRDriverContext* pDriverContext) {
         logger_->Info("Found OpenVR config at {}", config_path);
 
         auto json = simdjson::padded_string::load(config_path).value();
-        simdjson::ondemand::document doc = json_parser_.iterate(json);
+        simdjson::ondemand::parser parser;
+        simdjson::ondemand::document doc = parser.iterate(json);
         auto path = std::filesystem::path(doc.get_object()["config"].at(0).get_string().value()) / "chaperone_info.vrchap";
 
         std::error_code ec; // so exists doesn't throw
@@ -84,7 +90,7 @@ const char* const* VRDriver::GetInterfaceVersions() {
     return vr::k_InterfaceVersions;
 }
 
-BodyPart VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
+BodyPart VRDriver::DetermineDeviceRole(vr::TrackedDeviceIndex_t index) const {
     auto* properties = vr::VRProperties();
     auto* properties_raw = vr::VRPropertiesRaw();
 
@@ -132,6 +138,74 @@ BodyPart VRDriver::GetRoleForDevice(vr::TrackedDeviceIndex_t index) const {
     }
 
     return BodyPart::NONE;
+}
+
+static vr::HmdQuaternion_t EulerYZXToQuaternion(double x, double y, double z) {
+    double cX = std::cos(x / 2.f);
+    double cY = std::cos(y / 2.f);
+    double cZ = std::cos(z / 2.f);
+    double sX = std::sin(x / 2.f);
+    double sY = std::sin(y / 2.f);
+    double sZ = std::sin(z / 2.f);
+
+    return {
+        .w = cX * cY * cZ - sX * sY * sZ,
+        .x = cY * cZ * sX + cX * sY * sZ,
+        .y = cX * cZ * sY + cY * sX * sZ,
+        .z = cX * cY * sZ - cZ * sX * sY,
+    };
+}
+
+PoseTransformation VRDriver::DetermineDevicePalmTransformation(vr::TrackedDeviceIndex_t index) const {
+    auto* properties = vr::VRProperties();
+    auto* properties_raw = vr::VRPropertiesRaw();
+    vr::ETrackedPropertyError err;
+
+    vr::PropertyContainerHandle_t prop_container = properties->TrackedDeviceToPropertyContainer(index);
+    if (prop_container == vr::k_ulInvalidPropertyContainer) {
+        throw std::runtime_error("Property container invalid");
+    }
+
+    std::string render_model_name_prefixed = properties->GetStringProperty(prop_container, vr::Prop_RenderModelName_String, &err);
+    if (err != vr::TrackedProp_Success) {
+        throw std::runtime_error(std::format("GetStringProperty(Prop_RenderModelName_String) returned {}", properties_raw->GetPropErrorNameFromEnum(err)));
+    }
+
+    uint32_t len = vr::VRResources()->GetResourceFullPath(render_model_name_prefixed.c_str(), "rendermodels", nullptr, 0);
+    std::string path_str(len - 1, '\0');
+    vr::VRResources()->GetResourceFullPath(render_model_name_prefixed.c_str(), "rendermodels", path_str.data(), len);
+
+    fs::path path(path_str);
+    auto render_model_name = path.filename().string();
+    logger_->Info("Trying to load render model JSON description from path {} (name {})", path_str, render_model_name);
+    auto json_path = path / (render_model_name + ".json");
+
+    auto json = simdjson::padded_string::load(json_path.native()).value();
+    simdjson::dom::parser parser;
+    auto doc = parser.parse(json);
+
+    auto palm_offset = doc["components"]["openxr_handmodel"]["component_local"].get_object();
+    if (palm_offset.error()) {
+        throw std::runtime_error("Couldn't find hand model transform");
+    }
+
+    auto origin_arr = palm_offset["origin"].get_array();
+    auto rotate_xyz_arr = palm_offset["rotate_xyz"].get_array();
+
+    // coordinates in the JSON description are in right-handed Y-forward Z-up coordinate system, whereas OpenXR, OpenVR, and SlimeVR are Y-up Z-back
+    return PoseTransformation{
+        .translation = {
+            .v = {
+                static_cast<float>(origin_arr.at(0).get_double()),
+                static_cast<float>(-origin_arr.at(2).get_double()),
+                static_cast<float>(origin_arr.at(1).get_double()),
+            },
+        },
+        .orientation = EulerYZXToQuaternion(               //
+            DEG_TO_RAD(rotate_xyz_arr.at(0).get_double()), //
+            DEG_TO_RAD(rotate_xyz_arr.at(1).get_double()), //
+            DEG_TO_RAD(rotate_xyz_arr.at(2).get_double())),
+    };
 }
 
 void VRDriver::RunPoseRequestThread(std::stop_token stop) {
@@ -251,7 +325,15 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
                     manufacturer = "OpenVR";
                 }
 
-                BodyPart role = GetRoleForDevice(index);
+                BodyPart role = DetermineDeviceRole(index);
+                if (role == BodyPart::LEFT_HAND || role == BodyPart::RIGHT_HAND) {
+                    try {
+                        device.raw_to_palm_transformation = DetermineDevicePalmTransformation(index);
+                    } catch (std::exception& e) {
+                        logger_->Warn("Couldn't determine palm transformation for device {}: {}", index, e.what());
+                        device.raw_to_palm_transformation = std::nullopt;
+                    }
+                }
 
                 // Send add message for device
                 auto add_tracker_msg = driver_protocol::CreateAddTrackerRequest(fbb, fbb.CreateString(serial), fbb.CreateString(name), fbb.CreateString(manufacturer), role);
@@ -275,6 +357,11 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
 
                 vr::HmdQuaternion_t q = GetRotation(pose.mDeviceToAbsoluteTracking);
                 vr::HmdVector3_t pos = GetPosition(pose.mDeviceToAbsoluteTracking);
+
+                if (device.raw_to_palm_transformation) {
+                    q = q * device.raw_to_palm_transformation->orientation;
+                    pos = pos + device.raw_to_palm_transformation->translation;
+                }
 
                 if (current_universe_.has_value()) {
                     current_universe_->second.apply(pos, q);
@@ -335,7 +422,9 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
             sleeper.SleepFor(2ms - elapsed);
         }
     }
+
     logger_->Info("Pose request thread exiting");
+    simdjson::ondemand::parser::release_parser();
 }
 
 void VRDriver::RunFrame() {
@@ -775,7 +864,7 @@ void UniverseTranslation::apply(vr::HmdVector3_t& pos, vr::HmdQuaternion_t& q) {
 }
 
 std::optional<UniverseTranslation> VRDriver::SearchUniverse(const simdjson::padded_string& json, uint64_t target) {
-    simdjson::ondemand::document doc = json_parser_.iterate(json);
+    simdjson::ondemand::document doc = simdjson::ondemand::parser::get_parser().iterate(json);
 
     for (simdjson::ondemand::object uni : doc["universes"]) {
         // TODO: universeID comes after the translation, would it be faster to unconditionally parse the translation?
@@ -803,10 +892,9 @@ std::optional<UniverseTranslation> VRDriver::SearchUniverses(uint64_t target) {
     auto driver_chap_json = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_DriverProvidedChaperoneJson_String);
     if (driver_chap_json != "") {
         try {
-            auto driver_res = SearchUniverse(driver_chap_json, target);
-            if (driver_res.has_value()) {
-                return driver_res.value();
-            }
+            auto universe = SearchUniverse(driver_chap_json, target);
+            if (universe)
+                return universe;
         } catch (simdjson::simdjson_error& e) {
             logger_->Error("Error loading driver-provided chaperone JSON: {}", e.what());
         }
@@ -815,10 +903,9 @@ std::optional<UniverseTranslation> VRDriver::SearchUniverses(uint64_t target) {
     auto driver_chap_path = vr::VRProperties()->GetStringProperty(hmd_prop_container, vr::Prop_DriverProvidedChaperonePath_String);
     if (driver_chap_path != "") {
         try {
-            auto driver_res = SearchUniverse(simdjson::padded_string::load(driver_chap_path).take_value(), target);
-            if (driver_res.has_value()) {
-                return driver_res.value();
-            }
+            auto universe = SearchUniverse(simdjson::padded_string::load(driver_chap_path).take_value(), target);
+            if (universe)
+                return universe;
         } catch (simdjson::simdjson_error& e) {
             logger_->Error("Error loading chaperone from driver-provided path {}: {}", driver_chap_path, e.what());
         }
@@ -827,7 +914,9 @@ std::optional<UniverseTranslation> VRDriver::SearchUniverses(uint64_t target) {
     std::error_code ec; // so exists doesn't throw
     if (default_chap_path_.has_value() && std::filesystem::exists(default_chap_path_.value(), ec)) {
         try {
-            return SearchUniverse(simdjson::padded_string::load(default_chap_path_.value().string()).take_value(), target);
+            auto universe = SearchUniverse(simdjson::padded_string::load(default_chap_path_.value().string()).take_value(), target);
+            if (universe)
+                return universe;
         } catch (simdjson::simdjson_error& e) {
             logger_->Error("Error loading chaperone from default path: {}", e.what());
         }
@@ -837,8 +926,8 @@ std::optional<UniverseTranslation> VRDriver::SearchUniverses(uint64_t target) {
 }
 
 std::optional<UniverseTranslation> VRDriver::GetCurrentUniverse() {
-    if (current_universe_.has_value()) {
-        return current_universe_.value().second;
+    if (current_universe_) {
+        return current_universe_->second;
     }
 
     return std::nullopt;
