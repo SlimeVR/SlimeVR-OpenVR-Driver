@@ -148,7 +148,7 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
             logger_->Info("Status for tracker {} (device {}) changing {}->{}", tracker_id, index, EnumNameTrackerStatus(device.status), EnumNameTrackerStatus(status));
 
             auto update_status_msg = driver_protocol::CreateUpdateTrackerStatus(fbb, tracker_id, status);
-            auto header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerStatus, update_status_msg.Union());
+            auto header = driver_protocol::CreateDriverMessageHeader(fbb, flatbuffers::nullopt, flatbuffers::nullopt, driver_protocol::DriverMessage::UpdateTrackerStatus, update_status_msg.Union());
 
             driver_msgs.push_back(header);
             device.status = status;
@@ -255,7 +255,7 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
 
                 // Send add message for device
                 auto add_tracker_msg = driver_protocol::CreateAddTrackerRequest(fbb, fbb.CreateString(serial), fbb.CreateString(name), fbb.CreateString(manufacturer), role);
-                auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, index, 0, driver_protocol::DriverMessage::AddTrackerRequest, add_tracker_msg.Union());
+                auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, index, flatbuffers::nullopt, driver_protocol::DriverMessage::AddTrackerRequest, add_tracker_msg.Union());
 
                 driver_msgs.push_back(msg_header);
                 device.sent_add_message = true;
@@ -285,7 +285,7 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
                 math::Vec3f angular_velocity_fbs(pose.vAngularVelocity.v[0], pose.vAngularVelocity.v[1], pose.vAngularVelocity.v[2]);
                 math::Vec3f linear_velocity_fbs(pose.vVelocity.v[0], pose.vVelocity.v[1], pose.vVelocity.v[2]);
                 auto update_pos_msg = driver_protocol::CreateUpdateTrackerPosition(fbb, tracker_id, &quat_fbs, &position_fbs, &angular_velocity_fbs, &linear_velocity_fbs);
-                auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerPosition, update_pos_msg.Union());
+                auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, flatbuffers::nullopt, flatbuffers::nullopt, driver_protocol::DriverMessage::UpdateTrackerPosition, update_pos_msg.Union());
 
                 driver_msgs.push_back(msg_header);
             } else if (pose.bDeviceIsConnected) {
@@ -309,7 +309,7 @@ void VRDriver::RunPoseRequestThread(std::stop_token stop) {
                         bool charging = properties->GetBoolProperty(prop_container, vr::Prop_DeviceIsCharging_Bool);
 
                         auto update_battery_msg = driver_protocol::CreateUpdateTrackerBattery(fbb, tracker_id, battery_level, charging);
-                        auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::UpdateTrackerBattery, update_battery_msg.Union());
+                        auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, flatbuffers::nullopt, flatbuffers::nullopt, driver_protocol::DriverMessage::UpdateTrackerBattery, update_battery_msg.Union());
 
                         driver_msgs.push_back(msg_header);
                         device.last_battery_percentage = battery_percentage;
@@ -477,7 +477,7 @@ void VRDriver::OnBridgeMessage(const driver_protocol::DriverMessageHeader* msg) 
             auto handshake_msg = driver_protocol::CreateHandshakeRequest(fbb,
                                                                          fbb.CreateString("SteamVR"),
                                                                          datatypes::CreateBoneMask(fbb, true, false, false, true, false, true, true, true));
-            auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, 0, 0, driver_protocol::DriverMessage::HandshakeRequest, handshake_msg.Union());
+            auto msg_header = driver_protocol::CreateDriverMessageHeader(fbb, flatbuffers::nullopt, flatbuffers::nullopt, driver_protocol::DriverMessage::HandshakeRequest, handshake_msg.Union());
             auto msgs = fbb.CreateVector({ msg_header });
             auto bundle = CreateMessageBundle(fbb, 0, 0, msgs);
             fbb.Finish(bundle);
@@ -495,7 +495,7 @@ void VRDriver::OnBridgeMessage(const driver_protocol::DriverMessageHeader* msg) 
             flatbuffers::FlatBufferBuilder fbb(256);
 
             auto bone_routing_req = rpc::CreateBoneRoutingSettingsRequest(fbb);
-            auto rpc_msg_header = rpc::CreateRpcMessageHeader(fbb, 0, 0, rpc::RpcMessage::BoneRoutingSettingsRequest, bone_routing_req.Union());
+            auto rpc_msg_header = rpc::CreateRpcMessageHeader(fbb, flatbuffers::nullopt, flatbuffers::nullopt, rpc::RpcMessage::BoneRoutingSettingsRequest, bone_routing_req.Union());
             auto msgs = fbb.CreateVector({ rpc_msg_header });
             auto bundle = CreateMessageBundle(fbb, 0, msgs, 0);
             fbb.Finish(bundle);
@@ -517,7 +517,13 @@ void VRDriver::OnBridgeMessage(const driver_protocol::DriverMessageHeader* msg) 
     }
     case DriverMessage::AddTrackerResponse: {
         auto resp = msg->message_as<driver_protocol::AddTrackerResponse>();
-        uint32_t reply_to = msg->reply_to();
+        auto reply_to_opt = msg->reply_to();
+        if (!reply_to_opt) {
+            logger_->Warn("Got AddTrackerResponse with reply_to=null");
+            break;
+        }
+
+        uint32_t reply_to = *reply_to_opt;
         auto status = resp->status();
         if (status == driver_protocol::AddTrackerStatus::ERROR) {
             logger_->Warn("Got AddTrackerResponse with status=ERROR reply_to={}", reply_to);
