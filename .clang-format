@@ -69,7 +69,7 @@ AlignEscapedNewlines: Right
 AlignOperands:   DontAlign
 AlignTrailingComments:
   Kind:            Always
-  OverEmptyLines:  0
+  OverEmptyLines:  2
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowBreakBeforeNoexceptSpecifier: Never
