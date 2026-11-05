@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: (c) 2026 Eiren Rain and SlimeVR Contributors
 #pragma once
+#include <chrono>
 #include <format>
 #include <fstream>
 #include <mutex>
@@ -23,6 +24,7 @@ class Logger {
 private:
     static constexpr LogLevel DefaultLogLevel = LogLevel::Info;
 
+    const std::chrono::time_zone* current_zone{ nullptr };
     LogLevel minimum_log_level_ = DefaultLogLevel;
     std::optional<std::string> prefix_;
     std::ofstream log_stream_;

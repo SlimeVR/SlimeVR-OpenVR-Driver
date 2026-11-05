@@ -28,6 +28,16 @@ Logger::Logger(std::optional<std::string> log_file_name, std::optional<std::stri
 {
     UpdateLogLevel();
 
+    // If the current timezone cannot be found in the tz database (can happen if using the
+    // Manitoba timezone from newer Windows updates) it may throw, guard against that
+    try {
+        current_zone = std::chrono::current_zone();
+    } catch (std::exception& ex) {
+        Warn("An exception occurred when retrieving your local time zone: \"{}\". Please try changing your timezone to something else with an equivalent offset.", ex.what());
+    } catch (...) {
+        Warn("An unknown exception occurred when retrieving your local time zone. Please try changing your timezone to something else with an equivalent offset.");
+    }
+
     if (log_file_name) {
         fs::path log_path = Paths::GetLogPath() / *log_file_name;
         log_stream_.open(log_path, std::ios::out | std::ios::app);
@@ -71,7 +81,13 @@ void Logger::Log(LogLevel level, const std::string& str) {
     if (log_stream_ || log_to_std_streams_) {
         auto now = std::chrono::system_clock::now();
 
-        std::string s = std::format("[{:%F %T%z}] [{}] {}", std::chrono::zoned_time{ std::chrono::current_zone(), now }, GetLogLevelName(level), str);
+        std::string s;
+        // See the comment in the constructor!
+        if (current_zone != nullptr) {
+            s = std::format("[{:%F %T%z}] [{}] {}", std::chrono::zoned_time{ current_zone, now }, GetLogLevelName(level), str);
+        } else {
+            s = std::format("[{:%F %T%z}] [{}] {}", now, GetLogLevelName(level), str);
+        }
 
         if (log_stream_) {
             log_stream_ << s << std::endl;
