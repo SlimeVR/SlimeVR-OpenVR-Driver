@@ -29,6 +29,9 @@ vcpkg_installed/
 ### clangd ###
 .cache
 
+### direnv ###
+.direnv
+
 # Project-specific
 build/*
 out/
